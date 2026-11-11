@@ -38,6 +38,6 @@ The exact dependency choices will be confirmed in the architecture blueprint. No
 
 ## Current status
 
-The repository is at the project-definition stage. The existing Recruitment Lab remains separate and operational while this application is designed and built.
+The initial TypeScript/Vite application shell and GitHub Pages workflow are in place. Core recruitment modules and the FM data engine are being built in phases. The existing Recruitment Lab remains separate and operational.
 
 See [the product and architecture blueprint](docs/PRODUCT_BLUEPRINT.md) for the working plan.
