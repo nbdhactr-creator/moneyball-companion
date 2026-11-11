@@ -69,6 +69,30 @@ Rules:
 - Preserve raw source values separately from derived values.
 - Large imports must not freeze the interface.
 
+
+### G. Player image system
+
+Player portraits are a first-class part of the product, but must never become a dependency for player identity or analysis.
+
+Supported sources, in priority order:
+1. **User-imported FM facepacks or image folders.** Match image filenames to FM person UIDs where the facepack follows UID naming conventions. Support bulk import and report matched, unmatched and ambiguous files.
+2. **Manual profile images.** Let the user add, replace or remove a portrait for an individual player. Manual mapping must be stored against the stable player identity, not a season row.
+3. **Optional external image providers.** Integrate only providers whose API terms, image rights, coverage and pricing have been checked. External provider IDs must be stored separately from FM UIDs; never assume they are interchangeable.
+
+Image handling requirements:
+- Use a neutral initials/position placeholder when no verified image exists.
+- Never silently attach a photograph based on name alone when multiple players could match.
+- Provide a way to correct a wrong match.
+- Store image source, external provider ID where applicable, attribution/licence metadata and import date.
+- Keep image binaries out of player JSON records. Store blobs in IndexedDB or a suitable object store and keep only stable references in player records.
+- Generate or retain appropriately sized thumbnails; lazy-load portraits in long tables and use responsive image sizes in profiles.
+- Cache locally and avoid repeatedly downloading the same image.
+- Handle broken URLs, offline mode and provider rate limits without blocking player data.
+- Do not bundle or redistribute copyrighted facepacks or third-party images in the public repository.
+- Explain that local facepack images are user-supplied and remain under their respective licence/terms.
+
+A useful initial release should support bulk UID-based local facepack import and manual correction before any paid or API-based provider is considered. External providers can be added later behind a provider adapter, with API credentials kept out of public frontend code where the provider requires secret keys.
+
 ### B. Football data model
 
 Core entities to define explicitly:
