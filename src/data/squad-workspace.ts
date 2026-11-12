@@ -1,7 +1,7 @@
 import { emptyScoutingWorkspaceState, getDatasetPlayers, getScoutingWorkspaceState, updateScoutingWorkspaceState, type SaveWithDatasets, type ScoutingWorkspaceState, type PlayerSeasonRecord, type SquadTacticConfig, type SquadTacticSlot } from "./storage/local-database.ts";
 import { FM24_ROLES, FM24_STRATA } from "../analytics/fm24-role-catalog.ts";
 import { FM24_PHILOSOPHY_TEMPLATES, FM24_PHILOSOPHY_PRINCIPLES, philosophyWeightsForRole } from "../analytics/fm24-scoring.ts";
-import { refreshScoutingAnalysisSettings } from "./scouting-workspace";
+import { refreshScoutingAnalysisSettings } from "./scouting-workspace.ts";
 
 type Tab = "overview"|"players"|"tactics"|"philosophy"|"depth";
 type Role = {id:string;type:string;name:string;duty:string;dutyName:string;strata:string;slots:string[];desc?:string};
