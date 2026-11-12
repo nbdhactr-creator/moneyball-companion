@@ -316,13 +316,25 @@ function percentile(value: number, sorted: number[], direction: number): number 
 
 export interface Fm24ScoringOptions {
   poolMinimumMinutes?: number;
+  seasonProgress?: 0.25 | 0.5 | 0.75 | 1;
   leagueFactors?: Record<string, number>;
   philosophyWeightsByRoleType?: Record<string, number[]>;
   philosophyMetricCoverage?: number;
   minimumScoreCoverage?: number;
 }
+export function inferFm24SeasonProgress(sourcePlayers: Fm24ScoringPlayer[]): 0.25 | 0.5 | 0.75 | 1 {
+  const minutes = sourcePlayers.map((player) => parseNumber(player.rawValues.Mins) ?? 0)
+    .filter((value) => value > 0).sort((a, b) => b - a).slice(0, 50);
+  if (!minutes.length) return 1;
+  const reference = minutes[Math.min(25, minutes.length - 1)] ?? 0;
+  const ratio = reference / 4400;
+  return ratio >= 0.85 ? 1 : ratio >= 0.6 ? 0.75 : ratio >= 0.35 ? 0.5 : 0.25;
+}
 export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm24ScoringOptions = {}) {
-  const poolMinimumMinutes = options.poolMinimumMinutes ?? DEFAULT_POOL_MINUTES;
+  const seasonProgress = options.seasonProgress ?? inferFm24SeasonProgress(sourcePlayers);
+  const poolMinimumMinutes = options.poolMinimumMinutes ?? Math.max(600, Math.round(DEFAULT_POOL_MINUTES * seasonProgress));
+  const highConfidenceMinutes = Math.round(2000 * seasonProgress);
+  const mediumConfidenceMinutes = Math.round(1200 * seasonProgress);
   const minCoverage = options.minimumScoreCoverage ?? MIN_COVERAGE;
   const gaps = detectLeagueMissingFields(sourcePlayers);
   const players = sourcePlayers.map((player) => normalisePlayer(player, gaps));
@@ -384,7 +396,7 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
       ? Math.round(weightedScore / availableWeight) : null;
     return {
       score, coverage, availableWeight, totalWeight, coreFamilyAvailable,
-      confidence: (player.minutes ?? 0) >= 2000 ? "high" : (player.minutes ?? 0) >= 1200 ? "medium" : "low",
+      confidence: (player.minutes ?? 0) >= highConfidenceMinutes ? "high" : (player.minutes ?? 0) >= mediumConfidenceMinutes ? "medium" : "low",
       minutes: player.minutes, families,
     };
   };
@@ -424,7 +436,7 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
   return {
     players, gaps, roles: ROLE_CATALOG, principles: PRINCIPLES,
     scoreRole, scorePhilosophy, getPercentile,
-    poolMinimumMinutes,
+    poolMinimumMinutes, seasonProgress, highConfidenceMinutes, mediumConfidenceMinutes,
   };
 }
 
