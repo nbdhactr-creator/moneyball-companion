@@ -35,7 +35,7 @@ export function buildFormationSlots(id:string,previous:SquadTacticSlot[]=[]):Squ
 function tactic(){return state.squadTactics??createDefaultTactic()}
 function clubRows(){return club?players.filter(p=>p.club.trim().toLowerCase()===club.trim().toLowerCase()):[]}
 async function load(save:SaveWithDatasets,did:string,render:()=>void){
- const id=++token;loading=true;message="";workspaceSaveId=save.save.id;workspaceDatasetId=did;saveId=save.save.id;datasetId=did;club=save.save.club;state=emptyScoutingWorkspaceState();players=[];render();
+ const id=++token;loading=true;message="";saveId=save.save.id;datasetId=did;club=save.save.club;state=emptyScoutingWorkspaceState();players=[];render();
  try{const [s,p]=await Promise.all([getScoutingWorkspaceState(save.save.id),did?getDatasetPlayers(did):Promise.resolve([])]);
  if(id!==token)return;state={...emptyScoutingWorkspaceState(),...s};state.squadTactics??=createDefaultTactic();players=p;club=save.save.club;saveId=save.save.id;datasetId=did;
  }catch(e){if(id===token)message=e instanceof Error?e.message:"Could not load Squad data."}
@@ -112,7 +112,7 @@ export async function handleSquadWorkspaceChange(target:HTMLElement,render:()=>v
   state.analysis={...a,philosophyTemplate:target.value as NonNullable<ScoutingWorkspaceState["analysis"]>["philosophyTemplate"],customPhilosophyWeightsByRole:custom};await persist(render);return true;
  }
  if(target instanceof HTMLSelectElement&&target.matches("[data-squad-role]")){
-  state.analysis={...(state.analysis??emptyScoutingWorkspaceState().analysis!),roleId:target.value};await persist(render);await refreshScoutingAnalysisSettings(render);return true;
+  state.analysis={...(state.analysis??emptyScoutingWorkspaceState().analysis!),roleId:target.value};await persist(render);return true;
  }
  if(target instanceof HTMLInputElement&&target.matches("[data-squad-weight]")){
   const a=state.analysis??emptyScoutingWorkspaceState().analysis!,r=roles.find(x=>x.id===a.roleId);if(!r||!a.philosophyTemplate)return true;
