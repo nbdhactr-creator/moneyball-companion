@@ -1,7 +1,7 @@
 import {
   emptyScoutingWorkspaceState, getScoutingWorkspaceState, updateScoutingWorkspaceState, searchScoutingPlayers,
   type SaveWithDatasets, type ScoutingWorkspaceState, type ScoutingAnalysisSettings, type ScoutingFilterCondition, type PlayerSeasonRecord,
-  type PlayerScoutingState, type ShortlistStatus, type SavedPlayerSearch,
+  type PlayerScoutingState, type ShortlistStatus, type SavedPlayerSearch, type ScoutingFilterGroup,
 } from "./storage/local-database";
 import { FM24_ROLES, FM24_STRATA } from "../analytics/fm24-role-catalog";
 import { FM24_PHILOSOPHY_TEMPLATES } from "../analytics/fm24-scoring";
@@ -10,8 +10,13 @@ let saveId = "";
 let state: ScoutingWorkspaceState = emptyScoutingWorkspaceState();
 let datasetId = "";
 let query = "";
-let filters: ScoutingFilterCondition[] = [];
-let logic: "and" | "or" = "and";
+let filterGroups: ScoutingFilterGroup[] = [{ id: "group-default", logic: "and", filters: [] }];
+let groupLogic: "and" | "or" = "and";
+let page = 1;
+const pageSize = 50;
+let viewMode: "discover" | "shortlist" = "discover";
+let shortlistStatusFilter: ShortlistStatus | "all-tracked" = "shortlist";
+let selectedUids = new Set<string>();
 let sortField = "name";
 let sortDirection: "asc" | "desc" = "asc";
 let results: PlayerSeasonRecord[] = [];
@@ -48,6 +53,10 @@ function fieldValue(player: PlayerSeasonRecord, field: string): string {
 }
 function label(field: string): string {
   return ({ name: "Player", position: "Position", club: "Club", uid: "FM UID", roleScore: "Role fit", dofEvaluationScore: "DoF role evaluation", philosophyScore: "Philosophy fit", tacticalFit: "Tactical fit" } as Record<string, string>)[field] ?? field;
+}
+function flatFilters(): ScoutingFilterCondition[] { return filterGroups.flatMap((group) => group.filters); }
+function statusMap(): Map<string, ShortlistStatus> {
+  return new Map(Object.entries(state.players).map(([uid, player]) => [uid, player.status]));
 }
 function fields(): string[] {
   const output = new Set<string>(["name", "position", "club", "uid"]);
@@ -135,13 +144,17 @@ async function runSearch(render: () => void): Promise<void> {
   loading = true; message = ""; render();
   try {
     const response = await searchScoutingPlayers({
-      datasetId, query, filters, logic, sortField, sortDirection, limit: 200, scoreByUid: fitByUid,
+      datasetId, query, groups: filterGroups, groupLogic, sortField, sortDirection,
+      offset: (page - 1) * pageSize, limit: pageSize, scoreByUid: fitByUid,
+      shortlistStatus: viewMode === "shortlist" ? shortlistStatusFilter : undefined,
+      scoutingStatusByUid: statusMap(),
     });
     if (token !== requestToken) return;
     results = response.players; total = response.total; sourceFields = response.fields;
-    message = total > results.length
-      ? "Showing the first " + results.length + " of " + total.toLocaleString() + " matches. Refine the search to narrow the list."
-      : total ? "Search complete. All matching records are shown." : "No matches. Blank and dash values are excluded from numeric comparisons.";
+    const start = total ? (page - 1) * pageSize + 1 : 0;
+    const end = Math.min(page * pageSize, total);
+    message = total ? "Showing " + start + "–" + end + " of " + total.toLocaleString() + " matches." :
+      viewMode === "shortlist" ? "No players match this shortlist view." : "No matches. Blank and dash values are excluded from numeric comparisons.";
   } catch (error) {
     if (token !== requestToken) return;
     results = []; total = 0;
@@ -157,14 +170,16 @@ export async function loadScoutingWorkspace(nextSaveId: string, nextDatasetId = 
   state = emptyScoutingWorkspaceState();
   datasetId = nextDatasetId;
   fitByUid = new Map(); scoringStatus = "idle"; scoringMessage = "";
-  filters = []; query = ""; results = []; total = 0; message = "";
+  filterGroups = [{ id: "group-default", logic: "and", filters: [] }]; groupLogic = "and";
+  page = 1; viewMode = "discover"; shortlistStatusFilter = "shortlist"; selectedUids = new Set();
+  query = ""; results = []; total = 0; message = "";
   if (!saveId) return;
   try {
     const stored = await getScoutingWorkspaceState(saveId);
     state = { ...emptyScoutingWorkspaceState(), ...stored, analysis: stored.analysis ?? emptyScoutingWorkspaceState().analysis };
   } catch (error) { message = error instanceof Error ? error.message : "Could not load scouting workspace."; }
   if (datasetId) {
-    try { const initial = await searchScoutingPlayers({ datasetId, limit: 200, sortField: "name" }); results = initial.players; total = initial.total; sourceFields = initial.fields; }
+    try { const initial = await searchScoutingPlayers({ datasetId, limit: pageSize, sortField: "name" }); results = initial.players; total = initial.total; sourceFields = initial.fields; }
     catch (error) { message = error instanceof Error ? error.message : "Could not load players."; }
     if (onUpdate) await runScoring(onUpdate);
   }
