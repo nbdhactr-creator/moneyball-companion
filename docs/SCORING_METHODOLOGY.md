@@ -2,11 +2,11 @@
 
 ## Status
 
-- **Implemented on feature branch:** the FM24 role/duty catalogue, V1-derived role and philosophy calculations, role-family evidence, the six philosophy principles, nine V1 templates, evidence coverage, league-factor hooks, V1's separate aerial adjustment for DoF evaluation, and an optional combined Tactical Fit score.
-- **Scouting integration implemented:** select a role/duty and philosophy template; calculate across the full selected season in a Web Worker; show Role Fit, DoF Evaluation, Philosophy Fit, Tactical Fit, confidence and compact evidence breakdowns.
+- **Merged and deployed:** commit `ece5e6ce31a530f7626bb174f9537bb2d0a31af6` on `main`, via PR #12.
+- **Scouting integration implemented:** select an FM24 role/duty and one of nine V1 philosophy templates; calculate the full selected season in a Web Worker; show Core Role Fit, DoF Role Evaluation, Philosophy Fit, Tactical Fit, confidence, role-family evidence and six principle breakdowns.
 - **Source baseline recovered:** Recruitment Lab V1's actual role, philosophy, template and DoF candidate-ranking logic were inspected from its `recruitment-lab/custom-build` branch.
-- **Not yet integrated into Planning/DoF recommendations.** V2's Planning module remains a placeholder. The scoring outputs and V1 DoF evaluation primitive are ready for that workflow, but the five recommendation categories, budgets, wage caps and feasibility filters are not yet built.
-- **CI and deployment status:** see the latest pull request checks. This branch is not deployed to the live website.
+- **Not yet integrated into Planning/DoF recommendations.** V2's Planning module remains a placeholder. The five recommendation categories, budgets, wage caps and feasibility filters are not yet built.
+- **Verification:** 45/45 automated tests passed, TypeScript/Vite production build passed, and GitHub Pages deployment run #43314079346 succeeded. User browser testing and independent live-page visual verification remain pending.
 
 ## Scope and terminology
 
