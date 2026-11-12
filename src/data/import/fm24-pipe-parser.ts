@@ -189,11 +189,14 @@ function parseFm24HtmlExport(source: string): Fm24ParseResult {
     if (tag === "br" && !closing && inCell) currentCell += " ";
   }
 
-  if (currentRow) {
+  if (currentRow && activeTableRows) {
     if (inCell) currentRow.cells.push(currentCell.replace(/\s+/g, " ").trim());
-    tableRows.push(currentRow);
+    activeTableRows.push(currentRow);
   }
+  if (activeTableRows) tables.push(activeTableRows);
 
+  const tableRows = tables.find((candidate) => candidate.some((row) =>
+    row.cells.some((cell) => cell.replace(/\s+/g, " ").trim().toLowerCase() === "uid"))) ?? [];
   const headerIndex = tableRows.findIndex((row) =>
     row.cells.some((cell) => cell.replace(/\s+/g, " ").trim().toLowerCase() === "uid"));
   if (headerIndex < 0) {
