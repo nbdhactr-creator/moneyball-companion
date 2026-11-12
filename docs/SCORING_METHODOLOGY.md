@@ -124,6 +124,17 @@ Research supports a multidimensional model rather than one generic “style” l
 
 The practical consequence for Moneyball Companion: the Philosophy Score should be described as a **role-weighted match-output alignment indicator**, not proof that a player will execute a team's game model. The role score and philosophy score are useful screens; they do not replace video, scouting or tactical judgement.
 
+The coaching literature reinforces that distinction. FIFA's analysis of an effective high press describes a coordinated unit with compact support, pressing angles, triggers and recovery shape, not simply a high count of pressure actions ([FIFA Training Centre: Understanding core principles of play](https://www.fifatrainingcentre.com/en/game/game-analysis/landing-page-core-principles.php)). England Football's defensive principles also include delaying, compactness, cover and balance, pressing, and control/restraint ([England Football Learning](https://learn.englandfootball.com/articles-and-resources/coaching/resources/2022/What-are-the-principles-of-football)). Those collective and situational behaviours cannot be reconstructed from a season-level player export.
+
+Accordingly, the six V1 principles are operational proxies:
+- Pass completion, loss rate and pass volume describe ball security and circulation, but are influenced by team possession and passing responsibility.
+- Progressive passes, key passes, xA and dribbles indicate forward progression and creation, but do not reveal whether a player chose the best option in a particular phase.
+- Pressure attempts/completions and possession won indicate pressure activity and regains, but do not establish the five-second timing, pressing trigger, support structure or height of the press.
+- Interceptions, tackle success and aerial success indicate proactive defensive actions, but cannot prove line height, compactness, cover or defensive restraint.
+- Distance and sprint output indicate physical activity, but not whether the movement was tactically useful or coordinated with teammates.
+
+The score should therefore never be labelled "pressing ability" or "positional-play execution" without qualification. It is evidence of recorded output that is consistent with selected principles, within the role and comparison pool.
+
 ### FM24 template fidelity
 
 The nine V1 philosophy templates are retained as explicit transformations of each role type's six baseline weights. V2 uses the same transformations and role-specific exceptions (including goalkeeper exceptions for Low Block, Wing Play, Positional Play, High-intensity Press and Physical). The template names and descriptions follow V1. Templates are starting profiles, not claims that every team using a broad label behaves identically. V2 lets users tune the six principle weights (0–3 in 0.5 steps) after applying a template. Custom weights are stored per V1 role-type/duty key (for example, `cd|D`) in the active career, preserving V1's distinction between Defend, Support and Attack/other duties. The user can reset them to the selected template. The underlying V1 metric list for each principle is retained; editing metric membership is still deferred.
