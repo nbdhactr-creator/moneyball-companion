@@ -76,6 +76,8 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
       scores,
       playerCount: records.length,
       inferredMissingLeagues: [...scorer.gaps.keys()].length,
+      seasonProgress: scorer.seasonProgress,
+      poolMinimumMinutes: scorer.poolMinimumMinutes,
     });
   } catch (error) {
     workerScope.postMessage({
