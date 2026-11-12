@@ -1,0 +1,83 @@
+/// <reference lib="webworker" />
+import { getDatasetPlayers } from "../data/storage/local-database";
+import {
+  createFm24Scorer,
+  combineTacticalFit,
+  philosophyWeightsForRole,
+  type Fm24PhilosophyTemplate,
+} from "../analytics/fm24-scoring";
+
+interface ScoreRequest {
+  requestId: number;
+  datasetId: string;
+  roleId: string;
+  philosophyTemplate: Fm24PhilosophyTemplate | "";
+  roleWeight: number;
+}
+interface ScoreResult {
+  uid: string;
+  roleScore: number | null;
+  roleCoverage: number;
+  confidence: "low" | "medium" | "high";
+  philosophyScore: number | null;
+  philosophyCoverage: number;
+  principleScores: Array<number | null>;
+  tacticalFit: number | null;
+}
+const workerScope = self as DedicatedWorkerGlobalScope;
+
+workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
+  const request = event.data;
+  try {
+    workerScope.postMessage({ requestId: request.requestId, phase: "loading" });
+    const records = await getDatasetPlayers(request.datasetId);
+    const source = records.map((record) => ({
+      uid: record.uid,
+      displayName: record.displayName,
+      position: record.position,
+      club: record.club,
+      division: record.rawValues.Division ?? "",
+      rawValues: record.rawValues,
+    }));
+    const scorer = createFm24Scorer(source);
+    const role = scorer.roles.find((entry) => entry.id === request.roleId);
+    if (!role) throw new Error("Choose a valid FM24 role and duty.");
+
+    workerScope.postMessage({ requestId: request.requestId, phase: "scoring", playerCount: records.length });
+    const philosophyWeights = request.philosophyTemplate
+      ? philosophyWeightsForRole(role, request.philosophyTemplate)
+      : undefined;
+    const scores: ScoreResult[] = scorer.players.map((player) => {
+      const roleResult = scorer.scoreRole(player, role);
+      const philosophyResult = request.philosophyTemplate
+        ? scorer.scorePhilosophy(player, role, philosophyWeights)
+        : null;
+      const tactical = philosophyResult
+        ? combineTacticalFit(roleResult, philosophyResult, request.roleWeight)
+        : null;
+      return {
+        uid: player.uid ?? "",
+        roleScore: roleResult.score,
+        roleCoverage: roleResult.coverage,
+        confidence: roleResult.confidence,
+        philosophyScore: philosophyResult?.score ?? null,
+        philosophyCoverage: philosophyResult?.coverage ?? 0,
+        principleScores: philosophyResult?.principles.map((principle) => principle.score) ?? [],
+        tacticalFit: tactical?.score ?? null,
+      };
+    });
+    workerScope.postMessage({
+      requestId: request.requestId,
+      phase: "complete",
+      scores,
+      playerCount: records.length,
+      inferredMissingLeagues: [...scorer.gaps.keys()].length,
+    });
+  } catch (error) {
+    workerScope.postMessage({
+      requestId: request.requestId,
+      phase: "error",
+      message: error instanceof Error ? error.message : "Could not calculate FM24 scores.",
+    });
+  }
+};
