@@ -6,7 +6,7 @@
 - Optional V1-style small-sample shrinkage was merged through PR #13. It remains off by default.
 - Pagination, grouped AND/OR filters and the dedicated shortlist workflow were merged through PR #21 (merge commit `67b12946bd6a0e7ab787d6541fefad6ba5329ab4`).
 - The latest main-branch GitHub Actions run (#43316843858) passed the import/domain test suite, TypeScript/Vite production build and GitHub Pages deployment.
-- User browser testing and independent visual verification of the live page remain pending.
+- User manually tested the deployed Scouting and DoF workflows and reports that they work. An independent screenshot-based browser audit has not been performed.
 
 ## Search behaviour
 - Search is restricted to one selected, committed season dataset in the active career.
