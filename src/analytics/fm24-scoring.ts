@@ -463,7 +463,8 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
       .map((metric) => getPercentile(player, metric, role.strata))
       .filter((value): value is number => value != null);
     if (aerialQuality == null || !aerialOutput.length) {
-      return { score: coreRoleScore, coreRoleScore, aerialScore: null, aerialAdjustmentApplied: false };
+      const displayScore = shrinkScore(coreRoleScore, player.minutes, highConfidenceMinutes, options.shrinkSmallSamples ?? false);
+      return { score: coreRoleScore, displayScore, coreRoleScore, aerialScore: null, aerialAdjustmentApplied: false, sampleAdjusted: displayScore !== coreRoleScore };
     }
     const aerialScore = Math.round((aerialQuality + aerialOutput.reduce((sum, value) => sum + value, 0) / aerialOutput.length) / 2);
     const score = Math.round(coreRoleScore * 0.9 + aerialScore * 0.1);
