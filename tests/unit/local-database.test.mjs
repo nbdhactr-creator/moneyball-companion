@@ -104,7 +104,7 @@ test("rolls back a batch containing duplicate player UIDs and does not publish a
 
   await assert.rejects(
     persistSeasonImport(importInput(save.id, {
-      rows: [row("2001", "First"), row("2001", "Duplicate")],
+      rows: [...Array.from({ length: 400 }, (_, index) => row(String(2001 + index), `Player ${index + 1}`)), row("2001", "Duplicate after first batch")],
     })),
   );
 
