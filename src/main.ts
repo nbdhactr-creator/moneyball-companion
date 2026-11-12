@@ -16,7 +16,7 @@ import {
 } from "./data/storage/local-database";
 import { createSaveBackup, restoreSaveBackup } from "./data/storage/save-backup";
 import { loadScoutingWorkspace, renderScoutingWorkspace, renderPlanningWorkspace, loadPlanningWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange, refreshScoutingAnalysisSettings } from "./data/scouting-workspace";
-import { renderSquadWorkspace, handleSquadWorkspaceClick, handleSquadWorkspaceChange } from "./data/squad-workspace";
+import { renderSquadWorkspace, handleSquadWorkspaceClick, handleSquadWorkspaceChange, handleSquadWorkspaceInput, handleSquadWorkspacePointerDown, handleSquadWorkspacePointerMove, handleSquadWorkspacePointerUp } from "./data/squad-workspace";
 
 type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "Planning" | "Data & Saves";
 const sections: Section[] = ["Overview", "Squad", "Scouting", "Market", "Intelligence", "Planning", "Data & Saves"];
@@ -553,6 +553,25 @@ async function refreshSaveLibrary(): Promise<void> {
   }
   render();
 }
+
+app.addEventListener("input", (event: Event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement && target.matches("[data-squad-player-search]")) {
+    handleSquadWorkspaceInput(target);
+  }
+});
+app.addEventListener("pointerdown", (event: PointerEvent) => {
+  handleSquadWorkspacePointerDown(event);
+});
+app.addEventListener("pointermove", (event: PointerEvent) => {
+  handleSquadWorkspacePointerMove(event);
+});
+app.addEventListener("pointerup", (event: PointerEvent) => {
+  void handleSquadWorkspacePointerUp(event, render);
+});
+app.addEventListener("pointercancel", (event: PointerEvent) => {
+  void handleSquadWorkspacePointerUp(event, render);
+});
 
 app.addEventListener("click", (event: MouseEvent) => {
   const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field], [data-squad-tab], [data-tactic-slot]");
