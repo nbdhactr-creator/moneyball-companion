@@ -207,3 +207,19 @@ test("missing aerial evidence never reduces a DoF role evaluation", () => {
   assert.equal(evaluation.aerialAdjustmentApplied, false);
   assert.equal(evaluation.score, core);
 });
+
+test("custom philosophy weights change the role-specific philosophy profile without changing role fit", () => {
+  const players = Array.from({ length: 14 }, (_, index) => defender(index));
+  const scorer = createFm24Scorer(players);
+  const player = scorer.players[5];
+  const role = scorer.roles.find((entry) => entry.id === "cd-DC-D");
+  assert.ok(role);
+  const core = scorer.scoreRole(player, role).score;
+  const base = scorer.scorePhilosophy(player, role);
+  const custom = scorer.scorePhilosophy(player, role, [0, 0, 3, 0, 0, 0]);
+  assert.notEqual(base.score, null);
+  assert.notEqual(custom.score, null);
+  assert.equal(custom.profile, "custom");
+  assert.notEqual(custom.principles[0].weight, base.principles[0].weight);
+  assert.equal(scorer.scoreRole(player, role).score, core);
+});
