@@ -42,7 +42,19 @@ let importState: ImportState = { status: "idle" };
 let importWorker: Worker | null = null;
 let importRequestId = 0;
 let saveLibrary: SaveWithDatasets[] = [];
-let activeSaveId: string | null = null;
+const ACTIVE_SAVE_STORAGE_KEY = "moneyball-companion:active-save";
+function readActiveSaveId(): string | null {
+  try { return localStorage.getItem(ACTIVE_SAVE_STORAGE_KEY); } catch { return null; }
+}
+function persistActiveSaveId(saveId: string | null): void {
+  try {
+    if (saveId) localStorage.setItem(ACTIVE_SAVE_STORAGE_KEY, saveId);
+    else localStorage.removeItem(ACTIVE_SAVE_STORAGE_KEY);
+  } catch {
+    // Save selection remains usable for this session if browser storage is unavailable.
+  }
+}
+let activeSaveId: string | null = readActiveSaveId();
 let saveMessage = "";
 let saveMessageIsError = false;
 let isPersisting = false;
@@ -316,6 +328,7 @@ async function refreshSaveLibrary(): Promise<void> {
     saveLibrary = await listSaves();
     if (activeSaveId && !saveLibrary.some((entry) => entry.save.id === activeSaveId)) activeSaveId = null;
     if (!activeSaveId && saveLibrary.length) activeSaveId = saveLibrary[0].save.id;
+    persistActiveSaveId(activeSaveId);
   } catch (error) {
     saveMessage = formatStorageError(error);
     saveMessageIsError = true;
@@ -334,6 +347,7 @@ app.addEventListener("click", (event: MouseEvent) => {
   const saveId = target?.dataset.selectSave;
   if (saveId) {
     activeSaveId = saveId;
+    persistActiveSaveId(activeSaveId);
     saveMessage = "";
     render();
   }
@@ -357,6 +371,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       const save = await createLocalSave(String(data.get("name") ?? ""), String(data.get("club") ?? ""));
       saveLibrary = await listSaves();
       activeSaveId = save.id;
+      persistActiveSaveId(activeSaveId);
       saveMessage = `Save "${save.name}" created on this device.`;
       saveMessageIsError = false;
       form.reset();
@@ -389,6 +404,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       });
       saveLibrary = await listSaves();
       activeSaveId = saveId;
+      persistActiveSaveId(activeSaveId);
       importState = { status: "idle" };
       saveMessage = `Season "${dataset.seasonLabel}" saved successfully: ${dataset.playerCount.toLocaleString()} player records stored locally.`;
       saveMessageIsError = false;
