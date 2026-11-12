@@ -1,4 +1,5 @@
 import "./styles.css";
+import "./scouting.css";
 import type { Fm24ParseResult, Fm24ValidationResult } from "./data/import/fm24-pipe-parser";
 import {
   createSave as createLocalSave,
@@ -13,6 +14,7 @@ import {
   type PlayerSeasonHistoryEntry,
 } from "./data/storage/local-database";
 import { createSaveBackup, restoreSaveBackup } from "./data/storage/save-backup";
+import { loadScoutingWorkspace, renderScoutingWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange } from "./data/scouting-workspace";
 
 type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "Planning" | "Data & Saves";
 const sections: Section[] = ["Overview", "Squad", "Scouting", "Market", "Intelligence", "Planning", "Data & Saves"];
@@ -461,6 +463,7 @@ function dataSavesView(): string {
 function sectionView(section: Section): string {
   if (section === "Data & Saves") return dataSavesView();
   if (section === "Squad") return squadView();
+  if (section === "Scouting") return renderScoutingWorkspace(activeSave());
   return `
     <section class="empty-workspace content-card">
       <span class="empty-icon">◎</span><div class="card-kicker">MODULE FOUNDATION</div>
@@ -528,6 +531,7 @@ async function refreshSaveLibrary(): Promise<void> {
     if (activeSaveId && !saveLibrary.some((entry) => entry.save.id === activeSaveId)) activeSaveId = null;
     if (!activeSaveId && saveLibrary.length) activeSaveId = saveLibrary[0].save.id;
     persistActiveSaveId(activeSaveId);
+    await loadScoutingWorkspace(activeSaveId ?? "", activeSave()?.datasets[0]?.id ?? "");
   } catch (error) {
     saveMessage = formatStorageError(error);
     saveMessageIsError = true;
@@ -536,7 +540,8 @@ async function refreshSaveLibrary(): Promise<void> {
 }
 
 app.addEventListener("click", (event: MouseEvent) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state]");
+  if (target) void handleScoutingWorkspaceClick(target, render).then((handled) => { if (handled) render(); });
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
     activeSection = next;
@@ -561,6 +566,7 @@ app.addEventListener("click", (event: MouseEvent) => {
     resetPlayerWorkspace();
     activeSaveId = saveId;
     persistActiveSaveId(activeSaveId);
+    void loadScoutingWorkspace(saveId, saveLibrary.find((entry) => entry.save.id === saveId)?.datasets[0]?.id ?? "").then(render);
     saveMessage = "";
     render();
   }
@@ -568,6 +574,7 @@ app.addEventListener("click", (event: MouseEvent) => {
 
 app.addEventListener("change", (event: Event) => {
   const target = event.target;
+  if (target instanceof HTMLElement) void handleScoutingWorkspaceChange(target, render).then((handled) => { if (handled) render(); });
   if (target instanceof HTMLSelectElement && target.matches("[data-history-previous]")) {
     historyComparePreviousId = target.value;
     if (historyComparePreviousId && historyComparePreviousId === historyCompareCurrentId) {

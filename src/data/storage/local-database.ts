@@ -4,12 +4,32 @@ const DATABASE_NAME = "moneyball-companion";
 const DATABASE_VERSION = 3;
 const IMPORT_BATCH_SIZE = 400;
 
+
+export type ScoutingFilterOperator = "contains" | "equals" | "gt" | "gte" | "lt" | "lte" | "is-empty" | "is-not-empty";
+export interface ScoutingFilterCondition { id: string; field: string; operator: ScoutingFilterOperator; value: string; }
+export type ShortlistStatus = "watching" | "shortlist" | "reject" | "signed" | "revisit";
+export interface PlayerScoutingState { status: ShortlistStatus; note: string; tags: string[]; reviewDate: string; updatedAt: string; }
+export interface SavedPlayerSearch {
+  id: string; name: string; datasetId: string; query: string; logic: "and" | "or";
+  filters: ScoutingFilterCondition[]; columns: string[]; sortField: string; sortDirection: "asc" | "desc"; updatedAt: string;
+}
+export interface ScoutingWorkspaceState {
+  savedSearches: SavedPlayerSearch[];
+  players: Record<string, PlayerScoutingState>;
+  columnsByDataset: Record<string, string[]>;
+}
+export interface ScoutingSearchResult { players: PlayerSeasonRecord[]; total: number; }
+export function emptyScoutingWorkspaceState(): ScoutingWorkspaceState {
+  return { savedSearches: [], players: {}, columnsByDataset: {} };
+}
+
 export interface SaveRecord {
   id: string;
   name: string;
   club: string;
   createdAt: string;
   updatedAt: string;
+  scoutingState?: ScoutingWorkspaceState;
 }
 
 export interface SeasonDatasetRecord {
@@ -455,4 +475,96 @@ export async function countPlayerIdentities(saveId: string): Promise<number> {
 
 export function formatStorageError(error: unknown): string {
   return databaseError(error).message;
+}
+
+function scoutingFieldValue(player: PlayerSeasonRecord, field: string): string {
+  if (field === "name") return player.displayName;
+  if (field === "club") return player.club;
+  if (field === "position") return player.position;
+  if (field === "uid") return player.uid;
+  return player.rawValues[field] ?? "";
+}
+function matchesScoutingFilter(player: PlayerSeasonRecord, filter: ScoutingFilterCondition): boolean {
+  const actual = scoutingFieldValue(player, filter.field).trim();
+  const expected = filter.value.trim();
+  if (filter.operator === "is-empty") return actual === "" || actual === "-";
+  if (filter.operator === "is-not-empty") return actual !== "" && actual !== "-";
+  if (!actual || actual === "-") return false;
+  if (filter.operator === "contains") return actual.toLocaleLowerCase().includes(expected.toLocaleLowerCase());
+  if (filter.operator === "equals") return actual.toLocaleLowerCase() === expected.toLocaleLowerCase();
+  const left = Number(actual.replace(/,/g, ""));
+  const right = Number(expected.replace(/,/g, ""));
+  if (!expected || !Number.isFinite(left) || !Number.isFinite(right)) return false;
+  if (filter.operator === "gt") return left > right;
+  if (filter.operator === "gte") return left >= right;
+  if (filter.operator === "lt") return left < right;
+  if (filter.operator === "lte") return left <= right;
+  return false;
+}
+
+/** Searches all records in one selected season; missing values never become numeric zero. */
+export async function searchScoutingPlayers(input: {
+  datasetId: string; query?: string; filters?: ScoutingFilterCondition[]; logic?: "and" | "or";
+  sortField?: string; sortDirection?: "asc" | "desc"; offset?: number; limit?: number;
+}): Promise<ScoutingSearchResult> {
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("playerRecords", "readonly");
+    const done = transactionDone(transaction);
+    const records = await requestResult(transaction.objectStore("playerRecords").index("datasetId").getAll(input.datasetId) as IDBRequest<PlayerSeasonRecord[]>);
+    await done;
+    const query = (input.query ?? "").normalize("NFKC").trim().toLocaleLowerCase();
+    const filters = input.filters ?? [];
+    const matched = records.filter((player) => {
+      const queryMatch = !query || [player.displayName, player.club, player.position, ...Object.values(player.rawValues)]
+        .some((value) => value.toLocaleLowerCase().includes(query));
+      if (!queryMatch) return false;
+      if (!filters.length) return true;
+      return input.logic === "or"
+        ? filters.some((filter) => matchesScoutingFilter(player, filter))
+        : filters.every((filter) => matchesScoutingFilter(player, filter));
+    });
+    const field = input.sortField || "name";
+    const direction = input.sortDirection === "desc" ? -1 : 1;
+    matched.sort((a, b) => {
+      const left = scoutingFieldValue(a, field).trim();
+      const right = scoutingFieldValue(b, field).trim();
+      if (!left && right) return 1;
+      if (left && !right) return -1;
+      const ln = Number(left.replace(/,/g, ""));
+      const rn = Number(right.replace(/,/g, ""));
+      const comparison = left && right && Number.isFinite(ln) && Number.isFinite(rn)
+        ? ln - rn : left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+      return comparison * direction || a.uid.localeCompare(b.uid, undefined, { numeric: true });
+    });
+    const offset = Math.max(0, input.offset ?? 0);
+    const limit = Math.min(500, Math.max(1, input.limit ?? 200));
+    return { total: matched.length, players: matched.slice(offset, offset + limit) };
+  } catch (error) {
+    throw databaseError(error);
+  } finally { db.close(); }
+}
+
+export async function getScoutingWorkspaceState(saveId: string): Promise<ScoutingWorkspaceState> {
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("saves", "readonly");
+    const done = transactionDone(transaction);
+    const save = await requestResult(transaction.objectStore("saves").get(saveId) as IDBRequest<SaveRecord | undefined>);
+    await done;
+    return save?.scoutingState ?? emptyScoutingWorkspaceState();
+  } finally { db.close(); }
+}
+
+export async function updateScoutingWorkspaceState(saveId: string, state: ScoutingWorkspaceState): Promise<void> {
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("saves", "readwrite");
+    const store = transaction.objectStore("saves");
+    const save = await requestResult(store.get(saveId) as IDBRequest<SaveRecord | undefined>);
+    if (!save) throw new Error("The active career could not be found. Refresh the save library and try again.");
+    store.put({ ...save, scoutingState: state, updatedAt: new Date().toISOString() });
+    await transactionDone(transaction);
+  } catch (error) { throw databaseError(error); }
+  finally { db.close(); }
 }
