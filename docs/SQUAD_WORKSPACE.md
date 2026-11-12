@@ -24,10 +24,11 @@ The Philosophy screen reuses the existing FM24 templates, six principle definiti
 - Depth & Needs currently shows manually assigned XI coverage, not ranked backups or calculated role depth.
 
 ## Limitations
-The FM24 export does not supply the full positional-competence matrix, tactical familiarity, event sequences or positional tracking. Player assignment is manual. Role selection represents the intended requirement, not proof of player eligibility or tactical execution. The board is a planning tool, not a match-engine simulator.
+The FM24 export does not supply the full positional-competence matrix, tactical familiarity, event sequences or positional tracking. Player assignment is manual. The player picker narrows the active club's roster but does not infer eligibility. Position and pitch editing changes the planning board only; it does not write back to the FM save. Role selection represents the intended requirement, not proof of player eligibility or tactical execution. The board is a planning tool, not a match-engine simulator.
 
 ## Research basis
-- Sports Interactive FM24 tactics manual: position slots can be selected to configure role, duty and instructions.
+- Sports Interactive FM24 tactics manual: position slots can be selected to configure role, duty and instructions. https://community.sports-interactive.com/sigames-manual/football-manager-2024/tactics-r4960/
+- FM24 formation list cross-check (secondary reference): https://www.fifplay.com/football-manager-2024-tactics-and-formations/
 - Football Manager Squad Planner: organise player options against the active tactic's formation and role slots.
 - FM Dossier: connect squad gaps to role-based discovery, feasibility and comparison.
 - FMST26: reusable metric profiles, comparison pools and integrated filtering.
