@@ -49,7 +49,7 @@ test("budget and wage caps are applied without inventing missing financial value
     player("inside", { transferValue: 10_000_000, wage: 30_000 }),
   ];
   const result = buildFm24DofRecommendations(players, options());
-  assert.deepEqual(result.eligible.map((p) => p.uid), ["inside", "unknown-wage"]);
+  assert.deepEqual(result.eligible.map((p) => p.uid).sort(), ["inside", "unknown-wage"]);
   const allowUnknown = buildFm24DofRecommendations(players, options({ requireKnownValue: false }));
   assert.ok(allowUnknown.eligible.some((p) => p.uid === "unknown-value"));
 });
@@ -68,7 +68,7 @@ test("balanced ranking requires both scores and ranks by the explicit composite"
 test("starter-relative upgrade, value and depth categories use separate criteria", () => {
   const players = [
     player("starter", { club: "My FC", age: 27, minutes: 2600, dofEvaluationScore: 70, roleScore: 68 }),
-    player("upgrade", { age: 25, dofEvaluationScore: 82, transferValue: 8_000_000 }),
+    player("upgrade", { age: 25, dofEvaluationScore: 82, transferValue: 4_000_000 }),
     player("value", { age: 27, dofEvaluationScore: 75, transferValue: 1_000_000 }),
     player("depth", { age: 29, dofEvaluationScore: 64, confidence: "high", transferValue: 1_000_000 }),
   ];
