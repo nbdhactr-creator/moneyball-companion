@@ -189,7 +189,6 @@ async function removeStagedRows(db: IDBDatabase, jobId: string): Promise<void> {
 export async function persistSeasonImport(input: {
   saveId: string;
   seasonLabel: string;
-  seasonKey: string;
   fileName: string;
   fileSize: number;
   format: string;
