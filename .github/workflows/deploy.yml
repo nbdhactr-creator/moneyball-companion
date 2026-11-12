@@ -3,6 +3,8 @@ name: Build and deploy Moneyball Companion
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -26,6 +28,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Run import and domain tests
+        run: npm test
       - name: Build application
         run: npm run build
       - name: Upload Pages artifact
@@ -34,6 +38,7 @@ jobs:
           path: dist
 
   deploy:
+    if: github.event_name != 'pull_request'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
