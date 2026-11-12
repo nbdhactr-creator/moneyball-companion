@@ -86,7 +86,7 @@ function makeId(): string {
 }
 
 function normalizePlayerName(value: string): string {
-  return value.normalize("NFKC").trim().toLocaleLowerCase().replace(/\\s+/g, " ");
+  return value.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
 function playerField(row: Fm24RawPlayerRow, candidates: string[]): string {
@@ -390,8 +390,8 @@ export async function searchPlayersInDataset(datasetId: string, query = "", limi
     const done = transactionDone(transaction);
     const prefix = normalizePlayerName(query);
     const range = prefix
-      ? IDBKeyRange.bound([datasetId, prefix], [datasetId, `${prefix}\\uffff`])
-      : IDBKeyRange.bound([datasetId, ""], [datasetId, "\\uffff"]);
+      ? IDBKeyRange.bound([datasetId, prefix], [datasetId, `${prefix}\uffff`])
+      : IDBKeyRange.bound([datasetId, ""], [datasetId, "\uffff"]);
     const results: PlayerSeasonRecord[] = [];
     await new Promise<void>((resolve, reject) => {
       const request = transaction.objectStore("playerRecords").index("datasetName").openCursor(range);
