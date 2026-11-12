@@ -241,7 +241,7 @@ async function validateBackup(input: unknown): Promise<BackupPayload> {
       playerRecordCount: manifest.playerRecordCount,
       identityCount: playerIdentities.length,
     },
-  };
+  } satisfies Omit<BackupPayload, "checksum">;
   const expected = await checksum(canonicalPayload(input.version === 1 ? unsignedV1 as Omit<BackupPayload, "checksum"> : unsignedV2));
   if (expected !== input.checksum) throw new Error("Backup integrity check failed. The file may be damaged or modified.");
 
