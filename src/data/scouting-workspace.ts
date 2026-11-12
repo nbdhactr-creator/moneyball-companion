@@ -163,6 +163,7 @@ async function runSearch(render: () => void): Promise<void> {
 
 export async function loadScoutingWorkspace(nextSaveId: string, nextDatasetId = "", onUpdate?: () => void): Promise<void> {
   stopScoringWorker();
+  planningRecords = []; planningDatasetId = ""; planningLoading = false; planningMessage = "";
   saveId = nextSaveId;
   state = emptyScoutingWorkspaceState();
   datasetId = nextDatasetId;
@@ -542,6 +543,43 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
 }
 
 export async function handleScoutingWorkspaceChange(target: HTMLElement, render: () => void): Promise<boolean> {
+  if (target instanceof HTMLSelectElement && target.matches("[data-planning-role]")) {
+    state.analysis = { ...analysisSettings(), roleId: target.value };
+    await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-planning-philosophy]")) {
+    const current = analysisSettings();
+    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
+    const custom = { ...(current.customPhilosophyWeightsByRoleType ?? {}) };
+    if (role) delete custom[role.type];
+    state.analysis = { ...current, philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"], customPhilosophyWeightsByRoleType: custom };
+    await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-planning-starter]")) {
+    const config = dofSettings();
+    state.analysis = { ...analysisSettings(), dof: { ...config, starterUid: target.value } };
+    await updateScoutingWorkspaceState(saveId, state); render(); return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-planning-ranking-mode]")) {
+    const config = dofSettings();
+    state.analysis = { ...analysisSettings(), dof: { ...config, rankingMode: target.value as DofSettings["rankingMode"] } };
+    await updateScoutingWorkspaceState(saveId, state); render(); return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-planning-threshold]")) {
+    const config = dofSettings();
+    const threshold = target.value === "none" ? null : Number(target.value);
+    state.analysis = { ...analysisSettings(), dof: { ...config, philosophyThreshold: threshold } };
+    await updateScoutingWorkspaceState(saveId, state); render(); return true;
+  }
+  if (target instanceof HTMLInputElement && (target.matches("[data-planning-budget]") || target.matches("[data-planning-wage]"))) {
+    const config = dofSettings();
+    const parsed = target.value.trim() === "" ? null : Number(target.value);
+    const safe = parsed == null ? null : Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+    state.analysis = { ...analysisSettings(), dof: target.matches("[data-planning-budget]")
+      ? { ...config, budgetMillions: safe }
+      : { ...config, wageThousands: safe } };
+    await updateScoutingWorkspaceState(saveId, state); render(); return true;
+  }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-role]")) {
     state.analysis = { ...analysisSettings(), roleId: target.value };
     await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
@@ -585,7 +623,7 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
     return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-dataset]")) {
-    datasetId = target.value; filters = []; query = ""; await runSearch(render); await runScoring(render); return true;
+    datasetId = target.value; planningDatasetId = ""; planningRecords = []; filters = []; query = ""; await runSearch(render); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-logic]")) { logic = target.value as "and" | "or"; return true; }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-sort]")) { sortField = target.value; await runSearch(render); return true; }
