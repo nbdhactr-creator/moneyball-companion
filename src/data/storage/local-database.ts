@@ -186,6 +186,32 @@ async function removeStagedRows(db: IDBDatabase, jobId: string): Promise<void> {
   }
 }
 
+export async function recoverInterruptedImports(): Promise<number> {
+  const db = await openLocalDatabase();
+  let recovered = 0;
+  try {
+    const read = db.transaction("importJobs", "readonly");
+    const readDone = transactionDone(read);
+    const jobs = await requestResult(read.objectStore("importJobs").getAll() as IDBRequest<ImportJobRecord[]>);
+    await readDone;
+
+    for (const job of jobs.filter((entry) => entry.status === "staging")) {
+      await removeStagedRows(db, job.id);
+      const transaction = db.transaction("importJobs", "readwrite");
+      transaction.objectStore("importJobs").put({
+        ...job,
+        status: "failed",
+        error: "The browser session ended before the season was committed. Staged rows were cleaned up on the next app launch.",
+      } satisfies ImportJobRecord);
+      await transactionDone(transaction);
+      recovered += 1;
+    }
+    return recovered;
+  } finally {
+    db.close();
+  }
+}
+
 export async function persistSeasonImport(input: {
   saveId: string;
   seasonLabel: string;
