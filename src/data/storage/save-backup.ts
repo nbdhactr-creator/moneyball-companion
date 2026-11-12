@@ -339,7 +339,7 @@ export async function restoreSaveBackup(input: unknown): Promise<SaveRecord> {
     return {
       ...player,
       id: `${datasetId}:${player.uid}`,
-      normalizedName: (player.displayName ?? "").normalize("NFKC").trim().toLocaleLowerCase().replace(/\\s+/g, " "),
+      normalizedName: (player.displayName ?? "").normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g, " "),
       saveId: newSaveId,
       datasetId,
       importJobId: jobIds.get(player.importJobId)!,
