@@ -28,7 +28,7 @@ The recovered V1 role score is not a simple average of raw statistics or FM attr
 
 This family approach reduces obvious double-counting: several closely related chance-creation or defensive-volume columns cannot dominate merely because the export contains more variants of that same action.
 
-The V1 role score is a **within-dataset screening percentile**, not an absolute ability rating, a match-rating prediction or a transfer-success probability.
+The V1 role score is a **within-dataset screening percentile**, not an absolute ability rating, a match-rating prediction or a transfer-success probability. V1 also offers an optional small-sample shrinkage switch: below the high-confidence minute threshold, a score is pulled toward 50 using a square-root minutes weight. It is off by default.
 
 ## 2. V1 Philosophy Score baseline
 
@@ -68,6 +68,7 @@ The DoF role evaluation also has a separate, limited aerial adjustment for centr
 - Every role metric reports its raw/normalised value, percentile, configured weight and availability reason.
 - Role results report family-by-family evidence, weighted coverage and minute-based confidence.
 - The V1 partial-season progress estimate is retained: the 26th-highest minute total among the top 50 players is compared with 4,400 minutes; pool and confidence thresholds scale to the estimated 25%, 50%, 75% or full-season band.
+- The optional V1 small-sample shrinkage switch is retained and off by default. When enabled, DoF Role Evaluation is pulled toward 50 by the square root of minutes divided by the progress-adjusted high-confidence threshold. The raw core Role Fit remains visible; Philosophy Fit is not shrunk.
 - Each philosophy principle reports its metric coverage and component percentiles.
 - A principle with multiple metrics needs at least 60% of its own metrics measured before it contributes. This is a V2 evidence-quality improvement over V1, which allowed a principle to contribute from any one available metric.
 - Missing values stay missing. A genuine zero stays zero.

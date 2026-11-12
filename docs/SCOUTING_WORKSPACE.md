@@ -38,6 +38,7 @@ These decisions are user-authored and never alter the original imported player-s
 - DoF Role Evaluation preserves V1's 90/10 core-role/aerial adjustment for DC, DLR, WB and DM roles when the required evidence exists; otherwise it remains the core role score.
 - Tactical Fit combines DoF Role Evaluation and Philosophy Fit. The default is 70/30; the UI offers 60/40 and 80/20 alternatives. This ratio is a transparent product choice, not a universal research result.
 - Both component scores remain visible. Tactical Fit is unavailable if either component lacks sufficient evidence; missing evidence is never converted to zero or a neutral 50.
+- The optional V1 small-sample shrinkage setting is off by default. When enabled, DoF Role Evaluation is pulled toward 50 for lower-minute samples; the raw score remains available in the tooltip and the Philosophy Score is not shrunk.
 - The scoring worker reads the full selected dataset from IndexedDB and computes the reference pools off the main thread. It does not mutate imported player rows.
 - The candidate table shows core Role Fit, the V1-adjusted DoF Role Evaluation, Philosophy Fit, combined Tactical Fit, confidence/evidence status, role-family evidence and the six philosophy principle scores. It can sort all matching records by calculated fit before applying the 200-row result cap.
 - Analysis settings are saved per career and are included in the existing career backup/restore path.

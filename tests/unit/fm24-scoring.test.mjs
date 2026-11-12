@@ -207,3 +207,18 @@ test("missing aerial evidence never reduces a DoF role evaluation", () => {
   assert.equal(evaluation.aerialAdjustmentApplied, false);
   assert.equal(evaluation.score, core);
 });
+
+test("optional sample shrinkage pulls low-minute DoF scores toward the median", () => {
+  const players = Array.from({ length: 30 }, (_, index) =>
+    defender(index, { Mins: index < 26 ? "2400" : "600" }));
+  const scorer = createFm24Scorer(players, { shrinkSmallSamples: true });
+  const role = scorer.roles.find((entry) => entry.id === "cd-DC-D");
+  assert.ok(role);
+  assert.equal(scorer.seasonProgress, 0.5);
+  const player = scorer.players[29];
+  const core = scorer.scoreRole(player, role);
+  const dof = scorer.scoreDofEvaluation(player, role, core.score);
+  assert.notEqual(dof.score, null);
+  assert.equal(dof.sampleAdjusted, true);
+  assert.ok(Math.abs(dof.displayScore - 50) < Math.abs(dof.score - 50));
+});
