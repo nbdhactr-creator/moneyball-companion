@@ -124,7 +124,7 @@ async function runScoring(render: () => void): Promise<void> {
       scoringStatus = "error"; scoringMessage = "The scoring worker stopped unexpectedly. Your imported data is unchanged.";
       worker.terminate(); if (scoringWorker === worker) scoringWorker = null; render();
     };
-    const selectedRole = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((role) => role.id === settings.roleId);
+    const selectedRole = (FM24_ROLES as unknown as Array<{ id: string; type: string; duty: string }>).find((role) => role.id === settings.roleId);
     const customPhilosophyWeights = selectedRole
       ? settings.customPhilosophyWeightsByRole?.[selectedRole.type + "|" + selectedRole.duty]
       : undefined;
@@ -190,14 +190,14 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
   if (!save.datasets.some((entry) => entry.id === datasetId)) datasetId = save.datasets[0].id;
   const fieldList = fields();
   const analysis = analysisSettings();
-  const roles = FM24_ROLES as unknown as Array<{ id: string; name: string; dutyName: string; strata: string }>;
+  const roles = FM24_ROLES as unknown as Array<{ id: string; name: string; dutyName: string; duty: string; strata: string }>;
   const strata = FM24_STRATA as unknown as Record<string, { label: string }>;
   const roleOptions = Object.keys(strata).map((key) => '<optgroup label="' + esc(strata[key].label) + '">' +
     roles.filter((role) => role.strata === key).map((role) => '<option value="' + esc(role.id) + '"' + (analysis.roleId === role.id ? " selected" : "") + '>' + esc(role.name) + ' · ' + esc(role.dutyName) + '</option>').join("") +
     '</optgroup>').join("");
   const philosophyOptions = Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([key, template]) =>
     '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
-  const selectedRole = roles.find((role) => role.id === analysis.roleId) as (typeof roles[number] & { type?: string }) | undefined;
+  const selectedRole = roles.find((role) => role.id === analysis.roleId) as (typeof roles[number] & { type?: string; duty: string }) | undefined;
   const roleKey = selectedRole ? selectedRole.type + "|" + selectedRole.duty : "";
   const templateWeights = selectedRole && analysis.philosophyTemplate
     ? philosophyWeightsForRole(selectedRole as never, analysis.philosophyTemplate)
@@ -425,7 +425,7 @@ export function renderPlanningWorkspace(save: SaveWithDatasets | undefined): str
   if (!save.datasets.length) return '<section class="empty-workspace content-card"><h2>Import a season to begin.</h2><p>Import FM24 player data before building recommendations.</p></section>';
   const analysis = analysisSettings();
   const config = dofSettings();
-  const roles = FM24_ROLES as unknown as Array<{ id: string; name: string; dutyName: string; strata: string; type: string }>;
+  const roles = FM24_ROLES as unknown as Array<{ id: string; name: string; dutyName: string; duty: string; strata: string; type: string }>;
   const strata = FM24_STRATA as unknown as Record<string, { label: string }>;
   const roleOptions = Object.keys(strata).map((key) => '<optgroup label="' + esc(strata[key].label) + '">' +
     roles.filter((role) => role.strata === key).map((role) => '<option value="' + esc(role.id) + '"' + (analysis.roleId === role.id ? " selected" : "") + '>' + esc(role.name) + ' · ' + esc(role.dutyName) + '</option>').join("") + '</optgroup>').join("");
@@ -505,7 +505,7 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
     await updateScoutingWorkspaceState(saveId, state); message = "Saved search deleted."; render(); return true;
   }
   if (target.matches("[data-reset-philosophy]")) {
-    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === analysisSettings().roleId);
+    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string; duty: string }>).find((entry) => entry.id === analysisSettings().roleId);
     if (role) {
       const custom = { ...(analysisSettings().customPhilosophyWeightsByRole ?? {}) };
       delete custom[role.type + "|" + role.duty];
@@ -535,7 +535,7 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-planning-philosophy]")) {
     const current = analysisSettings();
-    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
+    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string; duty: string }>).find((entry) => entry.id === current.roleId);
     const custom = { ...(current.customPhilosophyWeightsByRole ?? {}) };
     if (role) delete custom[role.type + "|" + role.duty];
     state.analysis = { ...current, philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"], customPhilosophyWeightsByRole: custom };
@@ -572,7 +572,7 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-philosophy]")) {
     const current = analysisSettings();
-    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
+    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string; duty: string }>).find((entry) => entry.id === current.roleId);
     const custom = { ...(current.customPhilosophyWeightsByRole ?? {}) };
     if (role) delete custom[role.type + "|" + role.duty];
     state.analysis = { ...current, philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"], customPhilosophyWeightsByRole: custom };
@@ -596,7 +596,7 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
   }
   if (target instanceof HTMLInputElement && target.matches("[data-philosophy-weight]")) {
     const current = analysisSettings();
-    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
+    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string; duty: string }>).find((entry) => entry.id === current.roleId);
     if (!role || !current.philosophyTemplate) return true;
     const base = current.customPhilosophyWeightsByRole?.[role.type + "|" + role.duty] ??
       philosophyWeightsForRole(role as never, current.philosophyTemplate);
