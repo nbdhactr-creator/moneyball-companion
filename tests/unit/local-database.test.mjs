@@ -6,6 +6,7 @@ import {
   listSaves,
   openLocalDatabase,
   persistSeasonImport,
+  recoverInterruptedImports,
 } from "../../src/data/storage/local-database.ts";
 
 async function resetDatabase() {
@@ -128,5 +129,63 @@ test("rolls back a batch containing duplicate player UIDs and does not publish a
     assert.equal(jobs[0].status, "failed");
   } finally {
     db.close();
+  }
+});
+
+
+test("cleans up staged rows left by an interrupted browser session", async () => {
+  await resetDatabase();
+  const save = await createSave("Interrupted Import Test");
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction(["importJobs", "playerRecords"], "readwrite");
+    transaction.objectStore("importJobs").add({
+      id: "interrupted-job",
+      saveId: save.id,
+      datasetId: "unfinished-dataset",
+      status: "staging",
+      createdAt: new Date().toISOString(),
+    });
+    transaction.objectStore("playerRecords").add({
+      id: "unfinished-dataset:3001",
+      saveId: save.id,
+      datasetId: "unfinished-dataset",
+      importJobId: "interrupted-job",
+      uid: "3001",
+      sourceLine: 2,
+      rawValues: { UID: "3001", Name: "Unfinished Player" },
+      displayName: "Unfinished Player",
+      club: "Test FC",
+      position: "MC",
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally {
+    db.close();
+  }
+
+  assert.equal(await recoverInterruptedImports(), 1);
+  const recoveredDb = await openLocalDatabase();
+  try {
+    const transaction = recoveredDb.transaction(["playerRecords", "importJobs"], "readonly");
+    const playersRequest = transaction.objectStore("playerRecords").getAll();
+    const jobsRequest = transaction.objectStore("importJobs").getAll();
+    const [players, jobs] = await Promise.all([
+      new Promise((resolve, reject) => {
+        playersRequest.onsuccess = () => resolve(playersRequest.result);
+        playersRequest.onerror = () => reject(playersRequest.error);
+      }),
+      new Promise((resolve, reject) => {
+        jobsRequest.onsuccess = () => resolve(jobsRequest.result);
+        jobsRequest.onerror = () => reject(jobsRequest.error);
+      }),
+    ]);
+    assert.equal(players.length, 0);
+    assert.equal(jobs[0].status, "failed");
+  } finally {
+    recoveredDb.close();
   }
 });
