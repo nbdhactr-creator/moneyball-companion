@@ -205,7 +205,6 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     const roleCell = scoreCell(fit?.roleScore, fit ? 'Core role score · family evidence: ' + Math.round(fit.roleCoverage * 100) + '% · ' + fit.confidence + ' confidence' : 'Role score not calculated');
     const dofCell = scoreCell(fit?.dofEvaluationScore, fit?.aerialAdjustmentApplied ? 'V1 DoF evaluation: 90% core role score + 10% aerial signal (' + fit.aerialScore + ')' : 'DoF evaluation equals the core role score; no eligible aerial adjustment was available or this role does not use it');
     const philosophyCell = scoreCell(fit?.philosophyScore, fit ? 'Philosophy evidence: ' + Math.round(fit.philosophyCoverage * 100) + '% coverage' : 'Philosophy score not calculated');
-    const dofCell = scoreCell(fit?.dofEvaluationScore, fit?.aerialAdjustmentApplied ? 'V1 DoF evaluation: 90% core role fit + 10% aerial score (' + fit.aerialScore + ')' : 'DoF role evaluation; no aerial adjustment applied');
     const tacticalCell = scoreCell(fit?.tacticalFit, 'Combined tactical fit uses DoF role evaluation and philosophy fit; both require sufficient evidence');
     const principleDetails = fit?.principleScores.length
       ? '<details class="scouting-fit-details"><summary>Philosophy principles</summary><div>' +
