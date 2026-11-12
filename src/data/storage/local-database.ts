@@ -429,7 +429,7 @@ export async function getPlayerHistory(saveId: string, uid: string): Promise<Pla
     const recordsByDataset = new Map(records.map((record) => [record.datasetId, record]));
     return datasets
       .filter((dataset) => dataset.status === "committed")
-      .sort((a, b) => a.importedAt.localeCompare(b.importedAt))
+      .sort((a, b) => a.importedAt.localeCompare(b.importedAt) || a.seasonKey.localeCompare(b.seasonKey))
       .map((dataset) => ({
         dataset,
         ...(recordsByDataset.has(dataset.id) ? { player: recordsByDataset.get(dataset.id)! } : {}),
