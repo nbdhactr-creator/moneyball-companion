@@ -3,10 +3,11 @@ import {
   formatStorageError,
   type SaveRecord,
   type SeasonDatasetRecord,
+  type PlayerIdentityRecord,
 } from "./local-database.ts";
 
 const BACKUP_FORMAT = "moneyball-companion-save-backup";
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
 
 interface ImportJobRecord {
   id: string;
@@ -35,6 +36,7 @@ interface BackupManifest {
   datasetCount: number;
   playerRecordCount: number;
   importJobCount: number;
+  identityCount?: number;
 }
 
 interface BackupPayload {
@@ -45,7 +47,8 @@ interface BackupPayload {
   datasets: SeasonDatasetRecord[];
   importJobs: ImportJobRecord[];
   playerRecords: PlayerSeasonRecord[];
-  manifest: BackupManifest;
+  playerIdentities: PlayerIdentityRecord[];
+  manifest: BackupManifest & { identityCount: number };
   checksum: string;
 }
 
@@ -87,8 +90,9 @@ function requireString(value: unknown, label: string): asserts value is string {
 async function validateBackup(input: unknown): Promise<BackupPayload> {
   if (!isObject(input)) throw new Error("This file is not a valid Moneyball Companion backup.");
   if (input.format !== BACKUP_FORMAT) throw new Error("This file is not a Moneyball Companion save backup.");
-  if (input.version !== BACKUP_VERSION) throw new Error("This backup version is not supported by this app version.");
-  if (!Array.isArray(input.datasets) || !Array.isArray(input.importJobs) || !Array.isArray(input.playerRecords)) {
+  if (input.version !== 1 && input.version !== BACKUP_VERSION) throw new Error("This backup version is not supported by this app version.");
+  if (!Array.isArray(input.datasets) || !Array.isArray(input.importJobs) || !Array.isArray(input.playerRecords) ||
+      (input.version === 2 && !Array.isArray(input.playerIdentities))) {
     throw new Error("Backup is incomplete: one or more data collections are missing.");
   }
   if (!isObject(input.save) || !isObject(input.manifest) || typeof input.checksum !== "string") {
@@ -104,7 +108,8 @@ async function validateBackup(input: unknown): Promise<BackupPayload> {
   const datasets = input.datasets as unknown as SeasonDatasetRecord[];
   const importJobs = input.importJobs as unknown as ImportJobRecord[];
   const playerRecords = input.playerRecords as unknown as PlayerSeasonRecord[];
-  const manifest = input.manifest as unknown as BackupManifest;
+  const suppliedIdentities = (Array.isArray(input.playerIdentities) ? input.playerIdentities : []) as PlayerIdentityRecord[];
+  const manifest = input.manifest as unknown as BackupManifest & { identityCount?: number };
 
   if (manifest.datasetCount !== datasets.length ||
       manifest.importJobCount !== importJobs.length ||
@@ -175,33 +180,86 @@ async function validateBackup(input: unknown): Promise<BackupPayload> {
     }
   }
 
-  const unsigned = {
+  const derivedIdentities = new Map<string, PlayerIdentityRecord>();
+  for (const player of playerRecords) {
+    const id = `${save.id}:${player.uid}`;
+    derivedIdentities.set(id, { id, saveId: save.id, uid: player.uid });
+  }
+  let playerIdentities: PlayerIdentityRecord[];
+  if (input.version === 1) {
+    // Legacy v1 backups predate the identity store. Derive stable identities
+    // from their validated season records without altering the signed payload.
+    playerIdentities = [...derivedIdentities.values()];
+  } else {
+    playerIdentities = suppliedIdentities;
+    if (manifest.identityCount !== playerIdentities.length) {
+      throw new Error("Backup integrity check failed: identity count does not match the manifest.");
+    }
+    const identityIds = new Set<string>();
+    for (const identity of playerIdentities) {
+      if (!isObject(identity)) throw new Error("Backup contains an invalid player identity.");
+      requireString(identity.id, "player identity ID");
+      requireString(identity.uid, "player identity UID");
+      if (identity.saveId !== save.id || identity.id !== `${save.id}:${identity.uid}` ||
+          identityIds.has(identity.id)) {
+        throw new Error("Backup contains an invalid or duplicate player identity.");
+      }
+      identityIds.add(identity.id);
+    }
+    if (identityIds.size !== derivedIdentities.size ||
+        [...derivedIdentities.keys()].some((id) => !identityIds.has(id))) {
+      throw new Error("Backup is missing player identities referenced by its season records.");
+    }
+  }
+
+  const unsignedV1 = {
     format: BACKUP_FORMAT,
-    version: BACKUP_VERSION,
+    version: 1,
     exportedAt: String(input.exportedAt ?? ""),
     save,
     datasets,
     importJobs,
     playerRecords,
-    manifest,
-  } satisfies Omit<BackupPayload, "checksum">;
-  const expected = await checksum(canonicalPayload(unsigned));
+    manifest: {
+      datasetCount: manifest.datasetCount,
+      playerRecordCount: manifest.playerRecordCount,
+      importJobCount: manifest.importJobCount,
+    },
+  };
+  const unsignedV2 = {
+    format: BACKUP_FORMAT,
+    version: 2,
+    exportedAt: String(input.exportedAt ?? ""),
+    save,
+    datasets,
+    importJobs,
+    playerRecords,
+    playerIdentities,
+    manifest: {
+      datasetCount: manifest.datasetCount,
+      playerRecordCount: manifest.playerRecordCount,
+      importJobCount: manifest.importJobCount,
+      identityCount: playerIdentities.length,
+    },
+  };
+  const expected = await checksum(canonicalPayload(input.version === 1 ? unsignedV1 as Omit<BackupPayload, "checksum"> : unsignedV2));
   if (expected !== input.checksum) throw new Error("Backup integrity check failed. The file may be damaged or modified.");
 
-  return { ...unsigned, checksum: input.checksum } as BackupPayload;
+  return { ...unsignedV2, checksum: input.checksum } as BackupPayload;
 }
 
 /** Creates a portable, integrity-checked backup of one career and all committed season data. */
 export async function createSaveBackup(saveId: string): Promise<string> {
   const db = await openLocalDatabase();
   try {
-    const transaction = db.transaction(["saves", "datasets", "importJobs", "playerRecords"], "readonly");
+    const transaction = db.transaction(["saves", "datasets", "importJobs", "playerRecords", "playerIdentities"], "readonly");
     const done = transactionDone(transaction);
-    const [saves, allDatasets, allJobs, playerRecords] = await Promise.all([
+    const [saves, allDatasets, allJobs, playerRecords, playerIdentities] = await Promise.all([
       requestResult(transaction.objectStore("saves").getAll() as IDBRequest<SaveRecord[]>),
       requestResult(transaction.objectStore("datasets").index("saveId").getAll(saveId) as IDBRequest<SeasonDatasetRecord[]>),
       requestResult(transaction.objectStore("importJobs").index("saveId").getAll(saveId) as IDBRequest<ImportJobRecord[]>),
       requestResult(transaction.objectStore("playerRecords").index("saveId").getAll(saveId) as IDBRequest<PlayerSeasonRecord[]>),
+      requestResult(transaction.objectStore("playerIdentities").index("saveId").getAll(saveId) as IDBRequest<PlayerIdentityRecord[]>),
     ]);
     await done;
 
@@ -222,10 +280,12 @@ export async function createSaveBackup(saveId: string): Promise<string> {
       datasets,
       importJobs,
       playerRecords: committedPlayers,
+      playerIdentities,
       manifest: {
         datasetCount: datasets.length,
         importJobCount: importJobs.length,
         playerRecordCount: committedPlayers.length,
+        identityCount: playerIdentities.length,
       },
     } satisfies Omit<BackupPayload, "checksum">;
     const result: BackupPayload = { ...unsigned, checksum: await checksum(canonicalPayload(unsigned)) };
@@ -269,6 +329,11 @@ export async function restoreSaveBackup(input: unknown): Promise<SaveRecord> {
     createdAt: now,
     heartbeatAt: now,
   }));
+  const playerIdentities = backup.playerIdentities.map((identity) => ({
+    id: `${newSaveId}:${identity.uid}`,
+    saveId: newSaveId,
+    uid: identity.uid,
+  }));
   const playerRecords = backup.playerRecords.map((player) => {
     const datasetId = datasetIds.get(player.datasetId)!;
     return {
@@ -282,12 +347,13 @@ export async function restoreSaveBackup(input: unknown): Promise<SaveRecord> {
 
   const db = await openLocalDatabase();
   try {
-    const transaction = db.transaction(["saves", "datasets", "importJobs", "playerRecords"], "readwrite");
+    const transaction = db.transaction(["saves", "datasets", "importJobs", "playerRecords", "playerIdentities"], "readwrite");
     const done = transactionDone(transaction);
     transaction.objectStore("saves").add(save);
     for (const dataset of datasets) transaction.objectStore("datasets").add(dataset);
     for (const job of importJobs) transaction.objectStore("importJobs").add(job);
     for (const player of playerRecords) transaction.objectStore("playerRecords").add(player);
+    for (const identity of playerIdentities) transaction.objectStore("playerIdentities").add(identity);
     await done;
     return save;
   } catch (error) {
