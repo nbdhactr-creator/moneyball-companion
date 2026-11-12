@@ -2,10 +2,11 @@
 
 ## Status
 
-- **Implemented on feature branch:** the FM24 role/duty catalogue, source metric metadata, a pure TypeScript scoring engine, role-family evidence, six-principle philosophy scoring, missing-data coverage, league-factor hooks and a combined tactical-fit function.
-- **Source baseline recovered:** Recruitment Lab V1's actual role and philosophy calculations were inspected from its `recruitment-lab/custom-build` branch.
-- **Not yet integrated into the Scouting or DoF screens.** The current branch contains the calculation layer and unit tests; the user-facing workflow and persistence of philosophy settings remain a subsequent implementation step.
-- **Not yet CI-tested or deployed.**
+- **Implemented on feature branch:** the FM24 role/duty catalogue, V1-derived role and philosophy calculations, role-family evidence, the six philosophy principles, nine V1 templates, evidence coverage, league-factor hooks, V1's separate aerial adjustment for DoF evaluation, and an optional combined Tactical Fit score.
+- **Scouting integration implemented:** select a role/duty and philosophy template; calculate across the full selected season in a Web Worker; show Role Fit, DoF Evaluation, Philosophy Fit, Tactical Fit, confidence and compact evidence breakdowns.
+- **Source baseline recovered:** Recruitment Lab V1's actual role, philosophy, template and DoF candidate-ranking logic were inspected from its `recruitment-lab/custom-build` branch.
+- **Not yet integrated into Planning/DoF recommendations.** V2's Planning module remains a placeholder. The scoring outputs and V1 DoF evaluation primitive are ready for that workflow, but the five recommendation categories, budgets, wage caps and feasibility filters are not yet built.
+- **CI and deployment status:** see the latest pull request checks. This branch is not deployed to the live website.
 
 ## Scope and terminology
 
@@ -58,7 +59,7 @@ The recovered DoF implementation keeps Role Score and Philosophy Score as separa
 
 This distinction matters: V1 does not calculate a universal weighted Role + Philosophy average. It uses Role Score as the main performance ranking, Philosophy as an independent fit signal, a secondary tie-break in most categories, and an optional minimum-fit filter. V2 should preserve that transparent baseline while offering an explicitly labelled, configurable combined view as an additional ranking mode.
 
-The DoF role evaluation also has a separate, limited aerial adjustment for centre-back, full-back, wing-back and defensive-midfield strata: 90% core role score and 10% aerial score, when both aerial quality and output are available. Missing aerial evidence leaves the core score unchanged. This is a V1-specific adjustment, not part of the general role formula.
+The DoF role evaluation also has a separate, limited aerial adjustment for centre-back, full-back, wing-back and defensive-midfield strata: 90% core role score and 10% aerial score, when both aerial quality and output are available. Aerial quality is the position-group percentile for header win percentage; aerial output is the mean percentile of headers won per 90 and key headers won per 90 where available. Missing aerial evidence leaves the core score unchanged. This is a V1-specific adjustment, not part of the general role formula. V2 exposes it as a separate DoF Evaluation value so the unadjusted Role Fit remains visible.
 
 ## 3. Improvements in the V2 calculation layer
 
