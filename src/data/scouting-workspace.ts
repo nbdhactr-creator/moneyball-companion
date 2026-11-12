@@ -200,13 +200,20 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
   const sortFields = [...fieldList, "roleScore", "dofEvaluationScore", "philosophyScore", "tacticalFit"];
   const datasetOptions = save.datasets.map((entry) => '<option value="' + esc(entry.id) + '"' + (entry.id === datasetId ? " selected" : "") + '>' + esc(entry.seasonLabel) + ' · ' + entry.playerCount.toLocaleString() + ' players</option>').join("");
-  const filterRows = filters.map((filter) => {
-    const operators = [["contains","contains"],["equals","equals"],["gt","greater than"],["gte","at least"],["lt","less than"],["lte","at most"],["is-empty","is empty"],["is-not-empty","is not empty"]];
-    return '<div class="scouting-filter-row" data-filter-row="' + esc(filter.id) + '">' +
+  const operators = [["contains","contains"],["equals","equals"],["gt","greater than"],["gte","at least"],["lt","less than"],["lte","at most"],["is-empty","is empty"],["is-not-empty","is not empty"]];
+  const groupRows = filterGroups.map((group, groupIndex) => {
+    const rows = group.filters.map((filter) =>
+      '<div class="scouting-filter-row" data-filter-row="' + esc(filter.id) + '">' +
       '<select data-filter-field="' + esc(filter.id) + '" aria-label="Filter field">' + fieldList.map((field) => '<option value="' + esc(field) + '"' + (filter.field === field ? " selected" : "") + '>' + esc(label(field)) + '</option>').join("") + '</select>' +
       '<select data-filter-operator="' + esc(filter.id) + '" aria-label="Filter operator">' + operators.map((entry) => '<option value="' + entry[0] + '"' + (filter.operator === entry[0] ? " selected" : "") + '>' + entry[1] + '</option>').join("") + '</select>' +
       '<input data-filter-value="' + esc(filter.id) + '" aria-label="Filter value" value="' + esc(filter.value) + '" placeholder="Value"' + (filter.operator.startsWith("is-") ? " disabled" : "") + '>' +
-      '<button type="button" class="text-button" data-remove-filter="' + esc(filter.id) + '">Remove</button></div>';
+      '<button type="button" class="text-button" data-remove-filter="' + esc(filter.id) + '">Remove</button></div>'
+    ).join("");
+    return '<div class="scouting-filter-group" data-filter-group="' + esc(group.id) + '">' +
+      '<div class="scouting-filter-group-heading"><strong>Group ' + (groupIndex + 1) + '</strong><label>Match <select data-filter-group-logic="' + esc(group.id) + '"><option value="and"' + (group.logic === "and" ? " selected" : "") + '>All conditions (AND)</option><option value="or"' + (group.logic === "or" ? " selected" : "") + '>Any condition (OR)</option></select></label>' +
+      (filterGroups.length > 1 ? '<button type="button" class="text-button" data-remove-filter-group="' + esc(group.id) + '">Remove group</button>' : '') + '</div>' +
+      (rows || '<p class="form-help">No conditions in this group yet.</p>') +
+      '<button type="button" class="text-button" data-add-filter-group="' + esc(group.id) + '">+ Add condition</button></div>';
   }).join("");
   const savedOptions = state.savedSearches.map((entry) => '<option value="' + esc(entry.id) + '">' + esc(entry.name) + '</option>').join("");
   const columnOptions = fieldList.map((field) => '<label class="scouting-column-option"><input type="checkbox" data-scouting-column value="' + esc(field) + '"' + (columns().includes(field) ? " checked" : "") + '> ' + esc(label(field)) + '</label>').join("");
@@ -251,9 +258,9 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<label class="scouting-query">Search players<input type="search" data-scouting-query value="' + esc(query) + '" placeholder="Name, club, position or source value"></label>' +
     '<label>Sort by<select data-scouting-sort>' + sortFields.map((field) => '<option value="' + esc(field) + '"' + (sortField === field ? " selected" : "") + '>' + esc(label(field)) + '</option>').join("") + '</select></label>' +
     '<label>Order<select data-scouting-direction><option value="asc"' + (sortDirection === "asc" ? " selected" : "") + '>Ascending</option><option value="desc"' + (sortDirection === "desc" ? " selected" : "") + '>Descending</option></select></label></div>' +
-    '<div class="scouting-filter-panel"><div class="scouting-panel-heading"><strong>Filter conditions</strong><span>Combine conditions with</span><select data-scouting-logic><option value="and"' + (logic === "and" ? " selected" : "") + '>AND</option><option value="or"' + (logic === "or" ? " selected" : "") + '>OR</option></select></div>' +
-    (filterRows || '<p class="form-help">No filters applied. Add a condition to narrow the results.</p>') +
-    '<div class="scouting-actions"><button type="button" class="secondary-button compact-button" data-add-filter>Add condition</button><button type="button" class="text-button" data-scouting-reset>Reset filters</button><button type="button" class="primary-button" data-scouting-search' + (loading ? ' disabled' : '') + '>' + (loading ? 'Searching…' : 'Apply search') + '</button></div></div>' +
+    '<div class="scouting-filter-panel"><div class="scouting-panel-heading"><strong>Filter groups</strong><label>Match groups <select data-scouting-group-logic><option value="and"' + (groupLogic === "and" ? " selected" : "") + '>All groups (AND)</option><option value="or"' + (groupLogic === "or" ? " selected" : "") + '>Any group (OR)</option></select></label></div>' +
+    groupRows +
+    '<div class="scouting-actions"><button type="button" class="secondary-button compact-button" data-add-filter-group-new>Add group</button><button type="button" class="text-button" data-scouting-reset>Reset filters</button><button type="button" class="primary-button" data-scouting-search' + (loading ? ' disabled' : '') + '>' + (loading ? 'Searching…' : 'Apply search') + '</button></div></div>' +
     '<div class="scouting-saved-searches"><label>Saved searches<select data-scouting-saved-select><option value="">Choose a saved search</option>' + savedOptions + '</select></label>' +
     '<button type="button" class="secondary-button compact-button" data-apply-saved-search>Load</button><input data-scouting-search-name maxlength="60" placeholder="Name this search">' +
     '<button type="button" class="secondary-button compact-button" data-save-search>Save current search</button><button type="button" class="text-button" data-delete-search>Delete selected</button></div>' +
