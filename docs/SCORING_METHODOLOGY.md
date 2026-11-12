@@ -1,0 +1,140 @@
+# FM24 Role and Philosophy Scoring
+
+## Status
+
+- **Implemented on feature branch:** the FM24 role/duty catalogue, source metric metadata, a pure TypeScript scoring engine, role-family evidence, six-principle philosophy scoring, missing-data coverage, league-factor hooks and a combined tactical-fit function.
+- **Source baseline recovered:** Recruitment Lab V1's actual role and philosophy calculations were inspected from its `recruitment-lab/custom-build` branch.
+- **Not yet integrated into the Scouting or DoF screens.** The current branch contains the calculation layer and unit tests; the user-facing workflow and persistence of philosophy settings remain a subsequent implementation step.
+- **Not yet CI-tested or deployed.**
+
+## Scope and terminology
+
+The V1 catalogue contains **115 selectable role/duty variants**, not 115 distinct role names. It covers FM24's role/duty combinations, including Defend, Support, Attack and role-specific duties such as Stopper, Cover and Automatic. FM24's role selector describes each role and appends duty-specific behaviour; duties affect the risk and instructions expected from the player. See the official [Football Manager 2024 tactics manual](https://community.sports-interactive.com/sigames-manual/football-manager-2024/tactics-r4960/).
+
+The catalogue contains 83 source/derived metric definitions and 45 role-type philosophy weight profiles. The role IDs, metric names, weights and metadata are adapted from Recruitment Lab V1 under its MIT licence. The licence notice and attribution are retained in the source file and this project document.
+
+## 1. V1 role-score baseline
+
+The recovered V1 role score is not a simple average of raw statistics or FM attributes.
+
+1. Each role/duty has a configured set of performance metrics and weights.
+2. Each metric is converted to a percentile within the role's FM position stratum (goalkeeper, centre-back, full-back, wing-back, defensive midfield, central midfield, wide midfield, attacking midfield, wide attack or striker).
+3. The reference pool requires at least 900 minutes per player by default and at least 10 eligible players for a metric percentile to be calculated.
+4. Negative-direction metrics are inverted. Tied values use a mid-rank percentile.
+5. Metric attempt floors are applied where configured (for example, a rate with too few attempts is not treated as reliable).
+6. Correlated metrics are grouped into evidence families. The family contributes its strongest configured weight, not the sum of every overlapping metric. Available metrics inside a family are averaged using their configured weights.
+7. The score is available only when at least 60% of total family weight is represented and at least one highest-weight family is measured.
+
+This family approach reduces obvious double-counting: several closely related chance-creation or defensive-volume columns cannot dominate merely because the export contains more variants of that same action.
+
+The V1 role score is a **within-dataset screening percentile**, not an absolute ability rating, a match-rating prediction or a transfer-success probability.
+
+## 2. V1 Philosophy Score baseline
+
+V1 evaluates six principles:
+
+| Principle | V1 evidence metrics | Interpretation |
+|---|---|---|
+| Keep the ball | Pass completion, loss rate | Ball security and circulation |
+| Always available | Passes attempted per 90 | Participation in circulation |
+| Move it to hurt | Progressive passes, open-play key passes, xA, dribbles | Progression and creation |
+| Win it back quickly | Pressures attempted/completed, possession won | Pressure and regains |
+| Defend on the front foot | Interceptions, tackle success, aerial success | Proactive defending and duels |
+| Intensity | Distance per 90, sprints per 90 | Repeat physical output |
+
+Each principle is calculated from the mean of its available metric percentiles in the player's role position group. Each role type has a six-value weight profile from 0 to 3. A role's philosophy score is the weighted average of measured principles. V1 requires 60% of the total configured principle weight to be available and at least one highest-weight principle to be measured.
+
+V1 also includes editable principle metrics, role weights, extra search positions and nine starting style templates (Possession, Counter-press, Direct, Balanced, Low block and counter, Wing play, Positional play, High-intensity press and Physical).
+
+### How V1 uses Philosophy in recruitment
+
+The recovered DoF logic:
+- ranks the main candidate groups primarily by the role evaluation score;
+- uses Philosophy Score as a tie-breaker;
+- optionally excludes candidates whose measured Philosophy Score is below 50;
+- does **not** treat a missing Philosophy Score as a score of zero;
+- displays the philosophy result and band on recommendation cards;
+- shows the six principle breakdowns in the scouting report.
+
+The DoF role evaluation also has a separate, limited aerial adjustment for centre-back, full-back, wing-back and defensive-midfield strata: 90% core role score and 10% aerial score, when both aerial quality and output are available. Missing aerial evidence leaves the core score unchanged. This is a V1-specific adjustment, not part of the general role formula.
+
+## 3. Improvements in the V2 calculation layer
+
+### Evidence quality
+
+- Every role metric reports its raw/normalised value, percentile, configured weight and availability reason.
+- Role results report family-by-family evidence, weighted coverage and minute-based confidence.
+- Each philosophy principle reports its metric coverage and component percentiles.
+- A principle with multiple metrics needs at least 60% of its own metrics measured before it contributes. This avoids treating one surviving statistic as a complete picture of a multi-metric principle.
+- Missing values stay missing. A genuine zero stays zero.
+- Advanced metrics that are entirely absent in a sufficiently large competition are inferred as missing rather than interpreted as a league of players who all recorded zero. The inference uses a minimum league sample and a cross-dataset presence check; small samples are left unclassified.
+
+### Units
+
+V1's source parser stripped unit suffixes. The V2 calculation layer converts an explicitly labelled distance in miles to kilometres before calculating distance per 90. A distance value without a unit is not silently labelled kilometres; the derived metric remains unavailable.
+
+### League adjustment
+
+V1 supports league-strength adjustment of per-90 volume metrics while leaving percentages and efficiency rates unscaled. The V2 calculation layer supports explicit league factors and applies them only to rate/volume metrics. It does not silently assign an unverified factor to an unknown competition. A future UI should expose the factor, source, effective date and whether it is manual or mapped. League adjustment must remain optional and inspectable.
+
+### Combined tactical fit
+
+The engine exposes a separate **Tactical Fit** indicator:
+
+- 70% role fit
+- 30% philosophy fit
+
+This is a transparent starting product setting, not a scientifically established universal ratio. It should be configurable (within a bounded range) and both component scores must remain visible. If either component is unavailable, the combined score is **incomplete**, not a fabricated 50 or zero.
+
+Affordability, wage, contract, age, transfer feasibility and squad need must remain separate recruitment dimensions. They should not be hidden inside a footballing-fit number.
+
+## 4. What real-world football research changes
+
+Research supports a multidimensional model rather than one generic “style” label:
+
+- A critical review of soccer playing-style research identifies recurring dimensions including possession, directness, crosses, high press, progression, defensive pressure, transitions and width. The dimensions vary by study and data source; no single short list is a complete universal taxonomy. [Identifying Soccer Teams' Styles of Play: A Scoping and Critical Review (2023)](https://pmc.ncbi.nlm.nih.gov/articles/PMC10123610/)
+- A 2024/2025 grounded-theory study describes playing styles across game phases, including established attack/defence and attacking/defensive transitions. It distinguishes possession/direct play, progression speed, passing tempo, high/deep pressing and counterpressing. [A grounded theory for professional soccer teams' playing styles](https://doi.org/10.1177/17479541241300605)
+- A 2025 study derives four interpretable styles from event-based possession metrics using PCA and Varimax rotation, reinforcing that styles emerge from combinations of behaviours rather than a single statistic. [Data-driven approach to defining football styles in major leagues](https://doi.org/10.1016/j.chaos.2025.116926)
+- A 2026 open-access study on a context-adjusted, position-specific Player Stat Index warns that observed actions are shaped by tactical role, team possession, teammates, opposition, score state and opportunity. It retains multiple task domains rather than treating one scalar as a complete player profile. [From player actions to player profiles](https://doi.org/10.1177/22150218261497769)
+
+The practical consequence for Moneyball Companion: the Philosophy Score should be described as a **role-weighted match-output alignment indicator**, not proof that a player will execute a team's game model. The role score and philosophy score are useful screens; they do not replace video, scouting or tactical judgement.
+
+## 5. What an FM24 player-search export cannot prove
+
+The supplied FM24 export contains season-level player statistics and player/club metadata. It does not contain event sequences or positional tracking. Therefore, it cannot directly measure:
+
+- whether pressure occurred within five seconds of a turnover;
+- the team's actual pressing height, defensive line or compactness;
+- the player's average position, spacing, width or occupation of half-spaces;
+- the timing and direction of off-ball runs;
+- rest-defence structure or counterpress coverage;
+- the exact build-up pattern, passing lanes or transition speed.
+
+Pressures, possession won, progressive passes, crossing and distance can be used as **proxies**, but their interpretation is conditional on the player's role and team context. A high pressure count can reflect team exposure or assignment, not necessarily better pressing. A high pass count can reflect team possession, not automatically superior availability.
+
+FM24's own manual explains that positional comfort affects performance and that a player can be used outside a natural position when their attributes and tactical structure support it. The current V2 export foundation preserves the position string, but it does not yet model FM's full 1–20 positional competence ratings. Out-of-position candidates must therefore be tagged for review, not silently treated as normal role fits. [Football Manager 2024 Players manual](https://community.sports-interactive.com/sigames-manual/football-manager-2024/players-r4958/)
+
+## 6. DoF and Scouting presentation requirements
+
+The planned user interface should show:
+
+1. **Role Fit** — score, role/duty, percentile group, coverage, confidence and metric-family breakdown.
+2. **Philosophy Fit** — score, selected club style/profile, six principle scores, role weights and missing evidence.
+3. **Tactical Fit** — configurable composite, only when both component scores are measurable.
+4. **Recruitment feasibility** — value, wage, contract, age, league step and likely interest, shown separately.
+5. **Recommendation reason** — explicit strengths, weaknesses, data gaps and why the player appears in a recommendation category.
+
+A Philosophy Score below a threshold should be a configurable filter or warning, not an unexplained hard rejection. Missing evidence should be labelled “insufficient evidence” and should not be interpreted as poor fit.
+
+## 7. Source and licence
+
+The role catalogue, metric metadata, role weights, six principle definitions and baseline philosophy weights are adapted from:
+
+- Repository: [Recruitment Lab V1](https://github.com/nbdhactr-creator/FM24-Recruitment-Lab-Save-Journal)
+- Branch inspected: `recruitment-lab/custom-build`
+- Source file: `index.html`
+- Licence: MIT, copyright Recruitment Lab contributors (2026)
+
+This project is separate from Recruitment Lab V1. V2 does not modify V1. The source licence notice must remain with copied/adapted substantial portions.
+
+External research references are provided above. The research informs interpretation and limitations; it does not supply or validate the numerical weights in the V1 catalogue.
