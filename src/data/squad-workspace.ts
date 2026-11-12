@@ -1,6 +1,7 @@
 import { emptyScoutingWorkspaceState, getDatasetPlayers, getScoutingWorkspaceState, updateScoutingWorkspaceState, type SaveWithDatasets, type ScoutingWorkspaceState, type PlayerSeasonRecord, type SquadTacticConfig, type SquadTacticSlot } from "./storage/local-database.ts";
 import { FM24_ROLES, FM24_STRATA } from "../analytics/fm24-role-catalog.ts";
 import { FM24_PHILOSOPHY_TEMPLATES, FM24_PHILOSOPHY_PRINCIPLES, philosophyWeightsForRole } from "../analytics/fm24-scoring.ts";
+import { refreshScoutingAnalysisSettings } from "./scouting-workspace";
 
 type Tab = "overview"|"players"|"tactics"|"philosophy"|"depth";
 type Role = {id:string;type:string;name:string;duty:string;dutyName:string;strata:string;slots:string[];desc?:string};
@@ -109,15 +110,15 @@ export async function handleSquadWorkspaceChange(target:HTMLElement,render:()=>v
  }
  if(target instanceof HTMLSelectElement&&target.matches("[data-squad-template]")){
   const a=state.analysis??emptyScoutingWorkspaceState().analysis!,r=roles.find(x=>x.id===a.roleId),custom={...(a.customPhilosophyWeightsByRole??{})};if(r)delete custom[r.type+"|"+r.duty];
-  state.analysis={...a,philosophyTemplate:target.value as NonNullable<ScoutingWorkspaceState["analysis"]>["philosophyTemplate"],customPhilosophyWeightsByRole:custom};await persist(render);return true;
+  state.analysis={...a,philosophyTemplate:target.value as NonNullable<ScoutingWorkspaceState["analysis"]>["philosophyTemplate"],customPhilosophyWeightsByRole:custom};await persist(render);await refreshScoutingAnalysisSettings(render);return true;
  }
  if(target instanceof HTMLSelectElement&&target.matches("[data-squad-role]")){
-  state.analysis={...(state.analysis??emptyScoutingWorkspaceState().analysis!),roleId:target.value};await persist(render);return true;
+  state.analysis={...(state.analysis??emptyScoutingWorkspaceState().analysis!),roleId:target.value};await persist(render);await refreshScoutingAnalysisSettings(render);return true;
  }
  if(target instanceof HTMLInputElement&&target.matches("[data-squad-weight]")){
   const a=state.analysis??emptyScoutingWorkspaceState().analysis!,r=roles.find(x=>x.id===a.roleId);if(!r||!a.philosophyTemplate)return true;
   const key=r.type+"|"+r.duty,base=a.customPhilosophyWeightsByRole?.[key]??philosophyWeightsForRole(r as never,a.philosophyTemplate),w=[...base],i=Number(target.dataset.squadWeight);if(i<0||i>5)return true;
-  w[i]=Math.max(0,Math.min(3,Number(target.value)));state.analysis={...a,customPhilosophyWeightsByRole:{...(a.customPhilosophyWeightsByRole??{}),[key]:w}};await persist(render);return true;
+  w[i]=Math.max(0,Math.min(3,Number(target.value)));state.analysis={...a,customPhilosophyWeightsByRole:{...(a.customPhilosophyWeightsByRole??{}),[key]:w}};await persist(render);await refreshScoutingAnalysisSettings(render);return true;
  }
  return false;
 }
