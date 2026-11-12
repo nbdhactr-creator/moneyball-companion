@@ -17,6 +17,7 @@ export interface ScoutingAnalysisSettings {
   roleId: string;
   philosophyTemplate: "" | "possession" | "counter" | "direct" | "balanced" | "lowblock" | "wing" | "positional" | "press" | "physical";
   roleWeight: number;
+  shrinkSmallSamples?: boolean;
 }
 export interface ScoutingWorkspaceState {
   savedSearches: SavedPlayerSearch[];
@@ -26,7 +27,7 @@ export interface ScoutingWorkspaceState {
 }
 export interface ScoutingSearchResult { players: PlayerSeasonRecord[]; total: number; fields: string[]; }
 export function emptyScoutingWorkspaceState(): ScoutingWorkspaceState {
-  return { savedSearches: [], players: {}, columnsByDataset: {}, analysis: { roleId: "", philosophyTemplate: "", roleWeight: 0.7 } };
+  return { savedSearches: [], players: {}, columnsByDataset: {}, analysis: { roleId: "", philosophyTemplate: "", roleWeight: 0.7, shrinkSmallSamples: false } };
 }
 
 export interface SaveRecord {
