@@ -35,10 +35,11 @@ These decisions are user-authored and never alter the original imported player-s
 - The user selects one of the 115 FM24 role/duty variants and one of nine V1 philosophy templates.
 - Role Fit uses the recovered V1 role weights, position strata, percentile pools, attempt floors and family aggregation.
 - Philosophy Fit uses the six V1 principles and role-type weights. The nine V1 templates are retained as starting profiles.
-- Tactical Fit combines Role Fit and Philosophy Fit. The default is 70/30; the UI offers 60/40 and 80/20 alternatives. This ratio is a transparent product choice, not a universal research result.
+- DoF Role Evaluation preserves V1's 90/10 core-role/aerial adjustment for DC, DLR, WB and DM roles when the required evidence exists; otherwise it remains the core role score.
+- Tactical Fit combines DoF Role Evaluation and Philosophy Fit. The default is 70/30; the UI offers 60/40 and 80/20 alternatives. This ratio is a transparent product choice, not a universal research result.
 - Both component scores remain visible. Tactical Fit is unavailable if either component lacks sufficient evidence; missing evidence is never converted to zero or a neutral 50.
 - The scoring worker reads the full selected dataset from IndexedDB and computes the reference pools off the main thread. It does not mutate imported player rows.
-- The candidate table shows the selected role score, philosophy score, combined tactical fit, confidence/evidence status and the six principle scores. It can sort all matching records by calculated fit before applying the 200-row result cap.
+- The candidate table shows core Role Fit, the V1-adjusted DoF Role Evaluation, Philosophy Fit, combined Tactical Fit, confidence/evidence status and the six principle scores. It can sort all matching records by calculated fit before applying the 200-row result cap.
 - Analysis settings are saved per career and are included in the existing career backup/restore path.
 
 ## Known limitations and next steps
