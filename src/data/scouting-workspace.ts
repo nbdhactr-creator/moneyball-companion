@@ -201,7 +201,8 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
       return '<td>' + (field === "name" ? '<button class="player-name-button" data-player-uid="' + esc(player.uid) + '">' + esc(value) + '</button>' : esc(value.trim() ? value : "—")) + '</td>';
     }).join("");
     const scoreCell = (value: number | null | undefined, title: string) => '<td class="scouting-score-cell" title="' + esc(title) + '">' + (value == null ? '<span class="score-missing">—</span>' : '<strong>' + value + '</strong>') + '</td>';
-    const roleCell = scoreCell(fit?.roleScore, fit ? 'Role-family evidence: ' + Math.round(fit.roleCoverage * 100) + '% · ' + fit.confidence + ' confidence' : 'Role score not calculated');
+    const roleCell = scoreCell(fit?.roleScore, fit ? 'Core role score · family evidence: ' + Math.round(fit.roleCoverage * 100) + '% · ' + fit.confidence + ' confidence' : 'Role score not calculated');
+    const dofCell = scoreCell(fit?.dofEvaluationScore, fit?.aerialAdjustmentApplied ? 'V1 DoF evaluation: 90% core role score + 10% aerial signal (' + fit.aerialScore + ')' : 'DoF evaluation equals the core role score; no eligible aerial adjustment was available or this role does not use it');
     const philosophyCell = scoreCell(fit?.philosophyScore, fit ? 'Philosophy evidence: ' + Math.round(fit.philosophyCoverage * 100) + '% coverage' : 'Philosophy score not calculated');
     const tacticalCell = scoreCell(fit?.tacticalFit, 'Combined tactical fit requires both role and philosophy evidence');
     const principleDetails = fit?.principleScores.length
@@ -214,7 +215,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
         fit.roleFamilies.map((family) => '<span title="Configured family weight: ' + family.weight + '">' + esc(family.family.replace(/_/g, " ")) + ': <b>' + (family.score == null ? '—' : family.score) + '</b></span>').join("") +
         '</div></details>'
       : '';
-    return '<tr data-scouting-row="' + esc(player.uid) + '">' + cells + roleCell + philosophyCell + tacticalCell + '<td>' + (fit && fit.positionEligible ? (fit.roleScore == null ? '<span class="score-missing">Insufficient evidence</span>' : '<span class="scouting-status">' + fit.confidence + ' confidence</span>') : fit ? '<span class="score-missing">Different position group</span>' : '<span class="score-missing">—</span>') + familyDetails + principleDetails + '</td><td><span class="scouting-status">' + esc(decision.status) + '</span><details class="scouting-player-details"><summary>Decision &amp; notes</summary><div class="scouting-player-editor">' +
+    return '<tr data-scouting-row="' + esc(player.uid) + '">' + cells + roleCell + dofCell + philosophyCell + tacticalCell + '<td>' + (fit && fit.positionEligible ? (fit.roleScore == null ? '<span class="score-missing">Insufficient evidence</span>' : '<span class="scouting-status">' + fit.confidence + ' confidence</span>') : fit ? '<span class="score-missing">Different position group</span>' : '<span class="score-missing">—</span>') + familyDetails + principleDetails + '</td><td><span class="scouting-status">' + esc(decision.status) + '</span><details class="scouting-player-details"><summary>Decision &amp; notes</summary><div class="scouting-player-editor">' +
       '<label>Status<select data-player-status>' + [["unreviewed","Unreviewed"],["watching","Watching"],["shortlist","Shortlist"],["reject","Reject"],["signed","Signed"],["revisit","Revisit"]].map((item) => '<option value="' + item[0] + '"' + (decision.status === item[0] ? " selected" : "") + '>' + item[1] + '</option>').join("") + '</select></label>' +
       '<label>Tags<input data-player-tags value="' + esc(decision.tags.join(", ")) + '" placeholder="e.g. pressing, value"></label>' +
       '<label>Next review<input data-player-review type="date" value="' + esc(decision.reviewDate) + '"></label>' +
@@ -240,7 +241,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<details class="scouting-columns-panel"><summary>Visible columns</summary><div class="scouting-columns-grid">' + columnOptions + '</div></details>' +
     '<div class="player-search-meta"><span>' + total.toLocaleString() + ' matching player(s) · showing ' + results.length + ' · max 200</span></div>' +
     (message ? '<p class="player-search-message" role="status">' + esc(message) + '</p>' : '') +
-    (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Role fit</th><th>Philosophy</th><th>Tactical fit</th><th>Evidence</th><th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
+    (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Role fit</th><th>DoF eval</th><th>Philosophy</th><th>Tactical fit</th><th>Evidence</th><th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
       '<div class="player-search-empty">' + (loading ? 'Searching the selected season…' : 'No players match the current search. Check conditions or reset filters.') + '</div>') +
     '<p class="player-data-footnote">Scouting metadata is stored with this career. Imported player rows remain unchanged. Numeric comparisons exclude blank and dash values.</p></section>';
 }
