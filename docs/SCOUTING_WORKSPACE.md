@@ -23,7 +23,7 @@
 - Career backups already include the career record, so the optional scouting metadata is included in new backups and restored with the career. Older backups without this field remain compatible.
 
 ## Player decisions
-Each career can store a separate scouting decision per FM UID. The Discover view supports multi-select and bulk addition to the shortlist. The dedicated Shortlist view filters shortlist/watch/revisit records and supports bulk removal by moving a player back to Watching; notes, tags and review dates are retained.
+Each career can store a separate scouting decision per FM UID. The Discover view supports multi-select and bulk addition to the shortlist. The dedicated Shortlist view filters shortlist/watch/revisit records. Bulk removal moves only selected players whose current status is Shortlist back to Watching; other selected statuses are left unchanged, and notes, tags and review dates are retained.
 - Unreviewed by default; watching, shortlist, reject, signed or revisit after a user decision.
 - Free-text notes (up to 2,000 characters).
 - Tags (up to 20).
