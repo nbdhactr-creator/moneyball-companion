@@ -46,7 +46,6 @@ let activeSaveId: string | null = null;
 let saveMessage = "";
 let saveMessageIsError = false;
 let isPersisting = false;
-let lastSavedDataset: SeasonDatasetRecord | null = null;
 
 function escapeHtml(value: string): string {
   const replacements: Record<string, string> = {
@@ -389,7 +388,6 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       });
       saveLibrary = await listSaves();
       activeSaveId = saveId;
-      lastSavedDataset = dataset;
       importState = { status: "idle" };
       saveMessage = `Season "${dataset.seasonLabel}" saved successfully: ${dataset.playerCount.toLocaleString()} player records stored locally.`;
       saveMessageIsError = false;
