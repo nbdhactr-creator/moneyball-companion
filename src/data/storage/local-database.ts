@@ -18,7 +18,14 @@ export interface ScoutingAnalysisSettings {
   philosophyTemplate: "" | "possession" | "counter" | "direct" | "balanced" | "lowblock" | "wing" | "positional" | "press" | "physical";
   roleWeight: number;
   customPhilosophyWeightsByRoleType?: Record<string, number[]>;
-  dof?: { budgetMillions: number; wageThousands: number; philosophyThreshold: number | null; requireKnownValue: boolean };
+  dof?: {
+    budgetMillions: number | null;
+    wageThousands: number | null;
+    philosophyThreshold: number | null;
+    requireKnownValue: boolean;
+    rankingMode: "role-led" | "balanced";
+    starterUid: string;
+  };
 }
 export interface ScoutingWorkspaceState {
   savedSearches: SavedPlayerSearch[];
