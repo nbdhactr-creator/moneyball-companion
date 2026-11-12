@@ -10,12 +10,12 @@ Updated: 13 November 2026
 - Depth & Needs: current tactical XI assignment coverage and unfilled slots.
 
 ## Tactical model
-The initial builder uses the FM24 model and V2's existing 115-variant role/duty catalogue. It includes 4-3-3 DM Wide, 4-2-3-1 Wide, 4-4-2 and 3-5-2. Select a pitch slot to edit its player and role/duty. Team instructions are grouped into In Possession, Transition and Out of Possession.
+The builder uses the FM24 model and V2's existing 115-variant role/duty catalogue. Its 15 starting presets are 3-4-3, 4-2-2-2 DM AM Narrow, 4-3-3 DM Wide, 4-4-2, 4-4-2 Diamond Narrow, 4-2-4 DM Wide, 4-3-2-1 DM AM Narrow, 5-2-1-2 DM AM, 5-2-2-1 DM AM, 5-2-3 DM Wide, 5-3-2 DM WB, 4-2-3-1 DM AM Wide, 4-1-4-1 DM and 4-4-1-1 2DM, plus the existing 3-5-2 preset. Select a pitch slot to edit its assigned player, FM24 position, role/duty and exact pitch coordinates. Shirts can be dragged on the pitch with mouse or touch; sliders remain available for precise positioning. Formation changes preserve assignments for slot IDs that remain present. The player picker searches only the configured active club and requires at least two characters before showing up to 20 matches. Team instructions are grouped into In Possession, Transition and Out of Possession.
 
 Tactic state is stored as an optional property in the career's existing ScoutingWorkspaceState in IndexedDB. Existing saves remain compatible. Formation changes preserve assignments for slot IDs that remain present.
 
 ## Philosophy
-The Philosophy screen reuses the existing FM24 templates, six principle definitions and role/duty-specific custom weights. It writes to the same saved analysis settings used by Scouting and Planning; there is one source of truth.
+The Philosophy screen reuses the existing FM24 templates, six principle definitions and role/duty-specific custom weights. Its side panel explains each principle's source metrics, the relative 0–3 weighting, the weighted-average formula and the 60% evidence-coverage requirement. A zero weight excludes that principle; changing weights changes only score emphasis, not source statistics. It writes to the same saved analysis settings used by Scouting and Planning; there is one source of truth.
 
 ## Charts and evidence
 - Age distribution uses the imported age field only where readable.
