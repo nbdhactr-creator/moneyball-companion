@@ -42,7 +42,7 @@ V1 evaluates six principles:
 | Defend on the front foot | Interceptions, tackle success, aerial success | Proactive defending and duels |
 | Intensity | Distance per 90, sprints per 90 | Repeat physical output |
 
-Each principle is calculated from the mean of its available metric percentiles in the player's role position group. Each role type has a six-value weight profile from 0 to 3. A role's philosophy score is the weighted average of measured principles. V1 requires 60% of the total configured principle weight to be available and at least one highest-weight principle to be measured.
+Each principle is calculated from the mean of its available metric percentiles in the player's role position group. Each role type has a six-value weight profile from 0 to 3. A role's philosophy score is the weighted average of measured principles. V1 requires 60% of the total configured principle weight to be available. It does not require a highest-weight principle to be measured.
 
 V1 also includes editable principle metrics, role weights, extra search positions and nine starting style templates (Possession, Counter-press, Direct, Balanced, Low block and counter, Wing play, Positional play, High-intensity press and Physical).
 
@@ -65,7 +65,7 @@ The DoF role evaluation also has a separate, limited aerial adjustment for centr
 - Every role metric reports its raw/normalised value, percentile, configured weight and availability reason.
 - Role results report family-by-family evidence, weighted coverage and minute-based confidence.
 - Each philosophy principle reports its metric coverage and component percentiles.
-- A principle with multiple metrics needs at least 60% of its own metrics measured before it contributes. This avoids treating one surviving statistic as a complete picture of a multi-metric principle.
+- A principle with multiple metrics needs at least 60% of its own metrics measured before it contributes. This is a V2 evidence-quality improvement over V1, which allowed a principle to contribute from any one available metric.
 - Missing values stay missing. A genuine zero stays zero.
 - Advanced metrics that are entirely absent in a sufficiently large competition are inferred as missing rather than interpreted as a league of players who all recorded zero. The inference uses a minimum league sample and a cross-dataset presence check; small samples are left unclassified.
 
