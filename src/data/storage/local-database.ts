@@ -7,11 +7,13 @@ const IMPORT_BATCH_SIZE = 400;
 
 export type ScoutingFilterOperator = "contains" | "equals" | "gt" | "gte" | "lt" | "lte" | "is-empty" | "is-not-empty";
 export interface ScoutingFilterCondition { id: string; field: string; operator: ScoutingFilterOperator; value: string; }
+export interface ScoutingFilterGroup { id: string; logic: "and" | "or"; filters: ScoutingFilterCondition[]; }
 export type ShortlistStatus = "unreviewed" | "watching" | "shortlist" | "reject" | "signed" | "revisit";
 export interface PlayerScoutingState { status: ShortlistStatus; note: string; tags: string[]; reviewDate: string; updatedAt: string; }
 export interface SavedPlayerSearch {
   id: string; name: string; datasetId: string; query: string; logic: "and" | "or";
   filters: ScoutingFilterCondition[]; columns: string[]; sortField: string; sortDirection: "asc" | "desc"; updatedAt: string;
+  groups?: ScoutingFilterGroup[]; groupLogic?: "and" | "or";
 }
 export interface ScoutingAnalysisSettings {
   roleId: string;
@@ -509,9 +511,21 @@ function matchesScoutingFilter(player: PlayerSeasonRecord, filter: ScoutingFilte
   return false;
 }
 
+function matchesScoutingGroups(player: PlayerSeasonRecord, groups: ScoutingFilterGroup[], groupLogic: "and" | "or"): boolean {
+  const activeGroups = groups.filter((group) => group.filters.length > 0);
+  if (!activeGroups.length) return true;
+  const matchesGroup = (group: ScoutingFilterGroup) => group.logic === "or"
+    ? group.filters.some((filter) => matchesScoutingFilter(player, filter))
+    : group.filters.every((filter) => matchesScoutingFilter(player, filter));
+  return groupLogic === "or" ? activeGroups.some(matchesGroup) : activeGroups.every(matchesGroup);
+}
+
 /** Searches all records in one selected season; missing values never become numeric zero. */
 export async function searchScoutingPlayers(input: {
   datasetId: string; query?: string; filters?: ScoutingFilterCondition[]; logic?: "and" | "or";
+  groups?: ScoutingFilterGroup[]; groupLogic?: "and" | "or";
+  shortlistStatus?: ShortlistStatus | "all-tracked";
+  scoutingStatusByUid?: ReadonlyMap<string, ShortlistStatus>;
   sortField?: string; sortDirection?: "asc" | "desc"; offset?: number; limit?: number;
   scoreByUid?: ReadonlyMap<string, { roleScore: number | null; dofEvaluationScore: number | null; philosophyScore: number | null; tacticalFit: number | null }>;
 }): Promise<ScoutingSearchResult> {
@@ -523,10 +537,16 @@ export async function searchScoutingPlayers(input: {
     await done;
     const query = (input.query ?? "").normalize("NFKC").trim().toLocaleLowerCase();
     const filters = input.filters ?? [];
+    const groups = input.groups ?? [];
     const matched = records.filter((player) => {
+      if (input.shortlistStatus) {
+        const status = input.scoutingStatusByUid?.get(player.uid) ?? "unreviewed";
+        if (input.shortlistStatus === "all-tracked" ? status === "unreviewed" : status !== input.shortlistStatus) return false;
+      }
       const queryMatch = !query || [player.displayName, player.club, player.position, ...Object.values(player.rawValues)]
         .some((value) => value.toLocaleLowerCase().includes(query));
       if (!queryMatch) return false;
+      if (groups.length) return matchesScoutingGroups(player, groups, input.groupLogic ?? "and");
       if (!filters.length) return true;
       return input.logic === "or"
         ? filters.some((filter) => matchesScoutingFilter(player, filter))
