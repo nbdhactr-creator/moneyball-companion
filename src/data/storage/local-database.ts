@@ -16,6 +16,7 @@ export interface SeasonDatasetRecord {
   id: string;
   saveId: string;
   seasonLabel: string;
+  seasonKey: string;
   fileName: string;
   fileSize: number;
   format: string;
@@ -101,7 +102,7 @@ export function openLocalDatabase(): Promise<IDBDatabase> {
         const store = db.createObjectStore("datasets", { keyPath: "id" });
         store.createIndex("saveId", "saveId");
         store.createIndex("saveFingerprint", ["saveId", "fingerprint"], { unique: true });
-        store.createIndex("saveSeason", ["saveId", "seasonLabel"], { unique: true });
+        store.createIndex("saveSeason", ["saveId", "seasonKey"], { unique: true });
       }
       if (!db.objectStoreNames.contains("playerRecords")) {
         const store = db.createObjectStore("playerRecords", { keyPath: "id" });
@@ -195,6 +196,7 @@ export async function persistSeasonImport(input: {
   rows: Fm24RawPlayerRow[];
 }): Promise<SeasonDatasetRecord> {
   const seasonLabel = input.seasonLabel.trim();
+  const seasonKey = seasonLabel.toLocaleLowerCase();
   if (!seasonLabel) throw new Error("Enter a season label, for example 2026/27.");
   if (!input.rows.length) throw new Error("There are no valid player rows to save.");
   const db = await openLocalDatabase();
@@ -212,7 +214,7 @@ export async function persistSeasonImport(input: {
     const datasetStore = check.objectStore("datasets");
     const [duplicate, sameSeason] = await Promise.all([
       requestResult(datasetStore.index("saveFingerprint").get([input.saveId, input.fingerprint]) as IDBRequest<SeasonDatasetRecord | undefined>),
-      requestResult(datasetStore.index("saveSeason").get([input.saveId, seasonLabel]) as IDBRequest<SeasonDatasetRecord | undefined>),
+      requestResult(datasetStore.index("saveSeason").get([input.saveId, seasonKey]) as IDBRequest<SeasonDatasetRecord | undefined>),
     ]);
     await checkDone;
     if (duplicate) throw new Error(`This exact file is already saved as season "${duplicate.seasonLabel}". Duplicate imports are blocked.`);
@@ -250,6 +252,7 @@ export async function persistSeasonImport(input: {
       id: datasetId,
       saveId: input.saveId,
       seasonLabel,
+      seasonKey,
       fileName: input.fileName,
       fileSize: input.fileSize,
       format: input.format,
