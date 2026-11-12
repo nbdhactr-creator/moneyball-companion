@@ -40,7 +40,7 @@ The exact dependency choices will be confirmed in the architecture blueprint. No
 
 The initial TypeScript/Vite application shell and GitHub Pages workflow are in place. Core recruitment modules and the FM data engine are being built in phases. The existing Recruitment Lab remains separate and operational.
 
-See [the product and architecture blueprint](docs/PRODUCT_BLUEPRINT.md) for the working plan.
+See [the product and architecture blueprint](docs/PRODUCT_BLUEPRINT.md) for the working plan.\n\n- [User research and product decisions](docs/USER_RESEARCH_AND_PRODUCT_DECISIONS.md)\n- [Local save and season data foundation](docs/LOCAL_DATA_FOUNDATION.md)
 
 
 ## Product research
