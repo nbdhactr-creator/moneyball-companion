@@ -15,7 +15,7 @@ import {
   type PlayerSeasonHistoryEntry,
 } from "./data/storage/local-database";
 import { createSaveBackup, restoreSaveBackup } from "./data/storage/save-backup";
-import { loadScoutingWorkspace, renderScoutingWorkspace, renderPlanningWorkspace, loadPlanningWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange } from "./data/scouting-workspace";
+import { loadScoutingWorkspace, renderScoutingWorkspace, renderPlanningWorkspace, loadPlanningWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange, refreshScoutingAnalysisSettings } from "./data/scouting-workspace";
 import { renderSquadWorkspace, handleSquadWorkspaceClick, handleSquadWorkspaceChange } from "./data/squad-workspace";
 
 type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "Planning" | "Data & Saves";
@@ -570,7 +570,7 @@ app.addEventListener("click", (event: MouseEvent) => {
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
     activeSection = next;
-    if (next === "Planning") void loadPlanningWorkspace(activeSave(), render);
+    if (next === "Planning") { void refreshScoutingAnalysisSettings(render); void loadPlanningWorkspace(activeSave(), render); }\n    if (next === "Scouting") void refreshScoutingAnalysisSettings(render);
     render();
     return;
   }
