@@ -23,7 +23,9 @@ let requestToken = 0;
 interface PlayerFitSummary {
   uid: string; positionEligible: boolean; roleScore: number | null; roleCoverage: number;
   confidence: "low" | "medium" | "high"; philosophyScore: number | null;
-  philosophyCoverage: number; principleScores: Array<number | null>; tacticalFit: number | null;
+  philosophyCoverage: number; principleScores: Array<number | null>;
+  roleFamilies: Array<{ family: string; score: number | null; weight: number; available: boolean }>;
+  tacticalFit: number | null;
 }
 let fitByUid = new Map<string, PlayerFitSummary>();
 let scoringWorker: Worker | null = null;
@@ -201,11 +203,16 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     const philosophyCell = scoreCell(fit?.philosophyScore, fit ? 'Philosophy evidence: ' + Math.round(fit.philosophyCoverage * 100) + '% coverage' : 'Philosophy score not calculated');
     const tacticalCell = scoreCell(fit?.tacticalFit, 'Combined tactical fit requires both role and philosophy evidence');
     const principleDetails = fit?.principleScores.length
-      ? '<details class="scouting-fit-details"><summary>Principle breakdown</summary><div>' +
+      ? '<details class="scouting-fit-details"><summary>Philosophy principles</summary><div>' +
         fit.principleScores.map((score, index) => '<span>' + esc(["Keep the ball", "Availability", "Progression", "Regains", "Front-foot defending", "Intensity"][index]) + ': <b>' + (score == null ? '—' : score) + '</b></span>').join("") +
         '</div></details>'
       : '';
-    return '<tr data-scouting-row="' + esc(player.uid) + '">' + cells + roleCell + philosophyCell + tacticalCell + '<td>' + (fit && fit.positionEligible ? (fit.roleScore == null ? '<span class="score-missing">Insufficient evidence</span>' : '<span class="scouting-status">' + fit.confidence + ' confidence</span>') : fit ? '<span class="score-missing">Different position group</span>' : '<span class="score-missing">—</span>') + principleDetails + '</td><td><span class="scouting-status">' + esc(decision.status) + '</span><details class="scouting-player-details"><summary>Decision &amp; notes</summary><div class="scouting-player-editor">' +
+    const familyDetails = fit?.roleFamilies.length
+      ? '<details class="scouting-fit-details"><summary>Role evidence families</summary><div>' +
+        fit.roleFamilies.map((family) => '<span title="Configured family weight: ' + family.weight + '">' + esc(family.family.replace(/_/g, " ")) + ': <b>' + (family.score == null ? '—' : family.score) + '</b></span>').join("") +
+        '</div></details>'
+      : '';
+    return '<tr data-scouting-row="' + esc(player.uid) + '">' + cells + roleCell + philosophyCell + tacticalCell + '<td>' + (fit && fit.positionEligible ? (fit.roleScore == null ? '<span class="score-missing">Insufficient evidence</span>' : '<span class="scouting-status">' + fit.confidence + ' confidence</span>') : fit ? '<span class="score-missing">Different position group</span>' : '<span class="score-missing">—</span>') + familyDetails + principleDetails + '</td><td><span class="scouting-status">' + esc(decision.status) + '</span><details class="scouting-player-details"><summary>Decision &amp; notes</summary><div class="scouting-player-editor">' +
       '<label>Status<select data-player-status>' + [["unreviewed","Unreviewed"],["watching","Watching"],["shortlist","Shortlist"],["reject","Reject"],["signed","Signed"],["revisit","Revisit"]].map((item) => '<option value="' + item[0] + '"' + (decision.status === item[0] ? " selected" : "") + '>' + item[1] + '</option>').join("") + '</select></label>' +
       '<label>Tags<input data-player-tags value="' + esc(decision.tags.join(", ")) + '" placeholder="e.g. pressing, value"></label>' +
       '<label>Next review<input data-player-review type="date" value="' + esc(decision.reviewDate) + '"></label>' +
