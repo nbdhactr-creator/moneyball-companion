@@ -1,4 +1,3 @@
-/// <reference lib="webworker" />
 import { getDatasetPlayers } from "../data/storage/local-database";
 import {
   createFm24Scorer,
@@ -24,7 +23,10 @@ interface ScoreResult {
   principleScores: Array<number | null>;
   tacticalFit: number | null;
 }
-const workerScope = self as DedicatedWorkerGlobalScope;
+const workerScope = self as unknown as {
+  onmessage: ((event: MessageEvent<ScoreRequest>) => void) | null;
+  postMessage(message: unknown): void;
+};
 
 workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
   const request = event.data;
