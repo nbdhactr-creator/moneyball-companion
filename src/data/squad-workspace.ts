@@ -144,9 +144,9 @@ export function handleSquadWorkspacePointerDown(event:PointerEvent):boolean{
  const id=button.dataset.tacticSlot??"";
  if(!id)return false;
  selectedSlot=id;
- activePitchDrag={slotId:id,pointerId:event.pointerId,pitch,button,x:0,y:0,moved:false};
+ const current=tactic().slots.find(slot=>slot.id===id);
+ activePitchDrag={slotId:id,pointerId:event.pointerId,pitch,button,x:current?.x??50,y:current?.y??50,moved:false};
  try{button.setPointerCapture(event.pointerId)}catch{}
- event.preventDefault();
  return true;
 }
 export function handleSquadWorkspacePointerMove(event:PointerEvent):boolean{
