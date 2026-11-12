@@ -1,6 +1,6 @@
 # Local Save and Season Data Foundation
 
-Status: local import, multi-season persistence, versioned career backup/restore, career-scoped player identities and the first season-history workflow are implemented, merged into main and deployed to GitHub Pages. User verification of the new Squad workflow remains pending.
+Status: local import, multi-season persistence, versioned career backup/restore, career-scoped player identities and the first season-history workflow are implemented, merged into main, deployed to GitHub Pages and confirmed working by the user. The Scouting workspace foundation is under review in PR #10.
 
 ## User workflow
 
