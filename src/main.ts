@@ -242,10 +242,10 @@ function dataSavesView(): string {
     <div class="data-layout">
       <section class="content-card import-card">
         <div class="card-kicker">FM24 DATA WORKFLOW</div><h2>Import a season export</h2>
-        <p>Select the original Football Manager export. The supported format is the quoted pipe-table export identified from the supplied FM24 sample. Parsing and validation happen locally.</p>
+        <p>Select the original Football Manager export. Supported formats are FM24 pipe-table exports and HTML table exports containing a UID column. Parsing and validation happen locally.</p>
         <label class="file-dropzone" for="fm24-file-input">
-          <input id="fm24-file-input" class="file-input" type="file" accept=".csv,.txt,text/csv,text/plain" data-fm24-file>
-          <span class="upload-symbol">↑</span><strong>Select FM24 export</strong><span>Choose the original .csv file · no server upload</span>
+          <input id="fm24-file-input" class="file-input" type="file" accept=".csv,.txt,.html,.htm,text/csv,text/plain,text/html,application/xhtml+xml" data-fm24-file>
+          <span class="upload-symbol">↑</span><strong>Select FM24 export</strong><span>Choose an FM24 .csv, .txt, .html or .htm export · no server upload</span>
         </label>
         <div class="muted-note">A successful validation is not a saved season. Review the report and explicitly commit it to a save.</div>
       </section>
