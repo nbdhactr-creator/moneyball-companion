@@ -3,7 +3,7 @@ import {
   FM24_ROLES,
   FM24_STAT_META,
   FM24_STRATA,
-} from "./fm24-role-catalog";
+} from "./fm24-role-catalog.ts";
 
 export interface Fm24ScoringPlayer {
   uid?: string;
