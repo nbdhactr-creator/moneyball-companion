@@ -17,6 +17,9 @@ interface ScoreResult {
   uid: string;
   positionEligible: boolean;
   roleScore: number | null;
+  dofEvaluationScore: number | null;
+  aerialScore: number | null;
+  aerialAdjustmentApplied: boolean;
   roleCoverage: number;
   confidence: "low" | "medium" | "high";
   philosophyScore: number | null;
@@ -53,6 +56,7 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
       : undefined;
     const scores: ScoreResult[] = scorer.players.map((player) => {
       const roleResult = scorer.scoreRole(player, role);
+      const dofResult = scorer.scoreDofEvaluation(player, role);
       const philosophyResult = request.philosophyTemplate
         ? scorer.scorePhilosophy(player, role, philosophyWeights)
         : null;
@@ -63,6 +67,9 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
         uid: player.uid ?? "",
         positionEligible: roleResult.families.length > 0,
         roleScore: roleResult.score,
+        dofEvaluationScore: dofResult.score,
+        aerialScore: dofResult.aerialScore,
+        aerialAdjustmentApplied: dofResult.aerialAdjustmentApplied,
         roleCoverage: roleResult.coverage,
         confidence: roleResult.confidence,
         philosophyScore: philosophyResult?.score ?? null,
