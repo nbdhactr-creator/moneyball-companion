@@ -12,8 +12,10 @@ permissions:
   pages: write
   id-token: write
 
+# Pull-request checks must not cancel a production Pages deployment.
+# Each PR gets its own group; main pushes share the production Pages group.
 concurrency:
-  group: pages
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || 'pages' }}
   cancel-in-progress: true
 
 jobs:
