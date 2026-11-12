@@ -180,6 +180,7 @@ function normalisePlayer(player: Fm24ScoringPlayer, missingByLeague: Map<string,
   const minutes = stats.Mins ?? null;
   const p90 = (key: string) => per90(stats[key] ?? null, minutes);
   const z = (key: string) => zero(stats[key] ?? null);
+  const has = (...keys: string[]) => keys.every((key) => stats[key] != null);
   const divisionKey = (player.division ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
   const missing = missingByLeague.get(divisionKey) ?? new Set<string>();
   const unavailable = (key: string) => missing.has(key);
@@ -188,59 +189,59 @@ function normalisePlayer(player: Fm24ScoringPlayer, missingByLeague: Map<string,
   };
 
   const distanceKm = parseDistanceKm(player.rawValues.Distance);
-  const saves = z("Svh") + z("Svp") + z("Svt");
-  const savesFaced = saves + z("Conc");
+  const saves = has("Svh", "Svp", "Svt") ? z("Svh") + z("Svp") + z("Svt") : null;
+  const savesFaced = saves != null && has("Conc") ? saves + z("Conc") : null;
   stats._saves = saves;
   stats._saves_faced = savesFaced;
-  if (stats.Svh != null && stats.Conc != null) {
-    stats["Save %"] = savesFaced ? saves / savesFaced : null;
-    stats["Catch rate"] = saves ? z("Svh") / saves : null;
+  if (savesFaced != null && saves != null) {
+    stats["Save %"] = savesFaced > 0 ? saves / savesFaced : null;
+    stats["Catch rate"] = saves > 0 ? z("Svh") / saves : null;
     stats["Shots faced/90"] = per90(savesFaced, minutes);
-    stats["CS/Start"] = stats.Starts ? safeDivide(stats["Clean Sheets"] ?? 0, stats.Starts) : null;
-    stats["Pen save %"] = stats["Pens Faced"] ? safeDivide(stats["Pens Saved"] ?? 0, stats["Pens Faced"]) : null;
   }
-  const nonPenaltyXg = stats.xG == null ? null : stats.xG - PENALTY_XG * z("Pens");
-  const nonPenaltyShots = stats.Shots == null ? null : stats.Shots - z("Pens");
+  stats["CS/Start"] = has("Clean Sheets", "Starts") && z("Starts") > 0 ? safeDivide(z("Clean Sheets"), z("Starts")) : null;
+  stats["Pen save %"] = has("Pens Saved", "Pens Faced") && z("Pens Faced") > 0 ? safeDivide(z("Pens Saved"), z("Pens Faced")) : null;
+  const nonPenaltyXg = has("xG", "Pens") ? z("xG") - PENALTY_XG * z("Pens") : null;
+  const nonPenaltyShots = has("Shots", "Pens") ? z("Shots") - z("Pens") : null;
   stats._npshots = nonPenaltyShots;
   stats["npxG/90"] = per90(nonPenaltyXg, minutes);
-  stats["Non-pen G/90"] = stats.Gls == null ? null : per90(stats.Gls - z("Pens S"), minutes);
+  stats["Non-pen G/90"] = has("Gls", "Pens S") ? per90(z("Gls") - z("Pens S"), minutes) : null;
   stats["npG-npxG/90"] = stats["Non-pen G/90"] != null && stats["npxG/90"] != null
     ? stats["Non-pen G/90"] - stats["npxG/90"] : null;
   stats["npxG/Shot"] = nonPenaltyXg != null && nonPenaltyShots != null && nonPenaltyShots > 0 ? nonPenaltyXg / nonPenaltyShots : null;
-  stats["G/SoT"] = stats.ShT ? safeDivide(stats.Gls ?? 0, stats.ShT) : null;
-  stats["Long-shot share"] = stats["Shot/90"] ? safeDivide(stats["Shots Outside Box/90"] ?? null, stats["Shot/90"]) : null;
+  stats["G/SoT"] = has("Gls", "ShT") && z("ShT") > 0 ? safeDivide(z("Gls"), z("ShT")) : null;
+  stats["Long-shot share"] = has("Shots Outside Box/90", "Shot/90") && z("Shot/90") > 0 ? safeDivide(z("Shots Outside Box/90"), z("Shot/90")) : null;
   stats["Off/90"] = p90("Off");
-  stats["Pen conv"] = stats.Pens ? safeDivide(stats["Pens S"] ?? 0, stats.Pens) : null;
+  stats["Pen conv"] = has("Pens", "Pens S") && z("Pens") > 0 ? safeDivide(z("Pens S"), z("Pens")) : null;
   stats["CCC/90"] = p90("CCC");
   stats["npxG+xA/90"] = stats["npxG/90"] != null && stats["xA/90"] != null ? stats["npxG/90"] + stats["xA/90"] : null;
-  stats["G+A np/90"] = stats.Gls == null ? null : per90(stats.Gls - z("Pens S") + z("Ast"), minutes);
-  stats["A-xA/90"] = stats.Ast != null && stats.xA != null ? per90(stats.Ast - stats.xA, minutes) : null;
-  stats["xA/KP"] = stats["K Pas"] ? safeDivide(stats.xA ?? null, stats["K Pas"]) : null;
-  stats["OP-KP share"] = stats["K Pas"] ? safeDivide(stats["OP-KP"] ?? null, stats["K Pas"]) : null;
-  stats["Prog/90"] = stats["Pr passes/90"] != null || stats["Drb/90"] != null ? z("Pr passes/90") + z("Drb/90") : null;
-  stats.Verticality = stats["Pas A"] ? safeDivide(stats["Pr Passes"] ?? 0, stats["Pas A"]) : null;
+  stats["G+A np/90"] = has("Gls", "Pens S", "Ast") ? per90(z("Gls") - z("Pens S") + z("Ast"), minutes) : null;
+  stats["A-xA/90"] = has("Ast", "xA") ? per90(z("Ast") - z("xA"), minutes) : null;
+  stats["xA/KP"] = has("xA", "K Pas") && z("K Pas") > 0 ? safeDivide(z("xA"), z("K Pas")) : null;
+  stats["OP-KP share"] = has("OP-KP", "K Pas") && z("K Pas") > 0 ? safeDivide(z("OP-KP"), z("K Pas")) : null;
+  stats["Prog/90"] = has("Pr passes/90", "Drb/90") ? z("Pr passes/90") + z("Drb/90") : null;
+  stats.Verticality = has("Pr Passes", "Pas A") && z("Pas A") > 0 ? safeDivide(z("Pr Passes"), z("Pas A")) : null;
   stats["FA/90"] = p90("FA");
-  const lost = stats["Poss Lost/90"] != null && minutes != null ? stats["Poss Lost/90"] * minutes / 90 : null;
-  stats["Loss rate"] = stats["Poss Lost/90"] != null && (z("Ps A/90") + z("Drb/90")) > 0
-    ? stats["Poss Lost/90"] / (z("Ps A/90") + z("Drb/90")) : null;
-  stats["Passes per loss"] = lost ? safeDivide(stats["Ps C"] ?? null, lost) : null;
+  const lost = has("Poss Lost/90") && minutes != null ? z("Poss Lost/90") * minutes / 90 : null;
+  stats["Loss rate"] = has("Poss Lost/90", "Ps A/90", "Drb/90") && (z("Ps A/90") + z("Drb/90")) > 0
+    ? z("Poss Lost/90") / (z("Ps A/90") + z("Drb/90")) : null;
+  stats["Passes per loss"] = lost != null && lost > 0 && has("Ps C") ? safeDivide(z("Ps C"), lost) : null;
   stats["Tck W/90"] = p90("Tck W");
-  stats["TklW+Int/90"] = stats["Tck W"] != null || stats.Itc != null ? per90(z("Tck W") + z("Itc"), minutes) : null;
-  stats["K Tck share"] = stats["Tck W"] ? safeDivide(stats["K Tck"] ?? 0, stats["Tck W"]) : null;
-  stats["Fls/Tck"] = stats["Tck A"] ? safeDivide(stats.Fls ?? 0, stats["Tck A"]) : null;
+  stats["TklW+Int/90"] = has("Tck W", "Itc") ? per90(z("Tck W") + z("Itc"), minutes) : null;
+  stats["K Tck share"] = has("K Tck", "Tck W") && z("Tck W") > 0 ? safeDivide(z("K Tck"), z("Tck W")) : null;
+  stats["Fls/Tck"] = has("Fls", "Tck A") && z("Tck A") > 0 ? safeDivide(z("Fls"), z("Tck A")) : null;
   stats["Errors/90"] = p90("Gl Mst");
-  stats["Cards/90"] = per90(z("Yel") + z("Red"), minutes);
+  stats["Cards/90"] = has("Yel", "Red") ? per90(z("Yel") + z("Red"), minutes) : null;
   stats["Fls/90"] = p90("Fls");
-  stats["Def actions/90"] = per90(z("Tck W") + z("Itc") + z("Blk") + z("Clear"), minutes);
-  stats["Box def/90"] = per90(z("Blk") + z("Clear") + z("Shts Blckd"), minutes);
-  stats["K Hdr share"] = stats["Hdrs W/90"] ? safeDivide(stats["K Hdrs/90"] ?? null, stats["Hdrs W/90"]) : null;
-  stats["Press success"] = stats["Pres A"] ? safeDivide(stats["Pres C"] ?? 0, stats["Pres A"]) : null;
+  stats["Def actions/90"] = has("Tck W", "Itc", "Blk", "Clear") ? per90(z("Tck W") + z("Itc") + z("Blk") + z("Clear"), minutes) : null;
+  stats["Box def/90"] = has("Blk", "Clear", "Shts Blckd") ? per90(z("Blk") + z("Clear") + z("Shts Blckd"), minutes) : null;
+  stats["K Hdr share"] = has("Hdrs W/90", "K Hdrs/90") && z("Hdrs W/90") > 0 ? safeDivide(z("K Hdrs/90"), z("Hdrs W/90")) : null;
+  stats["Press success"] = has("Pres A", "Pres C") && z("Pres A") > 0 ? safeDivide(z("Pres C"), z("Pres A")) : null;
   stats["Dist/90 km"] = per90(distanceKm, minutes);
-  stats["Sprints/km"] = stats["Dist/90 km"] ? safeDivide(stats["Sprints/90"] ?? null, stats["Dist/90 km"]) : null;
-  stats["Pres/km"] = stats["Dist/90 km"] ? safeDivide(stats["Pres A/90"] ?? null, stats["Dist/90 km"]) : null;
-  stats["Start rate"] = stats.Apps ? safeDivide(stats.Starts ?? 0, stats.Apps) : null;
-  stats["Mins/App"] = stats.Apps ? safeDivide(minutes, stats.Apps) : null;
-  stats["PoM/Start"] = stats.Starts ? safeDivide(stats.PoM ?? 0, stats.Starts) : null;
+  stats["Sprints/km"] = has("Sprints/90") && stats["Dist/90 km"] != null && stats["Dist/90 km"] > 0 ? safeDivide(z("Sprints/90"), stats["Dist/90 km"]) : null;
+  stats["Pres/km"] = has("Pres A/90") && stats["Dist/90 km"] != null && stats["Dist/90 km"] > 0 ? safeDivide(z("Pres A/90"), stats["Dist/90 km"]) : null;
+  stats["Start rate"] = has("Apps", "Starts") && z("Apps") > 0 ? safeDivide(z("Starts"), z("Apps")) : null;
+  stats["Mins/App"] = has("Apps", "Mins") && z("Apps") > 0 ? safeDivide(z("Mins"), z("Apps")) : null;
+  stats["PoM/Start"] = has("PoM", "Starts") && z("Starts") > 0 ? safeDivide(z("PoM"), z("Starts")) : null;
 
   for (const [target, dependencies] of Object.entries(DERIVED_DEPENDENCIES)) invalidateIfMissing(target, dependencies);
   // A league-wide absence of an advanced source field is treated as missing, not as genuine zero.
@@ -270,6 +271,7 @@ function detectLeagueMissingFields(players: Fm24ScoringPlayer[]): Map<string, Se
   }
   const gaps = new Map<string, Set<string>>();
   for (const [league, rows] of byLeague) {
+    if (!league) continue;
     const eligible = rows.filter((player) => (parseNumber(player.rawValues.Mins) ?? 0) >= 90);
     const totalMinutes = eligible.reduce((sum, player) => sum + (parseNumber(player.rawValues.Mins) ?? 0), 0);
     if (eligible.length < 10 || totalMinutes < 15000) continue;
