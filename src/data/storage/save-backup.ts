@@ -113,19 +113,25 @@ async function validateBackup(input: unknown): Promise<BackupPayload> {
   }
 
   const datasetIds = new Set<string>();
-  const datasetKeys = new Set<string>();
+  const seasonKeys = new Set<string>();
+  const fingerprints = new Set<string>();
   for (const dataset of datasets) {
     if (!isObject(dataset)) throw new Error("Backup contains an invalid season record.");
     requireString(dataset.id, "season ID");
     requireString(dataset.seasonLabel, "season label");
+    requireString(dataset.seasonKey, "season key");
+    requireString(dataset.fingerprint, "file fingerprint");
+    requireString(dataset.importedAt, "season import date");
     if (dataset.saveId !== save.id || dataset.status !== "committed") {
       throw new Error("Backup contains a season that does not belong to this career or is not committed.");
     }
     if (datasetIds.has(dataset.id)) throw new Error("Backup contains duplicate season IDs.");
     datasetIds.add(dataset.id);
-    const key = `${dataset.seasonKey}|${dataset.fingerprint}`;
-    if (datasetKeys.has(key)) throw new Error("Backup contains duplicate season identity data.");
-    datasetKeys.add(key);
+    if (seasonKeys.has(dataset.seasonKey) || fingerprints.has(dataset.fingerprint)) {
+      throw new Error("Backup contains duplicate season labels or source files.");
+    }
+    seasonKeys.add(dataset.seasonKey);
+    fingerprints.add(dataset.fingerprint);
     if (!Number.isInteger(dataset.playerCount) || dataset.playerCount < 0) {
       throw new Error("Backup contains an invalid player count.");
     }
@@ -191,22 +197,21 @@ export async function createSaveBackup(saveId: string): Promise<string> {
   try {
     const transaction = db.transaction(["saves", "datasets", "importJobs", "playerRecords"], "readonly");
     const done = transactionDone(transaction);
-    const [saves, allDatasets, allJobs, allPlayers] = await Promise.all([
+    const [saves, allDatasets, allJobs, playerRecords] = await Promise.all([
       requestResult(transaction.objectStore("saves").getAll() as IDBRequest<SaveRecord[]>),
-      requestResult(transaction.objectStore("datasets").getAll() as IDBRequest<SeasonDatasetRecord[]>),
-      requestResult(transaction.objectStore("importJobs").getAll() as IDBRequest<ImportJobRecord[]>),
-      requestResult(transaction.objectStore("playerRecords").getAll() as IDBRequest<PlayerSeasonRecord[]>),
+      requestResult(transaction.objectStore("datasets").index("saveId").getAll(saveId) as IDBRequest<SeasonDatasetRecord[]>),
+      requestResult(transaction.objectStore("importJobs").index("saveId").getAll(saveId) as IDBRequest<ImportJobRecord[]>),
+      requestResult(transaction.objectStore("playerRecords").index("saveId").getAll(saveId) as IDBRequest<PlayerSeasonRecord[]>),
     ]);
     await done;
 
     const save = saves.find((entry) => entry.id === saveId);
     if (!save) throw new Error("That career could not be found. Refresh the save library and try again.");
-    const datasets = allDatasets.filter((entry) => entry.saveId === saveId && entry.status === "committed");
+    const datasets = allDatasets.filter((entry) => entry.status === "committed");
     const datasetIds = new Set(datasets.map((entry) => entry.id));
-    const importJobs = allJobs.filter((entry) => entry.saveId === saveId &&
-      entry.status === "committed" && datasetIds.has(entry.datasetId));
+    const importJobs = allJobs.filter((entry) => entry.status === "committed" && datasetIds.has(entry.datasetId));
     const jobIds = new Set(importJobs.map((entry) => entry.id));
-    const playerRecords = allPlayers.filter((entry) => entry.saveId === saveId &&
+    const committedPlayers = playerRecords.filter((entry) =>
       datasetIds.has(entry.datasetId) && jobIds.has(entry.importJobId));
 
     const unsigned = {
@@ -216,11 +221,11 @@ export async function createSaveBackup(saveId: string): Promise<string> {
       save,
       datasets,
       importJobs,
-      playerRecords,
+      playerRecords: committedPlayers,
       manifest: {
         datasetCount: datasets.length,
         importJobCount: importJobs.length,
-        playerRecordCount: playerRecords.length,
+        playerRecordCount: committedPlayers.length,
       },
     } satisfies Omit<BackupPayload, "checksum">;
     const result: BackupPayload = { ...unsigned, checksum: await checksum(canonicalPayload(unsigned)) };
