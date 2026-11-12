@@ -71,6 +71,8 @@ test("persists saved searches, visible columns and shortlist decisions with the 
   state.savedSearches.push({
     id: "saved-1", name: "U21 midfielders", datasetId: "dataset-1", query: "midfielder", logic: "and",
     filters: [{ id: "age", field: "Age", operator: "lt", value: "21" }],
+    groups: [{ id: "group-1", logic: "and", filters: [{ id: "age", field: "Age", operator: "lt", value: "21" }] }],
+    groupLogic: "or",
     columns: ["name", "Age"], sortField: "Age", sortDirection: "asc", updatedAt: new Date().toISOString(),
   });
   state.players["9003"] = { status: "unreviewed", note: "", tags: [], reviewDate: "", updatedAt: new Date().toISOString() };
@@ -82,6 +84,8 @@ test("persists saved searches, visible columns and shortlist decisions with the 
   await updateScoutingWorkspaceState(save.id, state);
   const restored = await getScoutingWorkspaceState(save.id);
   assert.equal(restored.savedSearches[0].name, "U21 midfielders");
+  assert.equal(restored.savedSearches[0].groupLogic, "or");
+  assert.equal(restored.savedSearches[0].groups[0].logic, "and");
   assert.equal(restored.players["9002"].status, "shortlist");
   assert.equal(restored.players["9003"].status, "unreviewed");
   assert.deepEqual(restored.players["9002"].tags, ["value", "U21"]);
