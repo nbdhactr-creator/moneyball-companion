@@ -22,6 +22,7 @@ interface ScoreResult {
   philosophyScore: number | null;
   philosophyCoverage: number;
   principleScores: Array<number | null>;
+  roleFamilies: Array<{ family: string; score: number | null; weight: number; available: boolean }>;
   tacticalFit: number | null;
 }
 const workerScope = self as unknown as {
@@ -67,6 +68,9 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
         philosophyScore: philosophyResult?.score ?? null,
         philosophyCoverage: philosophyResult?.coverage ?? 0,
         principleScores: philosophyResult?.principles.map((principle) => principle.score) ?? [],
+        roleFamilies: roleResult.families.map((family) => ({
+          family: family.family, score: family.score, weight: family.configuredWeight, available: family.available,
+        })),
         tacticalFit: tactical?.score ?? null,
       };
     });
