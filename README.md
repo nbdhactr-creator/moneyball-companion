@@ -47,3 +47,8 @@ The existing Recruitment Lab remains separate and operational.
 - [Product and architecture blueprint](docs/PRODUCT_BLUEPRINT.md)
 - [User research and product decisions](docs/USER_RESEARCH_AND_PRODUCT_DECISIONS.md)
 - [Local save and season data foundation](docs/LOCAL_DATA_FOUNDATION.md)
+
+
+## Scoring methodology
+
+The FM24 role/duty catalogue, role-score methodology, Philosophy Score principles, evidence coverage and known export limitations are documented in [Scoring Methodology](docs/SCORING_METHODOLOGY.md). The Scouting workflow status and limitations are documented in [Scouting Workspace](docs/SCOUTING_WORKSPACE.md).
