@@ -84,3 +84,14 @@
 .save-manager-card{margin-bottom:13px}
 @media(max-width:760px){.create-save-form,.persist-import-form{grid-template-columns:1fr}.create-save-form .primary-button,.persist-import-form .primary-button{width:100%}.form-help{grid-column:auto}}
 @media(max-width:480px){.save-list-item{align-items:flex-start;flex-direction:column}.compact-button{align-self:flex-start}}
+
+
+/* Portable save backup and restore */
+.backup-card{margin-top:13px}
+.backup-actions{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:18px}
+.backup-actions form{display:flex;flex-direction:column;align-items:flex-start;gap:11px;min-width:0;padding:16px;border:1px solid #e8eeeb;border-radius:8px;background:#fafcfb}
+.backup-actions .primary-button,.backup-actions .secondary-button{margin:0}
+.restore-backup-form .form-field{width:100%}
+.restore-backup-form input[type=file]{height:auto;min-height:38px;padding:8px;font-size:10px}
+.backup-actions .form-help{line-height:1.5}
+@media(max-width:760px){.backup-actions{grid-template-columns:1fr}}
