@@ -180,3 +180,29 @@ test("V1 philosophy goalkeeper exceptions are preserved", () => {
     assert.deepEqual(philosophyWeightsForRole(role, template), base);
   }
 });
+
+test("DoF evaluation preserves the V1 90/10 aerial adjustment without altering core role fit", () => {
+  const players = Array.from({ length: 14 }, (_, index) => defender(index));
+  const scorer = createFm24Scorer(players);
+  const player = scorer.players[5];
+  const role = "cd-DC-D";
+  const core = scorer.scoreRole(player, role).score;
+  const evaluation = scorer.scoreDofEvaluation(player, role);
+  assert.notEqual(core, null);
+  assert.equal(evaluation.coreRoleScore, core);
+  assert.equal(evaluation.aerialAdjustmentApplied, true);
+  assert.notEqual(evaluation.aerialScore, null);
+  assert.equal(evaluation.score, Math.round(core * 0.9 + evaluation.aerialScore * 0.1));
+});
+
+test("missing aerial evidence never reduces a DoF role evaluation", () => {
+  const players = Array.from({ length: 14 }, (_, index) => defender(index, index === 5 ? { "Hdr %": "" } : {}));
+  const scorer = createFm24Scorer(players);
+  const player = scorer.players[5];
+  const role = "cd-DC-D";
+  const core = scorer.scoreRole(player, role).score;
+  const evaluation = scorer.scoreDofEvaluation(player, role);
+  assert.notEqual(core, null);
+  assert.equal(evaluation.aerialAdjustmentApplied, false);
+  assert.equal(evaluation.score, core);
+});
