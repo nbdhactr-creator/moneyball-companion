@@ -128,7 +128,13 @@ The deployed app was reported by the user to work in live testing. This audit in
 - Consider a compact table-density control and user-managed visible columns; avoid shrinking text to fit every statistic.
 - Keep raw imported values accessible from every analytical profile.
 
-## 5. Recommended development sequence
+## 5. Squad workspace implementation direction
+
+The next major workflow is the club's Squad workspace. Keep tactical configuration, club philosophy, player records and squad assessment connected but separately navigable. The FM24 tactical board is the correct initial reference because V2's current role catalogue and imported data are FM24-based. FM26's dual in-possession/out-of-possession formations and role redesign should be treated as a later, separately versioned tactical model rather than mixed into the FM24 role catalogue.
+
+Useful references: [FM24 tactics manual](https://community.sports-interactive.com/sigames-manual/football-manager-2024/tactics-r4960/), [FM Squad Planner](https://www.footballmanager.com/features/recruitment-revamp), [FM Dossier Analysis](https://fmdossier.dev/features/analysis), [FM Dossier Recruitment](https://www.fmdossier.dev/features/recruitment), [FMST26](https://www.fmscout.com/a-fmst-26.html), [FM26 tactical evolution](https://www.footballmanager.com/fm26/features/in-possession-out-possession-fm26s-new-tactical-evolution).
+
+## 6. Recommended development sequence
 
 1. Complete and verify consistent sortable tables (this branch).
 2. Build player comparison as a reusable cross-workspace feature.
@@ -139,7 +145,7 @@ The deployed app was reported by the user to work in live testing. This audit in
 7. Add similar-player search after its distance model and failure modes are documented and tested.
 8. Add optional video/evidence references only when supported by user-provided assets or a verified integration.
 
-## 6. Data and methodology guardrails
+## 7. Data and methodology guardrails
 
 - A field absent from an export is unavailable, not zero.
 - Do not label FM season-stat proxies as direct measurements of pressing height, compactness, rest-defence, off-ball movement or tactical execution.
@@ -149,6 +155,6 @@ The deployed app was reported by the user to work in live testing. This audit in
 - Similarity is not ability, potential, value or tactical interchangeability.
 - Video and qualitative scouting remain necessary for validating context.
 
-## 7. Source notes
+## 8. Source notes
 
 This review uses the V1 custom-build tutorial and repository, V2's current product blueprint and scoring methodology, and the linked public platform documentation/articles above. Platform capabilities vary by package and product version. These references inform workflow design; they do not validate V2's numerical weights.

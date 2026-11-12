@@ -30,7 +30,16 @@ export interface ScoutingAnalysisSettings {
     starterUid: string;
   };
 }
+export interface SquadTacticSlot { id: string; label: string; position: string; x: number; y: number; roleId: string; playerUid: string; }
+export interface SquadTacticConfig {
+  name: string; formationId: string; slots: SquadTacticSlot[]; mentality: string;
+  inPossession: { width: string; passing: string; tempo: string; finalThird: string };
+  transition: { win: string; lose: string; goalkeeper: string };
+  outOfPossession: { line: string; defensiveLine: string; pressing: string; approach: string };
+  updatedAt: string;
+}
 export interface ScoutingWorkspaceState {
+  squadTactics?: SquadTacticConfig;
   savedSearches: SavedPlayerSearch[];
   players: Record<string, PlayerScoutingState>;
   columnsByDataset: Record<string, string[]>;
