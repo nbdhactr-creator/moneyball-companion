@@ -386,15 +386,22 @@ function dofTable(title: string, description: string, rows: DofCandidate[]): str
       fit.philosophyScore == null ? '<span class="scouting-status">Philosophy unverified</span>' : "",
     ].filter(Boolean).join(" ");
     const principleDetails = fit.principleEvidence.map((principle) =>
-      '<span>' + esc(principle.name) + ': <b>' + (principle.score == null ? "—" : principle.score) + '</b></span>'
+      '<section><span>' + esc(principle.name) + ' · weight ' + principle.weight + ': <b>' + (principle.score == null ? "—" : principle.score) + '</b></span><small>' +
+      principle.metrics.map((metric) => esc(metric.metric) + ': ' + (metric.percentile == null ? "—" : Math.round(metric.percentile) + "th pct")).join(" · ") + '</small></section>'
     ).join("");
+    const roleDetails = fit.roleFamilies.map((family) =>
+      '<span>' + esc(family.family.replace(/_/g, " ")) + ': <b>' + (family.score == null ? "—" : family.score) + '</b> · weight ' + family.weight + '</span>'
+    ).join("");
+    const dofNote = (fit.aerialAdjustmentApplied ? 'Aerial-adjusted 90/10 DoF score. ' : 'No aerial adjustment. ') +
+      (fit.sampleAdjusted ? 'Sample-adjusted from ' + fit.dofEvaluationRawScore + ' toward 50.' : 'No sample adjustment.');
     return '<tr><td><strong>' + esc(candidate.player.displayName) + '</strong><small>' + esc(candidate.player.position) + ' · ' + esc(candidate.player.club) + '</small>' + (flags ? '<small>' + flags + '</small>' : '') + '</td>' +
-      '<td>' + (fit.roleScore ?? "—") + '<small>Core role</small></td><td><strong>' + (fit.dofEvaluationScore ?? "—") + '</strong><small>' + fit.confidence + ' confidence</small></td>' +
-      '<td>' + (fit.philosophyScore ?? "—") + '<small>' + Math.round(fit.philosophyCoverage * 100) + '% evidence</small><details class="scouting-fit-details"><summary>Principles</summary><div>' + principleDetails + '</div></details></td>' +
-      '<td>' + (candidate.age ?? "—") + '</td><td>' + esc(candidate.valueText) + '</td><td>' + esc(candidate.wageText) + '</td></tr>';
+      '<td>' + (fit.roleScore ?? "—") + '<small>Core role</small><details class="scouting-fit-details"><summary>Role evidence</summary><div>' + roleDetails + '</div></details></td>' +
+      '<td><strong>' + (fit.dofEvaluationScore ?? "—") + '</strong><small>' + fit.confidence + ' confidence</small><small>' + esc(dofNote) + '</small></td>' +
+      '<td>' + (fit.philosophyScore ?? "—") + '<small>' + Math.round(fit.philosophyCoverage * 100) + '% evidence</small><details class="scouting-fit-details"><summary>Principles and metrics</summary><div>' + principleDetails + '</div></details></td>' +
+      '<td>' + (fit.tacticalFit ?? "—") + '</td><td>' + (candidate.age ?? "—") + '</td><td>' + esc(candidate.valueText) + '</td><td>' + esc(candidate.wageText) + '</td></tr>';
   }).join("");
   return '<section class="content-card dof-category"><div class="dof-category-heading"><div><h3>' + esc(title) + '</h3><p>' + esc(description) + '</p></div><span>' + rows.length + ' match(es)</span></div>' +
-    (body ? '<div class="player-table-wrap"><table class="player-data-table dof-results-table"><thead><tr><th>Candidate</th><th>Role fit</th><th>DoF evaluation</th><th>Philosophy fit</th><th>Age</th><th>Value</th><th>Wage</th></tr></thead><tbody>' + body + '</tbody></table></div>' : '<p class="form-help">No candidates currently meet this category. Adjust the role, filters or financial limits.</p>') +
+    (body ? '<div class="player-table-wrap"><table class="player-data-table dof-results-table"><thead><tr><th>Candidate</th><th>Role fit</th><th>DoF evaluation</th><th>Philosophy fit</th><th>Tactical fit</th><th>Age</th><th>Value</th><th>Wage</th></tr></thead><tbody>' + body + '</tbody></table></div>' : '<p class="form-help">No candidates currently meet this category. Adjust the role, filters or financial limits.</p>') +
     (rows.length > 8 ? '<p class="form-help">Showing the top 8 of ' + rows.length + ' matches.</p>' : '') + '</section>';
 }
 
