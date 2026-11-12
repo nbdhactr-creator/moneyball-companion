@@ -144,3 +144,8 @@
 .player-data-table thead th:first-child{position:sticky;left:0;z-index:2}
 @media(max-width:760px){.squad-search-controls{grid-template-columns:1fr}.player-search-form{grid-template-columns:minmax(0,1fr) auto}.player-profile-toolbar{align-items:flex-start;flex-direction:column}.player-section-heading{align-items:flex-start;flex-direction:column;gap:3px}}
 @media(max-width:480px){.player-search-form{grid-template-columns:1fr}.player-search-form .primary-button{width:100%}.player-search-meta{align-items:flex-start;flex-direction:column;gap:4px}.player-profile-card{padding:16px}.player-profile-heading h2{font-size:18px}}
+
+
+.player-comparison-controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:11px 0 12px;padding:12px;border:1px solid #edf0ef;border-radius:7px;background:#fafcfb}
+.player-comparison-controls .form-field select:disabled{background:#f3f5f4;color:#a2abad}
+@media(max-width:520px){.player-comparison-controls{grid-template-columns:1fr}}
