@@ -125,6 +125,8 @@ function parseFm24HtmlExport(source: string): Fm24ParseResult {
 
   while ((match = tokens.exec(source)) !== null) {
     const token = match[0];
+    const tokenLine = currentLine;
+    currentLine += (token.match(/\n/g) ?? []).length;
     if (token.startsWith("<!--") || token.startsWith("<!")) continue;
     if (!token.startsWith("<")) {
       if (inCell && ignoredTagDepth === 0) currentCell += decodeHtmlText(token);
@@ -135,8 +137,7 @@ function parseFm24HtmlExport(source: string): Fm24ParseResult {
     if (!tagMatch) continue;
     const closing = tagMatch[1] === "/";
     const tag = tagMatch[2].toLowerCase();
-    const line = currentLine;
-    currentLine += (token.match(/\n/g) ?? []).length;
+    const line = tokenLine;
 
     if (tag === "script" || tag === "style") {
       if (closing) ignoredTagDepth = Math.max(0, ignoredTagDepth - 1);
