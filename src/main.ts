@@ -183,7 +183,9 @@ function importStatusView(): string {
 
   const { parsed, validation, fileName, fileSize } = importState;
   const previewRows = validation.validRows.length > 0 ? validation.validRows : parsed.rows;
-  const previewHeaders = ["UID", "Name", "Position", "Age", "Club", "Division"].filter((header) => parsed.headers.includes(header));
+  const previewHeaders = ["UID", "Name", "Position", "Age", "Club", "Division"]
+    .map((candidate) => parsed.headers.find((header) => header.toLowerCase() === candidate.toLowerCase()))
+    .filter((header): header is string => Boolean(header));
   const visibleIssues = validation.issues.slice(0, 8);
   const sizeLabel = fileSize < 1024 * 1024 ? `${(fileSize / 1024).toFixed(1)} KB` : `${(fileSize / (1024 * 1024)).toFixed(2)} MB`;
   const options = saveLibrary.map(({ save }) => `<option value="${save.id}" ${save.id === activeSaveId ? "selected" : ""}>${escapeHtml(save.name)}</option>`).join("");
