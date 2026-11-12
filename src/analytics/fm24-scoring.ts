@@ -52,6 +52,12 @@ export interface Fm24PhilosophyScore {
   score: number | null; coverage: number; availableWeight: number; totalWeight: number;
   principles: PhilosophyPrincipleEvidence[]; profile: "v1-baseline" | "custom";
 }
+export interface Fm24DofEvaluation {
+  score: number | null;
+  coreRoleScore: number | null;
+  aerialScore: number | null;
+  aerialAdjustmentApplied: boolean;
+}
 export interface TacticalFitScore {
   score: number | null; roleScore: number | null; philosophyScore: number | null;
   roleWeight: number; philosophyWeight: number; status: "complete" | "incomplete";
@@ -435,9 +441,29 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
   };
   const getPercentile = (player: NormalizedFm24Player, metric: string, strata: string) =>
     metricEvidence(player, metric, strata).percentile;
+  const scoreDofEvaluation = (player: NormalizedFm24Player, roleOrId: Fm24Role | string): Fm24DofEvaluation => {
+    const role = typeof roleOrId === "string" ? ROLE_CATALOG.find((item) => item.id === roleOrId) : roleOrId;
+    if (!role) throw new Error("Unknown FM24 role/duty identifier.");
+    const coreRoleScore = scoreRole(player, role).score;
+    if (coreRoleScore == null || !["DC", "DLR", "WB", "DM"].includes(role.strata)) {
+      return { score: coreRoleScore, coreRoleScore, aerialScore: null, aerialAdjustmentApplied: false };
+    }
+    const aerialQuality = getPercentile(player, "Hdr %", role.strata);
+    const aerialOutput = ["Hdrs W/90", "K Hdrs/90"]
+      .map((metric) => getPercentile(player, metric, role.strata))
+      .filter((value): value is number => value != null);
+    if (aerialQuality == null || !aerialOutput.length) {
+      return { score: coreRoleScore, coreRoleScore, aerialScore: null, aerialAdjustmentApplied: false };
+    }
+    const aerialScore = Math.round((aerialQuality + aerialOutput.reduce((sum, value) => sum + value, 0) / aerialOutput.length) / 2);
+    return {
+      score: Math.round(coreRoleScore * 0.9 + aerialScore * 0.1),
+      coreRoleScore, aerialScore, aerialAdjustmentApplied: true,
+    };
+  };
   return {
     players, gaps, roles: ROLE_CATALOG, principles: PRINCIPLES,
-    scoreRole, scorePhilosophy, getPercentile,
+    scoreRole, scorePhilosophy, scoreDofEvaluation, getPercentile,
     poolMinimumMinutes, seasonProgress, highConfidenceMinutes, mediumConfidenceMinutes,
   };
 }
