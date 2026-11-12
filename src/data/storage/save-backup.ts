@@ -3,7 +3,7 @@ import {
   formatStorageError,
   type SaveRecord,
   type SeasonDatasetRecord,
-} from "./local-database";
+} from "./local-database.ts";
 
 const BACKUP_FORMAT = "moneyball-companion-save-backup";
 const BACKUP_VERSION = 1;
