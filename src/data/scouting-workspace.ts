@@ -185,6 +185,35 @@ export async function loadScoutingWorkspace(nextSaveId: string, nextDatasetId = 
   }
 }
 
+function addFilter(groupId: string): void {
+  const field = fields().find((entry) => entry !== "uid") ?? "name";
+  filterGroups = filterGroups.map((group) => group.id === groupId
+    ? { ...group, filters: [...group.filters, { id: crypto.randomUUID(), field, operator: "contains", value: "" }] }
+    : group);
+}
+function updateFilter(filterId: string, patch: Partial<ScoutingFilterCondition>): void {
+  filterGroups = filterGroups.map((group) => ({
+    ...group, filters: group.filters.map((filter) => filter.id === filterId ? { ...filter, ...patch } : filter),
+  }));
+}
+function groupsForSavedSearch(saved: SavedPlayerSearch): ScoutingFilterGroup[] {
+  if (Array.isArray(saved.groups) && saved.groups.length) return structuredClone(saved.groups);
+  return [{ id: crypto.randomUUID(), logic: saved.logic, filters: structuredClone(saved.filters ?? []) }];
+}
+async function bulkSetStatus(status: ShortlistStatus, render: () => void): Promise<void> {
+  if (!selectedUids.size) { message = "Select at least one player first."; render(); return; }
+  const now = new Date().toISOString();
+  for (const uid of selectedUids) {
+    const existing = playerState(uid);
+    state.players[uid] = { ...existing, status, updatedAt: now };
+  }
+  const count = selectedUids.size;
+  selectedUids.clear();
+  await updateScoutingWorkspaceState(saveId, state);
+  message = count + " player(s) updated. Notes and tags were preserved.";
+  await runSearch(render);
+}
+
 export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): string {
   if (!save) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Select a career first.</h2><p>Scouting searches and decisions are stored inside the active career.</p></section>';
   if (!save.datasets.length) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Import a season to begin.</h2><p>Search and filters use only your imported player records.</p></section>';
