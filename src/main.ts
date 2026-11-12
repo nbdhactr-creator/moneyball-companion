@@ -5,6 +5,7 @@ import {
   formatStorageError,
   listSaves,
   persistSeasonImport,
+  recoverInterruptedImports,
   type SaveWithDatasets,
 } from "./data/storage/local-database";
 
@@ -311,6 +312,7 @@ function validateFileInWorker(file: File): void {
 
 async function refreshSaveLibrary(): Promise<void> {
   try {
+    await recoverInterruptedImports();
     saveLibrary = await listSaves();
     if (activeSaveId && !saveLibrary.some((entry) => entry.save.id === activeSaveId)) activeSaveId = null;
     if (!activeSaveId && saveLibrary.length) activeSaveId = saveLibrary[0].save.id;
