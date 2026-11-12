@@ -674,6 +674,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       resetPlayerWorkspace();
       activeSaveId = restored.id;
       persistActiveSaveId(activeSaveId);
+      await loadScoutingWorkspace(restored.id, saveLibrary.find((entry) => entry.save.id === restored.id)?.datasets[0]?.id ?? "");
       saveMessage = '"' + restored.name + '" restored successfully. Your original career remains unchanged.';
       saveMessageIsError = false;
     } catch (error) {
@@ -695,6 +696,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       resetPlayerWorkspace();
       activeSaveId = save.id;
       persistActiveSaveId(activeSaveId);
+      await loadScoutingWorkspace(save.id);
       saveMessage = `Save "${save.name}" created on this device.`;
       saveMessageIsError = false;
       form.reset();
@@ -729,6 +731,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       resetPlayerWorkspace();
       activeSaveId = saveId;
       squadDatasetId = dataset.id;
+      await loadScoutingWorkspace(saveId, dataset.id);
       persistActiveSaveId(activeSaveId);
       importState = { status: "idle" };
       saveMessage = `Season "${dataset.seasonLabel}" saved successfully: ${dataset.playerCount.toLocaleString()} player records stored locally.`;
