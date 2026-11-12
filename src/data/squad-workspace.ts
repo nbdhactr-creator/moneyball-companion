@@ -85,7 +85,7 @@ function playerPickerOptions(slot:SquadTacticSlot,rows:PlayerSeasonRecord[],quer
  return options.join("");
 }
 function positionOptionMarkup(position:string):string{
- return Object.entries(strata).map(([key,group])=>'<optgroup label="'+esc(group.label)+'">'+group.slots.map(pos=>'<option value="'+esc(pos)+'"'+(position===pos?" selected":"")+'>'+esc(pos)+'</option>').join("")+'</optgroup>').join("");
+ return Object.entries(strata).map(([,group])=>'<optgroup label="'+esc(group.label)+'">'+group.slots.map(pos=>'<option value="'+esc(pos)+'"'+(position===pos?" selected":"")+'>'+esc(pos)+'</option>').join("")+'</optgroup>').join("");
 }
 function tactics(){
  const t=tactic(),rows=clubRows(),slot=t.slots.find(s=>s.id===selectedSlot)??t.slots[0];if(slot)selectedSlot=slot.id;
