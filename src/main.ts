@@ -73,6 +73,8 @@ let playerHistory: PlayerSeasonHistoryEntry[] = [];
 let playerSearchMessage = "";
 let isSearchingPlayers = false;
 let isLoadingPlayerHistory = false;
+let playerSearchRequestId = 0;
+let playerHistoryRequestId = 0;
 
 function escapeHtml(value: string): string {
   const replacements: Record<string, string> = {
@@ -157,6 +159,8 @@ function overview(): string {
 
 
 function resetPlayerWorkspace(): void {
+  playerSearchRequestId += 1;
+  playerHistoryRequestId += 1;
   squadDatasetId = "";
   playerSearchQuery = "";
   playerSearchResults = [];
@@ -253,36 +257,53 @@ function squadView(): string {
 async function runPlayerSearch(): Promise<void> {
   const selected = activeSave();
   if (!selected || !squadDatasetId) return;
+  const requestId = ++playerSearchRequestId;
+  const saveId = selected.save.id;
+  const datasetId = squadDatasetId;
+  const query = playerSearchQuery;
   isSearchingPlayers = true;
   playerSearchMessage = "";
   render();
   try {
-    playerSearchResults = await searchPlayersInDataset(squadDatasetId, playerSearchQuery, 100);
-    playerSearchMessage = playerSearchResults.length
-      ? `Showing up to 100 matches for "${playerSearchQuery || "all players"}".`
+    const results = await searchPlayersInDataset(datasetId, query, 100);
+    if (requestId !== playerSearchRequestId || activeSaveId !== saveId || squadDatasetId !== datasetId) return;
+    playerSearchResults = results;
+    playerSearchMessage = results.length
+      ? `Showing up to 100 matches for "${query || "all players"}".`
       : "No players matched this name prefix in the selected season. Try another spelling or select a different season.";
   } catch (error) {
+    if (requestId !== playerSearchRequestId || activeSaveId !== saveId || squadDatasetId !== datasetId) return;
     playerSearchResults = [];
     playerSearchMessage = formatStorageError(error);
   } finally {
-    isSearchingPlayers = false;
-    render();
+    if (requestId === playerSearchRequestId) {
+      isSearchingPlayers = false;
+      render();
+    }
   }
 }
 
 async function openPlayerHistory(uid: string): Promise<void> {
   if (!activeSaveId) return;
+  const requestId = ++playerHistoryRequestId;
+  const saveId = activeSaveId;
   selectedPlayerUid = uid;
   isLoadingPlayerHistory = true;
   playerHistory = [];
+  playerSearchMessage = "";
   render();
   try {
-    playerHistory = await getPlayerHistory(activeSaveId, uid);
+    const history = await getPlayerHistory(saveId, uid);
+    if (requestId !== playerHistoryRequestId || activeSaveId !== saveId) return;
+    playerHistory = history;
   } catch (error) {
+    if (requestId !== playerHistoryRequestId || activeSaveId !== saveId) return;
     playerSearchMessage = formatStorageError(error);
   } finally {
-    isLoadingPlayerHistory = false;
-    render();
+    if (requestId === playerHistoryRequestId) {
+      isLoadingPlayerHistory = false;
+      render();
+    }
   }
 }
 
@@ -509,6 +530,8 @@ app.addEventListener("click", (event: MouseEvent) => {
     return;
   }
   if (target?.hasAttribute("data-player-back")) {
+    playerHistoryRequestId += 1;
+    isLoadingPlayerHistory = false;
     selectedPlayerUid = null;
     playerHistory = [];
     render();
@@ -532,6 +555,10 @@ app.addEventListener("click", (event: MouseEvent) => {
 app.addEventListener("change", (event: Event) => {
   const target = event.target;
   if (target instanceof HTMLSelectElement && target.matches("[data-squad-dataset]")) {
+    playerSearchRequestId += 1;
+    playerHistoryRequestId += 1;
+    isSearchingPlayers = false;
+    isLoadingPlayerHistory = false;
     squadDatasetId = target.value;
     playerSearchResults = [];
     playerSearchMessage = "";
