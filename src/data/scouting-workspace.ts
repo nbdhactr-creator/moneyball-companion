@@ -22,7 +22,8 @@ let loading = false;
 let requestToken = 0;
 interface PlayerFitSummary {
   uid: string; positionEligible: boolean; roleScore: number | null; dofEvaluationScore: number | null;
-  aerialScore: number | null; aerialAdjustmentApplied: boolean; roleCoverage: number;
+  dofEvaluationRawScore: number | null; aerialScore: number | null; aerialAdjustmentApplied: boolean;
+  sampleAdjusted: boolean; roleCoverage: number;
   confidence: "low" | "medium" | "high"; philosophyScore: number | null;
   philosophyCoverage: number; principleScores: Array<number | null>;
   roleFamilies: Array<{ family: string; score: number | null; weight: number; available: boolean }>;
@@ -65,7 +66,7 @@ function playerState(uid: string): PlayerScoutingState {
   return state.players[uid] ?? { status: "unreviewed", note: "", tags: [], reviewDate: "", updatedAt: "" };
 }
 function analysisSettings() {
-  return state.analysis ?? { roleId: "", philosophyTemplate: "" as const, roleWeight: 0.7 };
+  return state.analysis ?? { roleId: "", philosophyTemplate: "" as const, roleWeight: 0.7, shrinkSmallSamples: false };
 }
 function stopScoringWorker(): void {
   scoringRequestToken += 1;
@@ -119,6 +120,7 @@ async function runScoring(render: () => void): Promise<void> {
       requestId, datasetId, roleId: settings.roleId,
       philosophyTemplate: settings.philosophyTemplate,
       roleWeight: settings.roleWeight,
+      shrinkSmallSamples: settings.shrinkSmallSamples === true,
     });
   } catch (error) {
     scoringStatus = "error";
@@ -203,7 +205,8 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     }).join("");
     const scoreCell = (value: number | null | undefined, title: string) => '<td class="scouting-score-cell" title="' + esc(title) + '">' + (value == null ? '<span class="score-missing">—</span>' : '<strong>' + value + '</strong>') + '</td>';
     const roleCell = scoreCell(fit?.roleScore, fit ? 'Core role score · family evidence: ' + Math.round(fit.roleCoverage * 100) + '% · ' + fit.confidence + ' confidence' : 'Role score not calculated');
-    const dofCell = scoreCell(fit?.dofEvaluationScore, fit?.aerialAdjustmentApplied ? 'V1 DoF evaluation: 90% core role score + 10% aerial signal (' + fit.aerialScore + ')' : 'DoF evaluation equals the core role score; no eligible aerial adjustment was available or this role does not use it');
+    const dofCell = scoreCell(fit?.dofEvaluationScore, (fit?.aerialAdjustmentApplied ? 'V1 DoF evaluation: 90% core role score + 10% aerial signal (' + fit.aerialScore + '). ' : 'DoF evaluation equals the core role score. ') +
+      (fit?.sampleAdjusted ? 'Sample-shrunk from raw score ' + fit.dofEvaluationRawScore + ' toward 50.' : 'No sample shrinkage applied.'));
     const philosophyCell = scoreCell(fit?.philosophyScore, fit ? 'Philosophy evidence: ' + Math.round(fit.philosophyCoverage * 100) + '% coverage' : 'Philosophy score not calculated');
     const tacticalCell = scoreCell(fit?.tacticalFit, 'Combined tactical fit uses DoF role evaluation and philosophy fit; both require sufficient evidence');
     const principleDetails = fit?.principleScores.length
@@ -227,7 +230,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<p>Core Role Fit measures role-specific performance. DoF Role Evaluation preserves V1’s small aerial adjustment for relevant defensive roles. Philosophy Fit measures alignment with your selected playing principles. Tactical Fit combines DoF Role Evaluation and Philosophy Fit only when both have sufficient evidence.</p>' +
     '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-scouting-role><option value="">Choose a role…</option>' + roleOptions + '</select></label>' +
     '<label>Club philosophy<select data-scouting-philosophy><option value="">Choose a philosophy…</option>' + philosophyOptions + '</select></label>' +
-    '<label>DoF role weight<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label></div>' +
+    '<label>DoF role weight<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label><label class="scouting-shrink-control"><span>Small-sample adjustment</span><span><input type="checkbox" data-scouting-shrink' + (analysis.shrinkSmallSamples ? ' checked' : '') + '> Shrink scores toward 50 below the high-confidence minute threshold</span></label></div>' +
     '<p class="scouting-score-note" data-scoring-status="' + scoringStatus + '">' + esc(scoringMessage || "Choose a role and philosophy to calculate player fit. Tactical Fit uses DoF Role Evaluation plus Philosophy Fit; its blend is a configurable starting point, not a universal formula. Scores use the full selected season as the comparison pool.") + '</p>' +
     '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>' +
     '<label class="scouting-query">Search players<input type="search" data-scouting-query value="' + esc(query) + '" placeholder="Name, club, position or source value"></label>' +
@@ -314,6 +317,10 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
     await updateScoutingWorkspaceState(saveId, state);
     if (sortField === "tacticalFit") await runSearch(render);
     return true;
+  }
+  if (target instanceof HTMLInputElement && target.matches("[data-scouting-shrink]")) {
+    state.analysis = { ...analysisSettings(), shrinkSmallSamples: target.checked };
+    await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-dataset]")) {
     datasetId = target.value; filters = []; query = ""; await runSearch(render); await runScoring(render); return true;
