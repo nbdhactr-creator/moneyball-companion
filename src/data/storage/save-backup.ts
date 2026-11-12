@@ -229,6 +229,7 @@ export async function createSaveBackup(saveId: string): Promise<string> {
       },
     } satisfies Omit<BackupPayload, "checksum">;
     const result: BackupPayload = { ...unsigned, checksum: await checksum(canonicalPayload(unsigned)) };
+    await validateBackup(result);
     return JSON.stringify(result);
   } catch (error) {
     throw new Error(formatStorageError(error));
