@@ -180,7 +180,7 @@ function playerProfileView(): string {
   if (!selectedPlayerUid) return "";
   const present = playerHistory.filter((entry) => entry.player);
   const latestPlayer = [...present].reverse()[0]?.player;
-  if (!latestPlayer) return '<section class="content-card"><p>This player has no season records in the active career.</p><button class="secondary-button" data-player-back>Back to player search</button></section>';
+  if (!latestPlayer) return `<section class="content-card"><p>${escapeHtml(playerSearchMessage || "This player has no season records in the active career.")}</p><button class="secondary-button" data-player-back>Back to player search</button></section>`;
 
   const previous = playerHistory.length > 1 ? playerHistory[playerHistory.length - 2] : undefined;
   const current = playerHistory[playerHistory.length - 1];
