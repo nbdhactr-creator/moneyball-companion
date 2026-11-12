@@ -119,6 +119,7 @@ function parseFm24HtmlExport(source: string): Fm24ParseResult {
   let currentCell = "";
   let inCell = false;
   let ignoredTagDepth = 0;
+  let currentLine = 1;
   const tokens = /<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][^>]*>|[^<]+/gi;
   let match: RegExpExecArray | null;
 
@@ -134,7 +135,8 @@ function parseFm24HtmlExport(source: string): Fm24ParseResult {
     if (!tagMatch) continue;
     const closing = tagMatch[1] === "/";
     const tag = tagMatch[2].toLowerCase();
-    const line = source.slice(0, match.index).split(/\r\n|\r|\n/).length;
+    const line = currentLine;
+    currentLine += (token.match(/\n/g) ?? []).length;
 
     if (tag === "script" || tag === "style") {
       if (closing) ignoredTagDepth = Math.max(0, ignoredTagDepth - 1);
@@ -209,7 +211,7 @@ function parseFm24HtmlExport(source: string): Fm24ParseResult {
         code: "duplicate-header",
         severity: "error",
         line: tableRows[headerIndex].line,
-        message: \`The HTML export contains the duplicate column name "\${header}".\`,
+        message: `The HTML export contains the duplicate column name "${header}".`,
       });
     }
   }
@@ -222,7 +224,7 @@ function parseFm24HtmlExport(source: string): Fm24ParseResult {
         code: "malformed-row",
         severity: "error",
         line: sourceRow.line,
-        message: \`Expected \${headers.length} columns but found \${sourceRow.cells.length}; this row was excluded.\`,
+        message: `Expected ${headers.length} columns but found ${sourceRow.cells.length}; this row was excluded.`,
       });
       continue;
     }
