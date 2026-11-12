@@ -147,6 +147,10 @@ test("rejects unsupported backup versions and incomplete manifests", async () =>
     restoreSaveBackup({ ...backup, manifest: { ...backup.manifest, playerRecordCount: 999 } }),
     /record counts do not match/,
   );
+  await assert.rejects(
+    restoreSaveBackup({ ...backup, manifest: { ...backup.manifest, identityCount: 999 } }),
+    /identity count does not match/,
+  );
   assert.equal((await listSaves()).length, 1);
 });
 
