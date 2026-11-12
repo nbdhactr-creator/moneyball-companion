@@ -512,6 +512,7 @@ function matchesScoutingFilter(player: PlayerSeasonRecord, filter: ScoutingFilte
 export async function searchScoutingPlayers(input: {
   datasetId: string; query?: string; filters?: ScoutingFilterCondition[]; logic?: "and" | "or";
   sortField?: string; sortDirection?: "asc" | "desc"; offset?: number; limit?: number;
+  scoreByUid?: ReadonlyMap<string, { roleScore: number | null; philosophyScore: number | null; tacticalFit: number | null }>;
 }): Promise<ScoutingSearchResult> {
   const db = await openLocalDatabase();
   try {
@@ -533,8 +534,9 @@ export async function searchScoutingPlayers(input: {
     const field = input.sortField || "name";
     const direction = input.sortDirection === "desc" ? -1 : 1;
     matched.sort((a, b) => {
-      const left = scoutingFieldValue(a, field).trim();
-      const right = scoutingFieldValue(b, field).trim();
+      const scoreField = field === "roleScore" || field === "philosophyScore" || field === "tacticalFit";
+      const left = (scoreField ? String(input.scoreByUid?.get(a.uid)?.[field] ?? "") : scoutingFieldValue(a, field)).trim();
+      const right = (scoreField ? String(input.scoreByUid?.get(b.uid)?.[field] ?? "") : scoutingFieldValue(b, field)).trim();
       if (!left && right) return 1;
       if (left && !right) return -1;
       const ln = Number(left.replace(/,/g, ""));
