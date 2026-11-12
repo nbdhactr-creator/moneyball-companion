@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   createFm24Scorer,
   combineTacticalFit,
+  philosophyWeightsForRole,
   FM24_ROLE_COUNT,
   FM24_PHILOSOPHY_PRINCIPLES,
 } from "../../src/analytics/fm24-scoring.ts";
@@ -59,6 +60,7 @@ test("source zero is preserved while blank values remain missing", () => {
   assert.equal(scorer.players[0].stats.Gls, 0);
   assert.equal(scorer.players[0].stats.xG, null);
   assert.equal(scorer.players[0].stats.Ast, null);
+  assert.ok(scorer.players[0].stats["Dist/90 km"] > 3.3);
 });
 
 test("role score is position-specific and returns explainable family coverage", () => {
@@ -113,4 +115,13 @@ test("combined tactical fit never substitutes missing philosophy with a neutral 
   const combined = combineTacticalFit(role, completePhilosophy);
   assert.equal(combined.score, 74);
   assert.equal(combined.status, "complete");
+});
+
+test("philosophy templates preserve six role-specific weights within the 0-3 scale", () => {
+  const role = "cd-DC-D";
+  for (const template of ["possession", "counter", "direct", "balanced", "lowblock", "wing", "positional", "press", "physical"]) {
+    const weights = philosophyWeightsForRole(role, template);
+    assert.equal(weights.length, 6);
+    assert.ok(weights.every((weight) => weight >= 0 && weight <= 3));
+  }
 });
