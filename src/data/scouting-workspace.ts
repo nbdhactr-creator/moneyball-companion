@@ -303,7 +303,7 @@ function numberField(player: PlayerSeasonRecord, key: string): number | null {
 function currentClubPlayers(save: SaveWithDatasets, roleId: string): PlayerSeasonRecord[] {
   const club = save.save.club.trim().toLocaleLowerCase();
   if (!club) return [];
-  return planningRecords.filter((player) => player.club.trim().toLocaleLowerCase() === club && (fitByUid.get(player.uid)?.roleScore ?? null) != null);
+  return planningRecords.filter((player) => player.club.trim().toLocaleLowerCase() === club && fitByUid.get(player.uid)?.listedForRole === true && (fitByUid.get(player.uid)?.roleScore ?? null) != null);
 }
 function formatMillions(value: number | null): string {
   return value == null ? "Unknown" : (value / 1e6).toFixed(value >= 1e7 ? 1 : 2) + "m";
