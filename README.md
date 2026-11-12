@@ -47,6 +47,7 @@ The existing Recruitment Lab remains separate and operational.
 - [Product and architecture blueprint](docs/PRODUCT_BLUEPRINT.md)
 - [User research and product decisions](docs/USER_RESEARCH_AND_PRODUCT_DECISIONS.md)
 - [Local save and season data foundation](docs/LOCAL_DATA_FOUNDATION.md)
+- [Scouting product review and roadmap](docs/SCOUTING_PRODUCT_REVIEW.md)
 
 
 ## Scoring methodology
