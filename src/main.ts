@@ -8,6 +8,7 @@ import {
   recoverInterruptedImports,
   type SaveWithDatasets,
 } from "./data/storage/local-database";
+import { createSaveBackup, restoreSaveBackup } from "./data/storage/save-backup";
 
 type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "Planning" | "Data & Saves";
 const sections: Section[] = ["Overview", "Squad", "Scouting", "Market", "Intelligence", "Planning", "Data & Saves"];
@@ -58,6 +59,8 @@ let activeSaveId: string | null = readActiveSaveId();
 let saveMessage = "";
 let saveMessageIsError = false;
 let isPersisting = false;
+let isBackingUp = false;
+let isRestoring = false;
 
 function escapeHtml(value: string): string {
   const replacements: Record<string, string> = {
@@ -255,9 +258,24 @@ function dataSavesView(): string {
         <div class="card-kicker">ACTIVE SAVE</div><h2>${activeSave() ? escapeHtml(activeSave()!.save.name) : "No save selected"}</h2>
         ${activeSave() ? `<div class="storage-row"><span>Current club</span><strong>${escapeHtml(activeSave()!.save.club || "Not specified")}</strong></div><div class="storage-row"><span>Season datasets</span><strong>${activeSave()!.datasets.length}</strong></div>` : '<p class="storage-footnote">Select or create a save to begin.</p>'}
         ${datasetListView()}
-        <p class="storage-footnote">Player source rows are stored in IndexedDB. The browser profile owns this data; clearing site data or changing browser/device can remove access. Backups and restore are the next data-safety milestone.</p>
+        <p class="storage-footnote">Player source rows are stored in IndexedDB. The browser profile owns this data; clearing site data or changing browser/device can remove access. Keep a backup somewhere outside this browser.</p>
       </section>
     </div>
+    <section class="content-card backup-card">
+      <div class="card-kicker">PORTABLE DATA SAFETY</div><h2>Backup &amp; restore</h2>
+      <p>Export the active career, including every committed season and its original player rows, as a versioned JSON backup. Restore always creates a separate career; it never replaces your existing saves.</p>
+      <div class="backup-actions">
+        <form data-export-backup>
+          <button class="primary-button" type="submit" ${!activeSave() || isBackingUp || isRestoring ? "disabled" : ""}>${isBackingUp ? "Preparing backup…" : "Download active career backup"}</button>
+          <span class="form-help">${activeSave() ? `${activeSave()!.datasets.length} committed season dataset(s) included.` : "Select a career to create a backup."}</span>
+        </form>
+        <form class="restore-backup-form" data-restore-backup>
+          <div class="form-field"><label for="restore-backup-file">Restore a backup file</label><input id="restore-backup-file" name="backupFile" type="file" accept=".json,application/json" required></div>
+          <button class="secondary-button" type="submit" ${isRestoring || isBackingUp ? "disabled" : ""}>${isRestoring ? "Validating and restoring…" : "Restore as a new career"}</button>
+          <span class="form-help">The backup is checked before anything is written. Existing careers remain untouched.</span>
+        </form>
+      </div>
+    </section>
     ${importStatusView()}
     <section class="content-card roadmap-card"><div class="card-kicker">DATA SAFETY</div><h2>Existing seasons are not overwritten</h2><p>Imports are written in batches as staged records. A season becomes visible only after all player rows have been stored and its dataset metadata is committed. Failed imports are cleaned up where possible and never replace an existing season.</p></section>`;
 }
@@ -365,6 +383,70 @@ app.addEventListener("change", (event: Event) => {
 app.addEventListener("submit", async (event: SubmitEvent) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
+
+  if (form.matches("[data-export-backup]")) {
+    event.preventDefault();
+    if (!activeSaveId || isBackingUp || isRestoring) return;
+    isBackingUp = true;
+    saveMessage = "";
+    render();
+    try {
+      const backup = await createSaveBackup(activeSaveId);
+      const blob = new Blob([backup], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const saveName = activeSave()?.save.name ?? "moneyball-career";
+      const safeName = saveName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "moneyball-career";
+      link.href = url;
+      link.download = safeName + "-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.append(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      saveMessage = "Career backup downloaded. Store a copy outside this browser, such as on another drive or cloud storage.";
+      saveMessageIsError = false;
+    } catch (error) {
+      saveMessage = formatStorageError(error);
+      saveMessageIsError = true;
+    } finally {
+      isBackingUp = false;
+      render();
+    }
+    return;
+  }
+
+  if (form.matches("[data-restore-backup]")) {
+    event.preventDefault();
+    if (isRestoring || isBackingUp) return;
+    const fileInput = form.querySelector<HTMLInputElement>('input[name="backupFile"]');
+    const file = fileInput?.files?.[0];
+    if (!file) {
+      saveMessage = "Choose a Moneyball Companion backup file first.";
+      saveMessageIsError = true;
+      render();
+      return;
+    }
+    if (!window.confirm("Restore this backup as a separate career? Your existing careers and seasons will not be replaced.")) return;
+    isRestoring = true;
+    saveMessage = "";
+    render();
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      const restored = await restoreSaveBackup(parsed);
+      saveLibrary = await listSaves();
+      activeSaveId = restored.id;
+      persistActiveSaveId(activeSaveId);
+      saveMessage = '"' + restored.name + '" restored successfully. Your original career remains unchanged.';
+      saveMessageIsError = false;
+    } catch (error) {
+      saveMessage = formatStorageError(error);
+      saveMessageIsError = true;
+    } finally {
+      isRestoring = false;
+      render();
+    }
+    return;
+  }
 
   if (form.matches("[data-create-save]")) {
     event.preventDefault();
