@@ -356,3 +356,28 @@ It must:
 - Be usable by keyboard and on mobile.
 - Avoid unnecessary visual complexity.
 - Be verified in the actual deployed environment before being called live.
+
+
+## 8. Research-informed product requirements
+
+Public Football Manager community discussions and competitor documentation have been reviewed in [USER_RESEARCH_AND_PRODUCT_DECISIONS.md](USER_RESEARCH_AND_PRODUCT_DECISIONS.md). The findings reinforce and sharpen the existing product direction:
+
+- Direct player search must remain dependable and independent of in-game scouting recommendations.
+- Search filters, sorting, saved views and shortlist state must be predictable and persistent.
+- Player comparison must work across the active dataset, not only the user's own squad, and must use position/role-relevant evidence.
+- Player histories and user decisions must survive season imports.
+- The product must handle large datasets responsively through background processing, indexed storage and measured rendering optimisations.
+- The app must preserve source evidence and explain missing data, formula versions and confidence.
+- A role score based on exported performance statistics is not equivalent to an attribute-based role rating. The UI and methodology must make that distinction explicit.
+- The core differentiator is season-aware, explainable recruitment analysis and squad planning, not simply another player database.
+
+### Updated delivery priority
+
+1. Trustworthy local save/season storage, staged imports, rollback, duplicate detection and backup/restore.
+2. Canonical player identity and season history.
+3. Reliable search, saved filters, shortlist/notes and cross-dataset comparison.
+4. Transparent role suitability, league context and squad-needs analysis.
+5. Market, planning and intelligence workflows.
+6. Optional cloud sync after local reliability is proven.
+
+These requirements do not expand the supported FM import formats by assumption. The current import contract remains limited to the observed FM24 pipe-table sample until additional export variants are tested.
