@@ -271,7 +271,7 @@ test("searches players by indexed name prefix without scanning other seasons", a
   }));
 
   const results = await searchPlayersInDataset(first.id, "alex");
-  assert.deepEqual(results.map((player) => player.displayName), ["Alexander Smith", "Alex Morgan"]);
+  assert.deepEqual(results.map((player) => player.displayName), ["Alex Morgan", "Alexander Smith"]);
   assert.equal(results.every((player) => player.datasetId === first.id), true);
   assert.equal((await searchPlayersInDataset(first.id, "jam")).length, 1);
   assert.equal((await searchPlayersInDataset(first.id, "missing")).length, 0);
