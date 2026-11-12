@@ -225,8 +225,8 @@ test("restores legacy version 1 backups by deriving player identities", async ()
   const current = JSON.parse(await createSaveBackup(save.id));
   const legacy = { ...current, version: 1, manifest: {
     datasetCount: current.manifest.datasetCount,
-    playerRecordCount: current.manifest.playerRecordCount,
     importJobCount: current.manifest.importJobCount,
+    playerRecordCount: current.manifest.playerRecordCount,
   } };
   delete legacy.playerIdentities;
   delete legacy.checksum;
