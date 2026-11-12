@@ -1,7 +1,7 @@
 import type { Fm24RawPlayerRow } from "../import/fm24-pipe-parser";
 
 const DATABASE_NAME = "moneyball-companion";
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 const IMPORT_BATCH_SIZE = 400;
 
 export interface SaveRecord {
@@ -117,6 +117,10 @@ export function openLocalDatabase(): Promise<IDBDatabase> {
         store.createIndex("saveId", "saveId");
         store.createIndex("status", "status");
       }
+      // Version 2 adds a save-level player index so exports do not need to load
+      // player rows belonging to every other career in the same browser.
+      const playerStore = request.transaction!.objectStore("playerRecords");
+      if (!playerStore.indexNames.contains("saveId")) playerStore.createIndex("saveId", "saveId");
     };
     request.onsuccess = () => {
       const db = request.result;
