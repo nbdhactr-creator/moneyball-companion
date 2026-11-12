@@ -204,7 +204,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     : [];
   const currentWeights = analysis.customPhilosophyWeightsByRole?.[roleKey] ?? templateWeights;
   const philosophyWeightControls = selectedRole && analysis.philosophyTemplate
-    ? '<section class="scouting-philosophy-editor"><div class="scouting-philosophy-heading"><div><strong>Philosophy profile weights</strong><p>Adjust the six principles for this role family. 0 disables a principle; 3 gives it the strongest emphasis.</p></div><button type="button" class="text-button" data-reset-philosophy>Reset to template</button></div><div class="scouting-philosophy-sliders">' +
+    ? '<section class="scouting-philosophy-editor"><div class="scouting-philosophy-heading"><div><strong>Philosophy profile weights</strong><p>Adjust the six principles for this role/duty. 0 disables a principle; 3 gives it the strongest emphasis.</p></div><button type="button" class="text-button" data-reset-philosophy>Reset to template</button></div><div class="scouting-philosophy-sliders">' +
       FM24_PHILOSOPHY_PRINCIPLES.map((principle, index) => '<label><span>' + esc(principle.name) + '</span><input type="range" min="0" max="3" step="0.5" value="' + (currentWeights[index] ?? 0) + '" data-philosophy-weight="' + index + '"><output>' + (currentWeights[index] ?? 0) + '</output></label>').join("") +
       '</div></section>'
     : '';
@@ -436,7 +436,7 @@ export function renderPlanningWorkspace(save: SaveWithDatasets | undefined): str
     ? analysis.customPhilosophyWeightsByRole?.[selectedRole.type + "|" + selectedRole.duty] ?? philosophyWeightsForRole(selectedRole as never, analysis.philosophyTemplate)
     : [];
   const philosophyControls = selectedRole && analysis.philosophyTemplate
-    ? '<div class="scouting-philosophy-editor"><div class="scouting-philosophy-heading"><div><strong>Philosophy weights</strong><p>Custom weights apply to this role family and are saved with the career.</p></div><button type="button" class="text-button" data-reset-philosophy>Reset to template</button></div><div class="scouting-philosophy-sliders">' +
+    ? '<div class="scouting-philosophy-editor"><div class="scouting-philosophy-heading"><div><strong>Philosophy weights</strong><p>Custom weights apply to this role type and duty and are saved with the career.</p></div><button type="button" class="text-button" data-reset-philosophy>Reset to template</button></div><div class="scouting-philosophy-sliders">' +
       FM24_PHILOSOPHY_PRINCIPLES.map((principle, index) => '<label><span>' + esc(principle.name) + '</span><input type="range" min="0" max="3" step="0.5" value="' + (weights[index] ?? 0) + '" data-philosophy-weight="' + index + '"><output>' + (weights[index] ?? 0) + '</output></label>').join("") +
       '</div></div>' : "";
   if (planningLoading || planningDatasetId !== datasetId) return '<section class="content-card"><h2>Director of Football recommendations</h2><p>' + esc(planningMessage || "Loading selected season…") + '</p></section>';
