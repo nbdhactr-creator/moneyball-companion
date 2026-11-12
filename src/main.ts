@@ -570,7 +570,8 @@ app.addEventListener("click", (event: MouseEvent) => {
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
     activeSection = next;
-    if (next === "Planning") { void refreshScoutingAnalysisSettings(render); void loadPlanningWorkspace(activeSave(), render); }\n    if (next === "Scouting") void refreshScoutingAnalysisSettings(render);
+    if (next === "Planning") { void refreshScoutingAnalysisSettings(render); void loadPlanningWorkspace(activeSave(), render); }
+    if (next === "Scouting") void refreshScoutingAnalysisSettings(render);
     render();
     return;
   }
