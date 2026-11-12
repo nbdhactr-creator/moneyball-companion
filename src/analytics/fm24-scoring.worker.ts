@@ -56,7 +56,7 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
       : undefined;
     const scores: ScoreResult[] = scorer.players.map((player) => {
       const roleResult = scorer.scoreRole(player, role);
-      const dofResult = scorer.scoreDofEvaluation(player, role);
+      const dofResult = scorer.scoreDofEvaluation(player, role, roleResult.score);
       const philosophyResult = request.philosophyTemplate
         ? scorer.scorePhilosophy(player, role, philosophyWeights)
         : null;
