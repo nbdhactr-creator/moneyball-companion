@@ -188,7 +188,10 @@ function playerProfileView(): string {
 
   const previous = playerHistory.find((entry) => entry.dataset.id === historyComparePreviousId);
   const current = playerHistory.find((entry) => entry.dataset.id === historyCompareCurrentId) ?? playerHistory[playerHistory.length - 1];
-  const comparisonOptions = playerHistory.map((entry) => `<option value="${entry.dataset.id}">${escapeHtml(entry.dataset.seasonLabel)}</option>`).join("");
+  const previousOptions = playerHistory.filter((entry) => entry.dataset.id !== historyCompareCurrentId)
+    .map((entry) => `<option value="${entry.dataset.id}" ${entry.dataset.id === historyComparePreviousId ? "selected" : ""}>${escapeHtml(entry.dataset.seasonLabel)}</option>`).join("");
+  const currentOptions = playerHistory.map((entry) =>
+    `<option value="${entry.dataset.id}" ${entry.dataset.id === historyCompareCurrentId ? "selected" : ""}>${escapeHtml(entry.dataset.seasonLabel)}</option>`).join("");
   const previousLabel = previous?.dataset.seasonLabel ?? "Earlier season";
   const currentLabel = current?.dataset.seasonLabel ?? "Latest season";
   const sourcePlayers = [previous?.player, current?.player].filter((player): player is PlayerSeasonRecord => Boolean(player));
@@ -210,13 +213,17 @@ function playerProfileView(): string {
       <div class="player-history-section"><div class="player-section-heading"><strong>Season presence</strong><span>${present.length} of ${playerHistory.length} imported seasons</span></div><div class="player-history-list">${historyRows}</div></div>
       <div class="player-history-section">
         <div class="player-section-heading"><strong>Season-over-season source comparison</strong><span>Original imported values · no calculated scores</span></div>
-        ${playerHistory.length > 1 ? `
-          <p class="player-comparison-note">Comparing the two most recently imported season snapshots. A dash means the value was blank or unavailable; zero remains zero. "Not present" means no player row existed in that export.</p>
+        <div class="player-comparison-controls">
+          <div class="form-field"><label for="history-previous">Earlier season</label><select id="history-previous" data-history-previous ${playerHistory.length < 2 ? "disabled" : ""}><option value="">Choose earlier season</option>${previousOptions}</select></div>
+          <div class="form-field"><label for="history-current">Later season</label><select id="history-current" data-history-current>${currentOptions}</select></div>
+        </div>
+        ${previous && current ? `
+          <p class="player-comparison-note">Compare any two imported snapshots. A dash means the value was blank or unavailable; zero remains zero. "Not present" means no player row existed in that export.</p>
           <div class="player-table-wrap"><table class="player-data-table"><thead><tr><th>Source field</th><th>${escapeHtml(previousLabel)}</th><th>${escapeHtml(currentLabel)}</th></tr></thead><tbody>
             ${fields.map((field) => `<tr><th>${escapeHtml(field)}</th><td>${previous?.player ? escapeHtml(displayRawValue(previous.player.rawValues[field])) : '<span class="not-present-value">Not present</span>'}</td><td>${current?.player ? escapeHtml(displayRawValue(current.player.rawValues[field])) : '<span class="not-present-value">Not present</span>'}</td></tr>`).join("")}
           </tbody></table></div>`
           : `
-          <p class="player-comparison-note">Only one season has been imported for this career. The original source values are shown below; comparison will become available when another season is added.</p>
+          <p class="player-comparison-note">${playerHistory.length < 2 ? "Only one season has been imported for this career. The original source values are shown below; comparison will become available when another season is added." : "Choose an earlier season above to compare it with the selected later season."}</p>
           <div class="player-table-wrap"><table class="player-data-table single-season-table"><thead><tr><th>Source field</th><th>${escapeHtml(currentLabel)}</th></tr></thead><tbody>
             ${fields.map((field) => `<tr><th>${escapeHtml(field)}</th><td>${escapeHtml(displayRawValue(current?.player?.rawValues[field]))}</td></tr>`).join("")}
           </tbody></table></div>`}
