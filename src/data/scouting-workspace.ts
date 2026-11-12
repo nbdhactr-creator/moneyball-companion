@@ -1,5 +1,5 @@
 import {
-  emptyScoutingWorkspaceState, getScoutingWorkspaceState, updateScoutingWorkspaceState, searchScoutingPlayers,
+  emptyScoutingWorkspaceState, getScoutingWorkspaceState, updateScoutingWorkspaceState, searchScoutingPlayers, getDatasetPlayers,
   type SaveWithDatasets, type ScoutingWorkspaceState, type ScoutingAnalysisSettings, type ScoutingFilterCondition, type PlayerSeasonRecord,
   type PlayerScoutingState, type ShortlistStatus, type SavedPlayerSearch,
 } from "./storage/local-database";
@@ -21,7 +21,7 @@ let message = "";
 let loading = false;
 let requestToken = 0;
 interface PlayerFitSummary {
-  uid: string; positionEligible: boolean; roleScore: number | null; dofEvaluationScore: number | null;
+  uid: string; positionEligible: boolean; listedForRole: boolean; roleScore: number | null; dofEvaluationScore: number | null;
   aerialScore: number | null; aerialAdjustmentApplied: boolean; roleCoverage: number;
   confidence: "low" | "medium" | "high"; philosophyScore: number | null;
   philosophyCoverage: number; principleScores: Array<number | null>;
@@ -30,6 +30,11 @@ interface PlayerFitSummary {
   tacticalFit: number | null;
 }
 let fitByUid = new Map<string, PlayerFitSummary>();
+let planningRecords: PlayerSeasonRecord[] = [];
+let planningDatasetId = "";
+let planningLoading = false;
+let planningMessage = "";
+let scorePoolMinimumMinutes = 900;
 let scoringWorker: Worker | null = null;
 let scoringRequestToken = 0;
 let scoringStatus: "idle" | "loading" | "scoring" | "complete" | "error" = "idle";
@@ -99,6 +104,7 @@ async function runScoring(render: () => void): Promise<void> {
         scoringMessage = "Calculating role and philosophy fit across " + (response.playerCount ?? 0).toLocaleString() + " players…";
       } else if (response.phase === "complete") {
         fitByUid = new Map((response.scores ?? []).map((score) => [score.uid, score]));
+        scorePoolMinimumMinutes = response.poolMinimumMinutes ?? 900;
         scoringStatus = "complete";
         scoringMessage = "Scores calculated for " + (response.playerCount ?? 0).toLocaleString() + " players" +
           ((response.inferredMissingLeagues ?? 0) ? "; " + response.inferredMissingLeagues + " competition(s) contain inferred missing advanced data." : ".") +
