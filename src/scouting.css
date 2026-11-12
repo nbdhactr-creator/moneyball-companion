@@ -95,3 +95,11 @@
 .scouting-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 16px 0 6px; color: var(--muted, #687386); font-size: 12px; }
 @media (max-width: 900px) { .scouting-fit-controls { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 560px) { .scouting-fit-controls { grid-template-columns: 1fr; } .scouting-bulk-toolbar > span { flex-basis: 100%; } .scouting-pagination { justify-content: space-between; } }
+
+
+/* Consistent sortable table headings across result workspaces. */
+.table-sort-button { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:2px 0; border:0; background:transparent; color:inherit; font:inherit; font-weight:inherit; letter-spacing:inherit; text-align:left; white-space:nowrap; cursor:pointer; }
+.table-sort-button span { color:#9aa7a3; font-size:11px; line-height:1; }
+.table-sort-button:hover, .table-sort-button.is-active { color:#286b60; }
+.table-sort-button.is-active span { color:#286b60; font-weight:800; }
+.table-sort-button:focus-visible { outline:2px solid #6b9d8e; outline-offset:3px; border-radius:3px; }
