@@ -48,13 +48,15 @@ V1 also includes editable principle metrics, role weights, extra search position
 
 ### How V1 uses Philosophy in recruitment
 
-The recovered DoF logic:
-- ranks the main candidate groups primarily by the role evaluation score;
-- uses Philosophy Score as a tie-breaker;
-- optionally excludes candidates whose measured Philosophy Score is below 50;
-- does **not** treat a missing Philosophy Score as a score of zero;
-- displays the philosophy result and band on recommendation cards;
-- shows the six principle breakdowns in the scouting report.
+The recovered DoF implementation keeps Role Score and Philosophy Score as separate outputs rather than averaging them into one score:
+- Dream, Upgrade and Squad Player groups are sorted by role evaluation score, with Philosophy Score as the tie-breaker when role scores are equal.
+- The Value group is ranked by its role-score improvement per transfer-value unit; Philosophy Score is calculated and shown, but is not the primary value-ratio formula.
+- The Prospect group is ranked using its age-group-adjusted role score; Philosophy Score is still attached to the candidate for display/filtering.
+- By default, a measured Philosophy Score below 50 is a blocker ("against the idea"). This can be switched off. A missing Philosophy Score does **not** trigger the blocker.
+- Recommendation cards show a Philosophy band and score, and the player/scouting report exposes the six principle breakdowns.
+- Upgrade explanations include the Philosophy Score when it is available.
+
+This distinction matters: V1 does not calculate a universal weighted Role + Philosophy average. It uses Role Score as the main performance ranking, Philosophy as an independent fit signal, a secondary tie-break in most categories, and an optional minimum-fit filter. V2 should preserve that transparent baseline while offering an explicitly labelled, configurable combined view as an additional ranking mode.
 
 The DoF role evaluation also has a separate, limited aerial adjustment for centre-back, full-back, wing-back and defensive-midfield strata: 90% core role score and 10% aerial score, when both aerial quality and output are available. Missing aerial evidence leaves the core score unchanged. This is a V1-specific adjustment, not part of the general role formula.
 
@@ -100,6 +102,10 @@ Research supports a multidimensional model rather than one generic “style” l
 
 The practical consequence for Moneyball Companion: the Philosophy Score should be described as a **role-weighted match-output alignment indicator**, not proof that a player will execute a team's game model. The role score and philosophy score are useful screens; they do not replace video, scouting or tactical judgement.
 
+### FM24 template fidelity
+
+The nine V1 philosophy templates are retained as explicit transformations of each role type's six baseline weights. V2 uses the same transformations and role-specific exceptions (including goalkeeper exceptions for Low Block, Wing Play, Positional Play, High-intensity Press and Physical). The template names and descriptions follow V1. Templates are starting profiles, not claims that every team using a broad label behaves identically. Users should be able to tune principle weights after applying a template.
+
 ## 5. What an FM24 player-search export cannot prove
 
 The supplied FM24 export contains season-level player statistics and player/club metadata. It does not contain event sequences or positional tracking. Therefore, it cannot directly measure:
@@ -126,6 +132,17 @@ The planned user interface should show:
 5. **Recommendation reason** — explicit strengths, weaknesses, data gaps and why the player appears in a recommendation category.
 
 A Philosophy Score below a threshold should be a configurable filter or warning, not an unexplained hard rejection. Missing evidence should be labelled “insufficient evidence” and should not be interpreted as poor fit.
+
+### DoF ranking policy recommended for V2
+
+Until a user deliberately changes the ranking mode, preserve the V1 interpretation:
+1. Apply hard feasibility filters only when the underlying data exists (budget, wage, contract, league step and user-enabled philosophy threshold).
+2. Rank candidates by role evaluation score.
+3. Use Philosophy Score as a tie-breaker and a visible independent fit indicator.
+4. Offer a separate "Balanced Tactical Fit" mode that uses the configurable composite. Its weight must be visible and editable; do not present 70/30 as research-derived.
+5. Keep the five recruitment categories (Dream, Upgrade, Value, Squad Player and Prospect) distinct. Their eligibility rules differ; one generic sort order would distort their purpose.
+6. Explain every exclusion and keep a list of high-scoring excluded candidates with reasons.
+7. If a philosophy score is unavailable, keep the player eligible unless another independent requirement excludes them. Never impute zero or 50.
 
 ## 7. Source and licence
 
