@@ -190,6 +190,8 @@ function normalisePlayer(player: Fm24ScoringPlayer, missingByLeague: Map<string,
   const distanceKm = parseDistanceKm(player.rawValues.Distance);
   const saves = z("Svh") + z("Svp") + z("Svt");
   const savesFaced = saves + z("Conc");
+  stats._saves = saves;
+  stats._saves_faced = savesFaced;
   if (stats.Svh != null && stats.Conc != null) {
     stats["Save %"] = savesFaced ? saves / savesFaced : null;
     stats["Catch rate"] = saves ? z("Svh") / saves : null;
@@ -199,6 +201,7 @@ function normalisePlayer(player: Fm24ScoringPlayer, missingByLeague: Map<string,
   }
   const nonPenaltyXg = stats.xG == null ? null : stats.xG - PENALTY_XG * z("Pens");
   const nonPenaltyShots = stats.Shots == null ? null : stats.Shots - z("Pens");
+  stats._npshots = nonPenaltyShots;
   stats["npxG/90"] = per90(nonPenaltyXg, minutes);
   stats["Non-pen G/90"] = stats.Gls == null ? null : per90(stats.Gls - z("Pens S"), minutes);
   stats["npG-npxG/90"] = stats["Non-pen G/90"] != null && stats["npxG/90"] != null
