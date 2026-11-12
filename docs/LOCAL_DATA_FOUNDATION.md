@@ -37,6 +37,7 @@ Raw source values remain strings. This phase does not claim that every FM field 
 - Dataset metadata is written only after every batch succeeds.
 - The dataset and import job are marked committed together in a final IndexedDB transaction.
 - If a batch fails, staged records are deleted in bounded cleanup batches where possible. Uncommitted rows are not shown in the save library.
+- On the next app launch, any import job left in `staging` is treated as interrupted; its staged rows are cleaned up and the job is marked failed.
 - Duplicate file fingerprints and duplicate season labels are blocked.
 - Existing datasets are never overwritten by this workflow.
 - Quota errors are reported without claiming that an import succeeded.
@@ -72,4 +73,5 @@ Community reports are qualitative and often version-specific. FM26/FM27 reports 
 - Import a second season with a different label and retain both datasets.
 - Reject malformed UTF-8 and structurally invalid files.
 - Simulate or encounter a storage failure and verify that no partial dataset appears as committed.
+- Leave a staging job behind and verify startup recovery removes its uncommitted rows.
 - Confirm the app remains usable without an account or network connection after the page has loaded.
