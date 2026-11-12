@@ -30,7 +30,16 @@ export interface ScoutingAnalysisSettings {
     starterUid: string;
   };
 }
+export interface SquadTacticSlot { id: string; label: string; position: string; x: number; y: number; roleId: string; playerUid: string; }
+export interface SquadTacticConfig {
+  name: string; formationId: string; slots: SquadTacticSlot[]; mentality: string;
+  inPossession: { width: string; passing: string; tempo: string; finalThird: string };
+  transition: { win: string; lose: string; goalkeeper: string };
+  outOfPossession: { line: string; defensiveLine: string; pressing: string; approach: string };
+  updatedAt: string;
+}
 export interface ScoutingWorkspaceState {
+  squadTactics?: SquadTacticConfig;
   savedSearches: SavedPlayerSearch[];
   players: Record<string, PlayerScoutingState>;
   columnsByDataset: Record<string, string[]>;
@@ -641,7 +650,15 @@ export async function updateScoutingWorkspaceState(saveId: string, state: Scouti
     const store = transaction.objectStore("saves");
     const save = await requestResult(store.get(saveId) as IDBRequest<SaveRecord | undefined>);
     if (!save) throw new Error("The active career could not be found. Refresh the save library and try again.");
-    store.put({ ...save, scoutingState: state, updatedAt: new Date().toISOString() });
+    const mergedState: ScoutingWorkspaceState = { ...state };
+    // Squad tactic configuration is written by the Squad workspace. Preserve it
+    // when an already-open Scouting workspace saves an older in-memory snapshot.
+    const storedTactic = save.scoutingState?.squadTactics;
+    const incomingTactic = mergedState.squadTactics;
+    if (storedTactic && (!incomingTactic || Date.parse(storedTactic.updatedAt) > Date.parse(incomingTactic.updatedAt))) {
+      mergedState.squadTactics = storedTactic;
+    }
+    store.put({ ...save, scoutingState: mergedState, updatedAt: new Date().toISOString() });
     await transactionDone(transaction);
   } catch (error) { throw databaseError(error); }
   finally { db.close(); }

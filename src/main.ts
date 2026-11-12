@@ -1,5 +1,6 @@
 import "./styles.css";
 import "./scouting.css";
+import "./squad.css";
 import type { Fm24ParseResult, Fm24ValidationResult } from "./data/import/fm24-pipe-parser";
 import {
   createSave as createLocalSave,
@@ -14,7 +15,8 @@ import {
   type PlayerSeasonHistoryEntry,
 } from "./data/storage/local-database";
 import { createSaveBackup, restoreSaveBackup } from "./data/storage/save-backup";
-import { loadScoutingWorkspace, renderScoutingWorkspace, renderPlanningWorkspace, loadPlanningWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange } from "./data/scouting-workspace";
+import { loadScoutingWorkspace, renderScoutingWorkspace, renderPlanningWorkspace, loadPlanningWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange, refreshScoutingAnalysisSettings } from "./data/scouting-workspace";
+import { renderSquadWorkspace, handleSquadWorkspaceClick, handleSquadWorkspaceChange } from "./data/squad-workspace";
 
 type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "Planning" | "Data & Saves";
 const sections: Section[] = ["Overview", "Squad", "Scouting", "Market", "Intelligence", "Planning", "Data & Saves"];
@@ -236,7 +238,7 @@ function playerProfileView(): string {
     </section>`;
 }
 
-function squadView(): string {
+function squadPlayersView(): string {
   const selected = activeSave();
   if (!selected) {
     return `<section class="empty-workspace content-card"><span class="empty-icon">◎</span><div class="card-kicker">SQUAD WORKSPACE</div><h2>Select or create a career first.</h2><p>Player search and season history use the real datasets stored in your selected career.</p><button class="secondary-button" data-section="Data & Saves">Go to Data &amp; Saves →</button></section>`;
@@ -467,6 +469,11 @@ function dataSavesView(): string {
     <section class="content-card roadmap-card"><div class="card-kicker">DATA SAFETY</div><h2>Existing seasons are not overwritten</h2><p>Imports are written in batches as staged records. A season becomes visible only after all player rows have been stored and its dataset metadata is committed. Failed imports are cleaned up where possible and never replace an existing season.</p></section>`;
 }
 
+function squadView(): string {
+  if (activeSave() && activeSave()!.datasets.length && !squadDatasetId) squadDatasetId = activeSave()!.datasets[0].id;
+  return renderSquadWorkspace(activeSave(), squadDatasetId, squadPlayersView(), render);
+}
+
 function sectionView(section: Section): string {
   if (section === "Data & Saves") return dataSavesView();
   if (section === "Squad") return squadView();
@@ -548,7 +555,8 @@ async function refreshSaveLibrary(): Promise<void> {
 }
 
 app.addEventListener("click", (event: MouseEvent) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field], [data-squad-tab], [data-tactic-slot]");
+  if (target?.dataset.squadTab || target?.dataset.tacticSlot) { void handleSquadWorkspaceClick(target, render); return; }
   if (target?.dataset.squadSortField) {
     const field = target.dataset.squadSortField;
     if (squadSortField === field) {
@@ -562,7 +570,8 @@ app.addEventListener("click", (event: MouseEvent) => {
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
     activeSection = next;
-    if (next === "Planning") void loadPlanningWorkspace(activeSave(), render);
+    if (next === "Planning") { void refreshScoutingAnalysisSettings(render); void loadPlanningWorkspace(activeSave(), render); }
+    if (next === "Scouting") void refreshScoutingAnalysisSettings(render);
     render();
     return;
   }
@@ -592,7 +601,10 @@ app.addEventListener("click", (event: MouseEvent) => {
 
 app.addEventListener("change", (event: Event) => {
   const target = event.target;
-  if (target instanceof HTMLElement) void handleScoutingWorkspaceChange(target, render).then((handled) => { if (handled) render(); });
+  if (target instanceof HTMLElement) {
+    void handleSquadWorkspaceChange(target, render);
+    void handleScoutingWorkspaceChange(target, render).then((handled) => { if (handled) render(); });
+  }
   if (target instanceof HTMLSelectElement && target.matches("[data-history-previous]")) {
     historyComparePreviousId = target.value;
     if (historyComparePreviousId && historyComparePreviousId === historyCompareCurrentId) {

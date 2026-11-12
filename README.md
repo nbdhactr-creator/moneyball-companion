@@ -40,7 +40,7 @@ The exact dependency choices will be confirmed in the architecture blueprint. No
 
 The TypeScript/Vite application shell and GitHub Pages deployment are live. FM24 import, local multi-season persistence, career-scoped player identities, season history, versioned backup/restore, Scouting search, the FM24 role/philosophy scoring engine and the Planning/DoF recommendation workspace are implemented and merged. The DoF release is deployed to GitHub Pages (deployment run 43316162142 succeeded). The user has manually verified the deployed Scouting and Planning workflows.
 
-The existing Recruitment Lab remains separate and operational.
+The existing Recruitment Lab remains separate and operational. The Squad workspace now has dedicated Overview, Players, Tactics, Philosophy and Depth & Needs workflows; see [Squad Workspace](docs/SQUAD_WORKSPACE.md).
 
 ## Project documentation
 

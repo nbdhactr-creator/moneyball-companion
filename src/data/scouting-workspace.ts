@@ -258,6 +258,22 @@ async function bulkRemoveFromShortlist(render: () => void): Promise<void> {
   await runSearch(render);
 }
 
+export async function refreshScoutingAnalysisSettings(onUpdate: () => void): Promise<void> {
+  if (!saveId) return;
+  try {
+    const stored = await getScoutingWorkspaceState(saveId);
+    state = {
+      ...state,
+      analysis: stored.analysis ?? emptyScoutingWorkspaceState().analysis,
+      ...(stored.squadTactics ? { squadTactics: stored.squadTactics } : {}),
+    };
+    await runScoring(onUpdate);
+  } catch (error) {
+    message = error instanceof Error ? error.message : "Could not refresh shared Squad philosophy settings.";
+    onUpdate();
+  }
+}
+
 export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): string {
   if (!save) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Select a career first.</h2><p>Scouting searches and decisions are stored inside the active career.</p></section>';
   if (!save.datasets.length) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Import a season to begin.</h2><p>Search and filters use only your imported player records.</p></section>';
