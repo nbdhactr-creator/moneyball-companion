@@ -467,14 +467,14 @@ export function combineTacticalFit(
 export type Fm24PhilosophyTemplate = "possession" | "counter" | "direct" | "balanced" | "lowblock" | "wing" | "positional" | "press" | "physical";
 export const FM24_PHILOSOPHY_TEMPLATES: Record<Fm24PhilosophyTemplate, { name: string; description: string }> = {
   possession: { name: "Possession", description: "Keep the ball, play through the lines and win it back early." },
-  counter: { name: "Counter-press", description: "Prioritise regains and repeat pressing actions." },
-  direct: { name: "Direct", description: "Prioritise forward threat, runners and physical output over patient circulation." },
-  balanced: { name: "Balanced", description: "Give equal importance to the principles relevant to each role." },
-  lowblock: { name: "Low block and counter", description: "Prioritise proactive defending and forward threat after regains." },
-  wing: { name: "Wing play", description: "Emphasise availability, progression and duel-winning in wide roles." },
-  positional: { name: "Positional play", description: "Prioritise secure circulation, availability and progression." },
-  press: { name: "High-intensity press", description: "Prioritise pressing, proactive defending and sustained intensity." },
-  physical: { name: "Physical", description: "Emphasise duels, regains and repeat physical output." },
+  counter: { name: "Counter-press", description: "Win it back high and fast. Intensity and pressing over control." },
+  direct: { name: "Direct", description: "Get the ball forward quickly. Runners, duels and threat over patient build-up." },
+  balanced: { name: "Balanced", description: "Every principle counts the same in every role that uses it." },
+  lowblock: { name: "Low block and counter", description: "Defend deep and compact, then break at pace. Defending and forward passing over keeping the ball." },
+  wing: { name: "Wing play", description: "Width, runs down the flanks and a threat in the air. Wide players carry the ball forward; strikers win headers." },
+  positional: { name: "Positional play", description: "Possession with a purpose: secure, always an option and progressing the ball through the lines." },
+  press: { name: "High-intensity press", description: "Hunt the ball high up the pitch for ninety minutes. Pressing and running above everything." },
+  physical: { name: "Physical", description: "Win the duels, the headers and the second balls, and outrun the opposition." },
 };
 
 export function philosophyWeightsForRole(
