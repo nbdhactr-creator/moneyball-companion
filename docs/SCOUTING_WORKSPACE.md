@@ -1,7 +1,7 @@
 # Scouting Workspace Foundation
 
 ## Status
-Implemented on the feature branch for PR #10. The first build exposed one unused helper; it was removed. The follow-up CI run completed with all 32 unit tests passing and the production build succeeding. The latest small follow-up also ensures scouting state is reloaded after save creation, backup restore and season import; its CI run is pending. Deployment and browser verification are pending.
+Implemented, merged through PRs #10 and #11, and deployed to GitHub Pages. CI passed all 32 unit tests and the production build. The deployment workflow completed successfully. User browser verification of the Scouting workspace is pending; the live page could not be independently inspected from this session.
 
 ## Search behaviour
 - Search is restricted to one selected, committed season dataset in the active career.
