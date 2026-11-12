@@ -44,10 +44,12 @@ These decisions are user-authored and never alter the original imported player-s
 - Analysis settings are saved per career and are included in the existing career backup/restore path.
 
 ## Known limitations and next steps
-- Custom principle-stat lists and per-role principle weights are not yet editable in V2. The nine V1 templates are currently the available starting profiles.
+- Custom principle weights are editable; custom principle-stat lists remain deferred. The nine V1 templates remain starting profiles, not universal tactical truths.
 - Explicit league factors are supported by the scoring engine but there is not yet a settings UI for mapping and auditing competition factors. Unknown leagues are not silently adjusted.
 - The player profile does not yet show a full 115-variant role-fit matrix; Scouting currently calculates the selected role/duty.
-- The DoF recommendation/Planning module is not yet implemented. Tactical Fit is available in Scouting and is intended to feed the later DoF workflow without merging affordability or squad need into the footballing-fit score.
+- The DoF recommendation workspace is implemented on the current feature branch but is not yet merged/deployed. It provides Best Role Fits, Upgrades, Value Options, Squad Depth and Young Targets, with editable budget/wage caps, starter selection and a measured-philosophy threshold. It preserves V1's role-led ranking by default and offers an explicit balanced mode.
+- Custom six-principle philosophy weights are editable per role family and persist per career. The underlying metric membership per principle is still fixed to the recovered V1 list.
+- The current V2 export has no verified league reputation mapping or transfer acceptance model. Dream-signing/stronger-league filters are therefore deliberately not claimed.
 - The current dataset export cannot directly measure pressing height, compactness, line height, off-ball runs, rest-defence or exact transition timing. Pressure and other season stats are proxies, not proof of tactical behaviour.
 - The first filter builder combines conditions in one AND/OR group; nested groups are not yet implemented.
 - Results show the first 200 matches; next/previous page controls are planned.
