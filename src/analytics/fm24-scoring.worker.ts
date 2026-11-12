@@ -17,6 +17,7 @@ interface ScoreRequest {
 interface ScoreResult {
   uid: string;
   positionEligible: boolean;
+  listedForRole: boolean;
   roleScore: number | null;
   dofEvaluationScore: number | null;
   aerialScore: number | null;
@@ -68,6 +69,7 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
       return {
         uid: player.uid ?? "",
         positionEligible: roleResult.families.length > 0,
+        listedForRole: role.slots.some((slot) => player.positionSlots.has(slot)),
         roleScore: roleResult.score,
         dofEvaluationScore: dofResult.score,
         aerialScore: dofResult.aerialScore,
