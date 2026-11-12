@@ -568,6 +568,22 @@ app.addEventListener("click", (event: MouseEvent) => {
 
 app.addEventListener("change", (event: Event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.matches("[data-history-previous]")) {
+    historyComparePreviousId = target.value;
+    if (historyComparePreviousId && historyComparePreviousId === historyCompareCurrentId) {
+      historyCompareCurrentId = playerHistory.find((entry) => entry.dataset.id !== historyComparePreviousId)?.dataset.id ?? "";
+    }
+    render();
+    return;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-history-current]")) {
+    historyCompareCurrentId = target.value;
+    if (historyComparePreviousId && historyComparePreviousId === historyCompareCurrentId) {
+      historyComparePreviousId = [...playerHistory].reverse().find((entry) => entry.dataset.id !== historyCompareCurrentId)?.dataset.id ?? "";
+    }
+    render();
+    return;
+  }
   if (target instanceof HTMLSelectElement && target.matches("[data-squad-dataset]")) {
     playerSearchRequestId += 1;
     playerHistoryRequestId += 1;
