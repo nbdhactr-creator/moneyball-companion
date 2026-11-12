@@ -13,14 +13,20 @@ export interface SavedPlayerSearch {
   id: string; name: string; datasetId: string; query: string; logic: "and" | "or";
   filters: ScoutingFilterCondition[]; columns: string[]; sortField: string; sortDirection: "asc" | "desc"; updatedAt: string;
 }
+export interface ScoutingAnalysisSettings {
+  roleId: string;
+  philosophyTemplate: "" | "possession" | "counter" | "direct" | "balanced" | "lowblock" | "wing" | "positional" | "press" | "physical";
+  roleWeight: number;
+}
 export interface ScoutingWorkspaceState {
   savedSearches: SavedPlayerSearch[];
   players: Record<string, PlayerScoutingState>;
   columnsByDataset: Record<string, string[]>;
+  analysis?: ScoutingAnalysisSettings;
 }
 export interface ScoutingSearchResult { players: PlayerSeasonRecord[]; total: number; fields: string[]; }
 export function emptyScoutingWorkspaceState(): ScoutingWorkspaceState {
-  return { savedSearches: [], players: {}, columnsByDataset: {} };
+  return { savedSearches: [], players: {}, columnsByDataset: {}, analysis: { roleId: "", philosophyTemplate: "", roleWeight: 0.7 } };
 }
 
 export interface SaveRecord {
@@ -506,6 +512,7 @@ function matchesScoutingFilter(player: PlayerSeasonRecord, filter: ScoutingFilte
 export async function searchScoutingPlayers(input: {
   datasetId: string; query?: string; filters?: ScoutingFilterCondition[]; logic?: "and" | "or";
   sortField?: string; sortDirection?: "asc" | "desc"; offset?: number; limit?: number;
+  scoreByUid?: ReadonlyMap<string, { roleScore: number | null; dofEvaluationScore: number | null; philosophyScore: number | null; tacticalFit: number | null }>;
 }): Promise<ScoutingSearchResult> {
   const db = await openLocalDatabase();
   try {
@@ -526,9 +533,17 @@ export async function searchScoutingPlayers(input: {
     });
     const field = input.sortField || "name";
     const direction = input.sortDirection === "desc" ? -1 : 1;
+    const sortValue = (player: PlayerSeasonRecord): string => {
+      const scores = input.scoreByUid?.get(player.uid);
+      if (field === "roleScore") return scores?.roleScore == null ? "" : String(scores.roleScore);
+      if (field === "dofEvaluationScore") return scores?.dofEvaluationScore == null ? "" : String(scores.dofEvaluationScore);
+      if (field === "philosophyScore") return scores?.philosophyScore == null ? "" : String(scores.philosophyScore);
+      if (field === "tacticalFit") return scores?.tacticalFit == null ? "" : String(scores.tacticalFit);
+      return scoutingFieldValue(player, field);
+    };
     matched.sort((a, b) => {
-      const left = scoutingFieldValue(a, field).trim();
-      const right = scoutingFieldValue(b, field).trim();
+      const left = sortValue(a).trim();
+      const right = sortValue(b).trim();
       if (!left && right) return 1;
       if (left && !right) return -1;
       const ln = Number(left.replace(/,/g, ""));
@@ -543,6 +558,24 @@ export async function searchScoutingPlayers(input: {
   } catch (error) {
     throw databaseError(error);
   } finally { db.close(); }
+}
+
+/** Reads every row in one committed season. Used by the scoring Web Worker to build position-specific reference pools. */
+export async function getDatasetPlayers(datasetId: string): Promise<PlayerSeasonRecord[]> {
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("playerRecords", "readonly");
+    const done = transactionDone(transaction);
+    const records = await requestResult(
+      transaction.objectStore("playerRecords").index("datasetId").getAll(datasetId) as IDBRequest<PlayerSeasonRecord[]>,
+    );
+    await done;
+    return records;
+  } catch (error) {
+    throw databaseError(error);
+  } finally {
+    db.close();
+  }
 }
 
 export async function getScoutingWorkspaceState(saveId: string): Promise<ScoutingWorkspaceState> {

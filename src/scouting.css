@@ -24,3 +24,21 @@
 .scouting-results-table td { vertical-align: top; }
 @media (max-width: 900px) { .scouting-toolbar { grid-template-columns: repeat(2,minmax(0,1fr)); } .scouting-filter-row { grid-template-columns: 1fr 1fr; } .scouting-saved-searches { align-items: stretch; } }
 @media (max-width: 560px) { .scouting-toolbar { grid-template-columns: 1fr; } .scouting-filter-row { grid-template-columns: 1fr; } .scouting-saved-searches { display: grid; grid-template-columns: 1fr; } .scouting-saved-searches input { width: 100%; } }
+
+
+.scouting-fit-controls { display: grid; grid-template-columns: minmax(220px, 1.6fr) minmax(190px, 1fr) minmax(180px, .9fr); gap: 12px; margin: 18px 0 10px; padding: 14px; border: 1px solid var(--border, #dfe5ec); border-radius: 12px; background: #f8fafc; }
+.scouting-fit-controls label { display: grid; gap: 7px; color: var(--muted, #687386); font-size: 12px; font-weight: 650; }
+.scouting-fit-controls select { min-width: 0; width: 100%; border: 1px solid var(--border, #dfe5ec); border-radius: 9px; background: #fff; color: var(--ink, #1d2939); padding: 10px 11px; font: inherit; }
+.scouting-score-note { margin: 8px 0 14px; color: var(--muted, #687386); font-size: 12px; }
+.scouting-score-note[data-scoring-status="error"] { color: #a33b32; }
+.scouting-score-note[data-scoring-status="loading"], .scouting-score-note[data-scoring-status="scoring"] { color: #526b89; }
+.scouting-results-table .scouting-score-cell { min-width: 78px; text-align: center; font-variant-numeric: tabular-nums; }
+.scouting-results-table .scouting-score-cell strong { font-size: 14px; color: var(--ink, #1d2939); }
+.scouting-results-table .score-missing { color: #98a2b3; }
+.scouting-fit-details { margin-top: 6px; min-width: 160px; }
+.scouting-fit-details summary { cursor: pointer; color: var(--muted, #667085); font-size: 11px; }
+.scouting-fit-details > div { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--border, #e2e8f0); border-radius: 8px; background: #fff; }
+.scouting-fit-details > div span { display: flex; justify-content: space-between; gap: 10px; color: var(--muted, #667085); font-size: 11px; }
+.scouting-fit-details b { color: var(--ink, #1d2939); font-variant-numeric: tabular-nums; }
+@media (max-width: 900px) { .scouting-fit-controls { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 560px) { .scouting-fit-controls { grid-template-columns: 1fr; } }

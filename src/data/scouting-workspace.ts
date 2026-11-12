@@ -1,8 +1,10 @@
 import {
   emptyScoutingWorkspaceState, getScoutingWorkspaceState, updateScoutingWorkspaceState, searchScoutingPlayers,
-  type SaveWithDatasets, type ScoutingWorkspaceState, type ScoutingFilterCondition, type PlayerSeasonRecord,
+  type SaveWithDatasets, type ScoutingWorkspaceState, type ScoutingAnalysisSettings, type ScoutingFilterCondition, type PlayerSeasonRecord,
   type PlayerScoutingState, type ShortlistStatus, type SavedPlayerSearch,
 } from "./storage/local-database";
+import { FM24_ROLES, FM24_STRATA } from "../analytics/fm24-role-catalog";
+import { FM24_PHILOSOPHY_TEMPLATES } from "../analytics/fm24-scoring";
 
 let saveId = "";
 let state: ScoutingWorkspaceState = emptyScoutingWorkspaceState();
@@ -18,6 +20,19 @@ let total = 0;
 let message = "";
 let loading = false;
 let requestToken = 0;
+interface PlayerFitSummary {
+  uid: string; positionEligible: boolean; roleScore: number | null; dofEvaluationScore: number | null;
+  aerialScore: number | null; aerialAdjustmentApplied: boolean; roleCoverage: number;
+  confidence: "low" | "medium" | "high"; philosophyScore: number | null;
+  philosophyCoverage: number; principleScores: Array<number | null>;
+  roleFamilies: Array<{ family: string; score: number | null; weight: number; available: boolean }>;
+  tacticalFit: number | null;
+}
+let fitByUid = new Map<string, PlayerFitSummary>();
+let scoringWorker: Worker | null = null;
+let scoringRequestToken = 0;
+let scoringStatus: "idle" | "loading" | "scoring" | "complete" | "error" = "idle";
+let scoringMessage = "";
 const defaultColumns = ["name", "position", "club", "Age", "Division"];
 
 function esc(value: string): string {
@@ -31,7 +46,7 @@ function fieldValue(player: PlayerSeasonRecord, field: string): string {
   return player.rawValues[field] ?? "";
 }
 function label(field: string): string {
-  return ({ name: "Player", position: "Position", club: "Club", uid: "FM UID" } as Record<string, string>)[field] ?? field;
+  return ({ name: "Player", position: "Position", club: "Club", uid: "FM UID", roleScore: "Role fit", dofEvaluationScore: "DoF role evaluation", philosophyScore: "Philosophy fit", tacticalFit: "Tactical fit" } as Record<string, string>)[field] ?? field;
 }
 function fields(): string[] {
   const output = new Set<string>(["name", "position", "club", "uid"]);
@@ -49,13 +64,76 @@ function columns(): string[] {
 function playerState(uid: string): PlayerScoutingState {
   return state.players[uid] ?? { status: "unreviewed", note: "", tags: [], reviewDate: "", updatedAt: "" };
 }
+function analysisSettings() {
+  return state.analysis ?? { roleId: "", philosophyTemplate: "" as const, roleWeight: 0.7 };
+}
+function stopScoringWorker(): void {
+  scoringRequestToken += 1;
+  scoringWorker?.terminate();
+  scoringWorker = null;
+}
+async function runScoring(render: () => void): Promise<void> {
+  const settings = analysisSettings();
+  if (!datasetId || !settings.roleId) {
+    stopScoringWorker(); fitByUid = new Map(); scoringStatus = "idle";
+    scoringMessage = settings.roleId ? "Select a philosophy profile to complete Tactical Fit." : "Choose an FM24 role and duty to calculate role fit.";
+    render(); return;
+  }
+  stopScoringWorker();
+  const requestId = scoringRequestToken;
+  fitByUid = new Map(); scoringStatus = "loading";
+  scoringMessage = "Loading the full season to build position-specific reference groups…";
+  render();
+  try {
+    const worker = new Worker(new URL("../analytics/fm24-scoring.worker.ts", import.meta.url), { type: "module" });
+    scoringWorker = worker;
+    worker.onmessage = (event: MessageEvent<{ requestId: number; phase: string; scores?: PlayerFitSummary[]; playerCount?: number; inferredMissingLeagues?: number; seasonProgress?: number; poolMinimumMinutes?: number; message?: string }>) => {
+      const response = event.data;
+      if (response.requestId !== requestId || requestId !== scoringRequestToken) return;
+      if (response.phase === "loading") {
+        scoringStatus = "loading";
+        scoringMessage = "Loading the full season to build position-specific reference groups…";
+      } else if (response.phase === "scoring") {
+        scoringStatus = "scoring";
+        scoringMessage = "Calculating role and philosophy fit across " + (response.playerCount ?? 0).toLocaleString() + " players…";
+      } else if (response.phase === "complete") {
+        fitByUid = new Map((response.scores ?? []).map((score) => [score.uid, score]));
+        scoringStatus = "complete";
+        scoringMessage = "Scores calculated for " + (response.playerCount ?? 0).toLocaleString() + " players" +
+          ((response.inferredMissingLeagues ?? 0) ? "; " + response.inferredMissingLeagues + " competition(s) contain inferred missing advanced data." : ".") +
+          " Estimated season progress: " + Math.round((response.seasonProgress ?? 1) * 100) + "%; reference-pool minimum: " + (response.poolMinimumMinutes ?? 900).toLocaleString() + " minutes. Scores are relative to this season's eligible position groups.";
+        worker.terminate(); if (scoringWorker === worker) scoringWorker = null;
+        if (["roleScore", "dofEvaluationScore", "philosophyScore", "tacticalFit"].includes(sortField)) void runSearch(render);
+      } else if (response.phase === "error") {
+        scoringStatus = "error"; scoringMessage = response.message ?? "Scoring failed.";
+        worker.terminate(); if (scoringWorker === worker) scoringWorker = null;
+      }
+      render();
+    };
+    worker.onerror = () => {
+      if (requestId !== scoringRequestToken) return;
+      scoringStatus = "error"; scoringMessage = "The scoring worker stopped unexpectedly. Your imported data is unchanged.";
+      worker.terminate(); if (scoringWorker === worker) scoringWorker = null; render();
+    };
+    worker.postMessage({
+      requestId, datasetId, roleId: settings.roleId,
+      philosophyTemplate: settings.philosophyTemplate,
+      roleWeight: settings.roleWeight,
+    });
+  } catch (error) {
+    scoringStatus = "error";
+    scoringMessage = error instanceof Error ? error.message : "Could not start the scoring worker.";
+    render();
+  }
+}
+
 async function runSearch(render: () => void): Promise<void> {
   if (!datasetId) return;
   const token = ++requestToken;
   loading = true; message = ""; render();
   try {
     const response = await searchScoutingPlayers({
-      datasetId, query, filters, logic, sortField, sortDirection, limit: 200,
+      datasetId, query, filters, logic, sortField, sortDirection, limit: 200, scoreByUid: fitByUid,
     });
     if (token !== requestToken) return;
     results = response.players; total = response.total; sourceFields = response.fields;
@@ -71,17 +149,22 @@ async function runSearch(render: () => void): Promise<void> {
   }
 }
 
-export async function loadScoutingWorkspace(nextSaveId: string, nextDatasetId = ""): Promise<void> {
+export async function loadScoutingWorkspace(nextSaveId: string, nextDatasetId = "", onUpdate?: () => void): Promise<void> {
+  stopScoringWorker();
   saveId = nextSaveId;
   state = emptyScoutingWorkspaceState();
   datasetId = nextDatasetId;
+  fitByUid = new Map(); scoringStatus = "idle"; scoringMessage = "";
   filters = []; query = ""; results = []; total = 0; message = "";
   if (!saveId) return;
-  try { state = await getScoutingWorkspaceState(saveId); }
-  catch (error) { message = error instanceof Error ? error.message : "Could not load scouting workspace."; }
+  try {
+    const stored = await getScoutingWorkspaceState(saveId);
+    state = { ...emptyScoutingWorkspaceState(), ...stored, analysis: stored.analysis ?? emptyScoutingWorkspaceState().analysis };
+  } catch (error) { message = error instanceof Error ? error.message : "Could not load scouting workspace."; }
   if (datasetId) {
     try { const initial = await searchScoutingPlayers({ datasetId, limit: 200, sortField: "name" }); results = initial.players; total = initial.total; sourceFields = initial.fields; }
     catch (error) { message = error instanceof Error ? error.message : "Could not load players."; }
+    if (onUpdate) await runScoring(onUpdate);
   }
 }
 
@@ -90,6 +173,15 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
   if (!save.datasets.length) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Import a season to begin.</h2><p>Search and filters use only your imported player records.</p></section>';
   if (!save.datasets.some((entry) => entry.id === datasetId)) datasetId = save.datasets[0].id;
   const fieldList = fields();
+  const analysis = analysisSettings();
+  const roles = FM24_ROLES as unknown as Array<{ id: string; name: string; dutyName: string; strata: string }>;
+  const strata = FM24_STRATA as unknown as Record<string, { label: string }>;
+  const roleOptions = Object.keys(strata).map((key) => '<optgroup label="' + esc(strata[key].label) + '">' +
+    roles.filter((role) => role.strata === key).map((role) => '<option value="' + esc(role.id) + '"' + (analysis.roleId === role.id ? " selected" : "") + '>' + esc(role.name) + ' · ' + esc(role.dutyName) + '</option>').join("") +
+    '</optgroup>').join("");
+  const philosophyOptions = Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([key, template]) =>
+    '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
+  const sortFields = [...fieldList, "roleScore", "dofEvaluationScore", "philosophyScore", "tacticalFit"];
   const datasetOptions = save.datasets.map((entry) => '<option value="' + esc(entry.id) + '"' + (entry.id === datasetId ? " selected" : "") + '>' + esc(entry.seasonLabel) + ' · ' + entry.playerCount.toLocaleString() + ' players</option>').join("");
   const filterRows = filters.map((filter) => {
     const operators = [["contains","contains"],["equals","equals"],["gt","greater than"],["gte","at least"],["lt","less than"],["lte","at most"],["is-empty","is empty"],["is-not-empty","is not empty"]];
@@ -104,22 +196,42 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
   const header = columns().map((field) => '<th>' + esc(label(field)) + '</th>').join("");
   const rows = results.map((player) => {
     const decision = playerState(player.uid);
+    const fit = fitByUid.get(player.uid);
     const cells = columns().map((field) => {
       const value = fieldValue(player, field);
       return '<td>' + (field === "name" ? '<button class="player-name-button" data-player-uid="' + esc(player.uid) + '">' + esc(value) + '</button>' : esc(value.trim() ? value : "—")) + '</td>';
     }).join("");
-    return '<tr data-scouting-row="' + esc(player.uid) + '">' + cells + '<td><span class="scouting-status">' + esc(decision.status) + '</span><details class="scouting-player-details"><summary>Decision &amp; notes</summary><div class="scouting-player-editor">' +
+    const scoreCell = (value: number | null | undefined, title: string) => '<td class="scouting-score-cell" title="' + esc(title) + '">' + (value == null ? '<span class="score-missing">—</span>' : '<strong>' + value + '</strong>') + '</td>';
+    const roleCell = scoreCell(fit?.roleScore, fit ? 'Core role score · family evidence: ' + Math.round(fit.roleCoverage * 100) + '% · ' + fit.confidence + ' confidence' : 'Role score not calculated');
+    const dofCell = scoreCell(fit?.dofEvaluationScore, fit?.aerialAdjustmentApplied ? 'V1 DoF evaluation: 90% core role score + 10% aerial signal (' + fit.aerialScore + ')' : 'DoF evaluation equals the core role score; no eligible aerial adjustment was available or this role does not use it');
+    const philosophyCell = scoreCell(fit?.philosophyScore, fit ? 'Philosophy evidence: ' + Math.round(fit.philosophyCoverage * 100) + '% coverage' : 'Philosophy score not calculated');
+    const tacticalCell = scoreCell(fit?.tacticalFit, 'Combined tactical fit uses DoF role evaluation and philosophy fit; both require sufficient evidence');
+    const principleDetails = fit?.principleScores.length
+      ? '<details class="scouting-fit-details"><summary>Philosophy principles</summary><div>' +
+        fit.principleScores.map((score, index) => '<span>' + esc(["Keep the ball", "Availability", "Progression", "Regains", "Front-foot defending", "Intensity"][index]) + ': <b>' + (score == null ? '—' : score) + '</b></span>').join("") +
+        '</div></details>'
+      : '';
+    const familyDetails = fit?.roleFamilies.length
+      ? '<details class="scouting-fit-details"><summary>Role evidence families</summary><div>' +
+        fit.roleFamilies.map((family) => '<span title="Configured family weight: ' + family.weight + '">' + esc(family.family.replace(/_/g, " ")) + ': <b>' + (family.score == null ? '—' : family.score) + '</b></span>').join("") +
+        '</div></details>'
+      : '';
+    return '<tr data-scouting-row="' + esc(player.uid) + '">' + cells + roleCell + dofCell + philosophyCell + tacticalCell + '<td>' + (fit && fit.positionEligible ? (fit.roleScore == null ? '<span class="score-missing">Insufficient evidence</span>' : '<span class="scouting-status">' + fit.confidence + ' confidence</span>') : fit ? '<span class="score-missing">Different position group</span>' : '<span class="score-missing">—</span>') + familyDetails + principleDetails + '</td><td><span class="scouting-status">' + esc(decision.status) + '</span><details class="scouting-player-details"><summary>Decision &amp; notes</summary><div class="scouting-player-editor">' +
       '<label>Status<select data-player-status>' + [["unreviewed","Unreviewed"],["watching","Watching"],["shortlist","Shortlist"],["reject","Reject"],["signed","Signed"],["revisit","Revisit"]].map((item) => '<option value="' + item[0] + '"' + (decision.status === item[0] ? " selected" : "") + '>' + item[1] + '</option>').join("") + '</select></label>' +
       '<label>Tags<input data-player-tags value="' + esc(decision.tags.join(", ")) + '" placeholder="e.g. pressing, value"></label>' +
       '<label>Next review<input data-player-review type="date" value="' + esc(decision.reviewDate) + '"></label>' +
       '<label>Notes<textarea data-player-note rows="2" maxlength="2000">' + esc(decision.note) + '</textarea></label>' +
       '<button type="button" class="secondary-button compact-button" data-save-player-state="' + esc(player.uid) + '">Save decision</button></div></details></td></tr>';
   }).join("");
-  return '<section class="content-card scouting-workspace"><div class="card-kicker">CAREER-WIDE PLAYER DISCOVERY</div><h2>Search the imported player database</h2>' +
-    '<p>Search any text in a season, combine source-field conditions, and keep scouting decisions with this career. Missing values are not treated as zero.</p>' +
+  return '<section class="content-card scouting-workspace"><div class="card-kicker">CAREER-WIDE PLAYER DISCOVERY</div><h2>Search by role and philosophy fit</h2>' +
+    '<p>Core Role Fit measures role-specific performance. DoF Role Evaluation preserves V1’s small aerial adjustment for relevant defensive roles. Philosophy Fit measures alignment with your selected playing principles. Tactical Fit combines DoF Role Evaluation and Philosophy Fit only when both have sufficient evidence.</p>' +
+    '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-scouting-role><option value="">Choose a role…</option>' + roleOptions + '</select></label>' +
+    '<label>Club philosophy<select data-scouting-philosophy><option value="">Choose a philosophy…</option>' + philosophyOptions + '</select></label>' +
+    '<label>DoF role weight<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label></div>' +
+    '<p class="scouting-score-note" data-scoring-status="' + scoringStatus + '">' + esc(scoringMessage || "Choose a role and philosophy to calculate player fit. Tactical Fit uses DoF Role Evaluation plus Philosophy Fit; its blend is a configurable starting point, not a universal formula. Scores use the full selected season as the comparison pool.") + '</p>' +
     '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>' +
     '<label class="scouting-query">Search players<input type="search" data-scouting-query value="' + esc(query) + '" placeholder="Name, club, position or source value"></label>' +
-    '<label>Sort by<select data-scouting-sort>' + fieldList.map((field) => '<option value="' + esc(field) + '"' + (sortField === field ? " selected" : "") + '>' + esc(label(field)) + '</option>').join("") + '</select></label>' +
+    '<label>Sort by<select data-scouting-sort>' + sortFields.map((field) => '<option value="' + esc(field) + '"' + (sortField === field ? " selected" : "") + '>' + esc(label(field)) + '</option>').join("") + '</select></label>' +
     '<label>Order<select data-scouting-direction><option value="asc"' + (sortDirection === "asc" ? " selected" : "") + '>Ascending</option><option value="desc"' + (sortDirection === "desc" ? " selected" : "") + '>Descending</option></select></label></div>' +
     '<div class="scouting-filter-panel"><div class="scouting-panel-heading"><strong>Filter conditions</strong><span>Combine conditions with</span><select data-scouting-logic><option value="and"' + (logic === "and" ? " selected" : "") + '>AND</option><option value="or"' + (logic === "or" ? " selected" : "") + '>OR</option></select></div>' +
     (filterRows || '<p class="form-help">No filters applied. Add a condition to narrow the results.</p>') +
@@ -130,7 +242,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<details class="scouting-columns-panel"><summary>Visible columns</summary><div class="scouting-columns-grid">' + columnOptions + '</div></details>' +
     '<div class="player-search-meta"><span>' + total.toLocaleString() + ' matching player(s) · showing ' + results.length + ' · max 200</span></div>' +
     (message ? '<p class="player-search-message" role="status">' + esc(message) + '</p>' : '') +
-    (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
+    (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Role fit</th><th>DoF eval</th><th>Philosophy</th><th>Tactical fit</th><th>Evidence</th><th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
       '<div class="player-search-empty">' + (loading ? 'Searching the selected season…' : 'No players match the current search. Check conditions or reset filters.') + '</div>') +
     '<p class="player-data-footnote">Scouting metadata is stored with this career. Imported player rows remain unchanged. Numeric comparisons exclude blank and dash values.</p></section>';
 }
@@ -161,7 +273,7 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
     datasetId = saved.datasetId; query = saved.query; logic = saved.logic; filters = structuredClone(saved.filters);
     state.columnsByDataset[datasetId] = saved.columns;
     sortField = saved.sortField; sortDirection = saved.sortDirection;
-    await runSearch(render); return true;
+    await runSearch(render); await runScoring(render); return true;
   }
   if (target.hasAttribute("data-delete-search")) {
     const id = document.querySelector<HTMLSelectElement>("[data-scouting-saved-select]")?.value;
@@ -183,12 +295,32 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
 }
 
 export async function handleScoutingWorkspaceChange(target: HTMLElement, render: () => void): Promise<boolean> {
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-role]")) {
+    state.analysis = { ...analysisSettings(), roleId: target.value };
+    await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-philosophy]")) {
+    state.analysis = { ...analysisSettings(), philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"] };
+    await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-role-weight]")) {
+    const roleWeight = Number(target.value);
+    state.analysis = { ...analysisSettings(), roleWeight: Number.isFinite(roleWeight) ? Math.max(0.6, Math.min(0.8, roleWeight)) : 0.7 };
+    fitByUid = new Map([...fitByUid].map(([uid, fit]) => [uid, {
+      ...fit,
+      tacticalFit: fit.dofEvaluationScore == null || fit.philosophyScore == null ? null
+        : Math.round(fit.dofEvaluationScore * state.analysis!.roleWeight + fit.philosophyScore * (1 - state.analysis!.roleWeight)),
+    }]));
+    await updateScoutingWorkspaceState(saveId, state);
+    if (sortField === "tacticalFit") await runSearch(render);
+    return true;
+  }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-dataset]")) {
-    datasetId = target.value; filters = []; query = ""; await runSearch(render); return true;
+    datasetId = target.value; filters = []; query = ""; await runSearch(render); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-logic]")) { logic = target.value as "and" | "or"; return true; }
-  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-sort]")) { sortField = target.value; return true; }
-  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-direction]")) { sortDirection = target.value as "asc" | "desc"; return true; }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-sort]")) { sortField = target.value; await runSearch(render); return true; }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-direction]")) { sortDirection = target.value as "asc" | "desc"; await runSearch(render); return true; }
   if (target instanceof HTMLSelectElement && target.dataset.filterField) {
     filters = filters.map((entry) => entry.id === target.dataset.filterField ? { ...entry, field: target.value } : entry); return true;
   }
