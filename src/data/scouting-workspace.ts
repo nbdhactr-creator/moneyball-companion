@@ -143,13 +143,20 @@ async function runSearch(render: () => void): Promise<void> {
   const token = ++requestToken;
   loading = true; message = ""; render();
   try {
-    const response = await searchScoutingPlayers({
+    const searchInput = {
       datasetId, query, groups: filterGroups, groupLogic, sortField, sortDirection,
       offset: (page - 1) * pageSize, limit: pageSize, scoreByUid: fitByUid,
       shortlistStatus: viewMode === "shortlist" ? shortlistStatusFilter : undefined,
       scoutingStatusByUid: statusMap(),
-    });
+    };
+    let response = await searchScoutingPlayers(searchInput);
     if (token !== requestToken) return;
+    const lastPage = Math.max(1, Math.ceil(response.total / pageSize));
+    if (page > lastPage) {
+      page = lastPage;
+      response = await searchScoutingPlayers({ ...searchInput, offset: (page - 1) * pageSize });
+      if (token !== requestToken) return;
+    }
     results = response.players; total = response.total; sourceFields = response.fields;
     const start = total ? (page - 1) * pageSize + 1 : 0;
     const end = Math.min(page * pageSize, total);
