@@ -18,7 +18,7 @@ export interface ScoutingWorkspaceState {
   players: Record<string, PlayerScoutingState>;
   columnsByDataset: Record<string, string[]>;
 }
-export interface ScoutingSearchResult { players: PlayerSeasonRecord[]; total: number; }
+export interface ScoutingSearchResult { players: PlayerSeasonRecord[]; total: number; fields: string[]; }
 export function emptyScoutingWorkspaceState(): ScoutingWorkspaceState {
   return { savedSearches: [], players: {}, columnsByDataset: {} };
 }
@@ -489,7 +489,7 @@ function matchesScoutingFilter(player: PlayerSeasonRecord, filter: ScoutingFilte
   const expected = filter.value.trim();
   if (filter.operator === "is-empty") return actual === "" || actual === "-";
   if (filter.operator === "is-not-empty") return actual !== "" && actual !== "-";
-  if (!actual || actual === "-") return false;
+  if (!actual || actual === "-" || !expected) return false;
   if (filter.operator === "contains") return actual.toLocaleLowerCase().includes(expected.toLocaleLowerCase());
   if (filter.operator === "equals") return actual.toLocaleLowerCase() === expected.toLocaleLowerCase();
   const left = Number(actual.replace(/,/g, ""));
@@ -539,7 +539,7 @@ export async function searchScoutingPlayers(input: {
     });
     const offset = Math.max(0, input.offset ?? 0);
     const limit = Math.min(500, Math.max(1, input.limit ?? 200));
-    return { total: matched.length, players: matched.slice(offset, offset + limit) };
+    return { total: matched.length, players: matched.slice(offset, offset + limit), fields: records[0] ? Object.keys(records[0].rawValues) : [] };
   } catch (error) {
     throw databaseError(error);
   } finally { db.close(); }

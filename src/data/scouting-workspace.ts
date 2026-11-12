@@ -13,6 +13,7 @@ let logic: "and" | "or" = "and";
 let sortField = "name";
 let sortDirection: "asc" | "desc" = "asc";
 let results: PlayerSeasonRecord[] = [];
+let sourceFields: string[] = [];
 let total = 0;
 let message = "";
 let loading = false;
@@ -34,24 +35,19 @@ function label(field: string): string {
 }
 function fields(): string[] {
   const output = new Set<string>(["name", "position", "club", "uid"]);
+  sourceFields.forEach((field) => output.add(field));
   if (results[0]) Object.keys(results[0].rawValues).forEach((field) => output.add(field));
   return [...output];
 }
 function columns(): string[] {
-  return state.columnsByDataset[datasetId]?.length ? state.columnsByDataset[datasetId] : defaultColumns;
+  const available = new Set(fields());
+  const stored = state.columnsByDataset[datasetId]?.filter((field) => available.has(field));
+  if (stored?.length) return stored;
+  const defaults = defaultColumns.filter((field) => available.has(field));
+  return defaults.length ? defaults : ["name"];
 }
 function playerState(uid: string): PlayerScoutingState {
   return state.players[uid] ?? { status: "watching", note: "", tags: [], reviewDate: "", updatedAt: "" };
-}
-function saveState(render: () => void): void {
-  if (!saveId) return;
-  void updateScoutingWorkspaceState(saveId, state).then(() => {
-    message = "Scouting workspace saved to this career.";
-    render();
-  }).catch((error: unknown) => {
-    message = error instanceof Error ? error.message : "Could not save scouting workspace.";
-    render();
-  });
 }
 async function runSearch(render: () => void): Promise<void> {
   if (!datasetId) return;
@@ -62,7 +58,7 @@ async function runSearch(render: () => void): Promise<void> {
       datasetId, query, filters, logic, sortField, sortDirection, limit: 200,
     });
     if (token !== requestToken) return;
-    results = response.players; total = response.total;
+    results = response.players; total = response.total; sourceFields = response.fields;
     message = total > results.length
       ? "Showing the first " + results.length + " of " + total.toLocaleString() + " matches. Refine the search to narrow the list."
       : total ? "Search complete. All matching records are shown." : "No matches. Blank and dash values are excluded from numeric comparisons.";
@@ -84,7 +80,7 @@ export async function loadScoutingWorkspace(nextSaveId: string, nextDatasetId = 
   try { state = await getScoutingWorkspaceState(saveId); }
   catch (error) { message = error instanceof Error ? error.message : "Could not load scouting workspace."; }
   if (datasetId) {
-    try { const initial = await searchScoutingPlayers({ datasetId, limit: 200, sortField: "name" }); results = initial.players; total = initial.total; }
+    try { const initial = await searchScoutingPlayers({ datasetId, limit: 200, sortField: "name" }); results = initial.players; total = initial.total; sourceFields = initial.fields; }
     catch (error) { message = error instanceof Error ? error.message : "Could not load players."; }
   }
 }
@@ -110,7 +106,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     const decision = playerState(player.uid);
     const cells = columns().map((field) => {
       const value = fieldValue(player, field);
-      return '<td>' + (field === "name" ? '<strong>' + esc(value) + '</strong>' : esc(value.trim() ? value : "—")) + '</td>';
+      return '<td>' + (field === "name" ? '<button class="player-name-button" data-player-uid="' + esc(player.uid) + '">' + esc(value) + '</button>' : esc(value.trim() ? value : "—")) + '</td>';
     }).join("");
     return '<tr data-scouting-row="' + esc(player.uid) + '">' + cells + '<td><span class="scouting-status">' + esc(decision.status) + '</span><details class="scouting-player-details"><summary>Decision &amp; notes</summary><div class="scouting-player-editor">' +
       '<label>Status<select data-player-status>' + [["watching","Watching"],["shortlist","Shortlist"],["reject","Reject"],["signed","Signed"],["revisit","Revisit"]].map((item) => '<option value="' + item[0] + '"' + (decision.status === item[0] ? " selected" : "") + '>' + item[1] + '</option>').join("") + '</select></label>' +
@@ -163,6 +159,7 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
     const saved = state.savedSearches.find((entry) => entry.id === id);
     if (!saved) { message = "Choose a saved search first."; render(); return true; }
     datasetId = saved.datasetId; query = saved.query; logic = saved.logic; filters = structuredClone(saved.filters);
+    state.columnsByDataset[datasetId] = saved.columns;
     sortField = saved.sortField; sortDirection = saved.sortDirection;
     await runSearch(render); return true;
   }
