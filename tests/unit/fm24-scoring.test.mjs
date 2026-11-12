@@ -133,3 +133,30 @@ test("partial-season minute samples scale reference and confidence thresholds", 
   assert.equal(scorer.poolMinimumMinutes, 600);
   assert.equal(scorer.highConfidenceMinutes, 1000);
 });
+
+test("derived metrics stay missing when required source components are absent", () => {
+  const scorer = createFm24Scorer([{
+    uid: "missing-components",
+    position: "D (C)",
+    division: "Premier League",
+    rawValues: {
+      UID: "missing-components",
+      Position: "D (C)",
+      Mins: "2400",
+      Gls: "2",
+      xG: "1.5",
+      Shots: "10",
+      Pens: "0",
+      "Tck W": "12",
+      Itc: "8",
+      Blk: "3",
+      "Pres A": "40",
+      Distance: "55.4",
+    },
+  }]);
+  const stats = scorer.players[0].stats;
+  assert.equal(stats["Non-pen G/90"], null, "missing penalty goals must not be assumed to be zero");
+  assert.equal(stats["Def actions/90"], null, "missing clearances must not be assumed to be zero");
+  assert.equal(stats["Press success"], null, "missing completed pressures must not be assumed to be zero");
+  assert.equal(stats["Dist/90 km"], null, "unitless distance must not be assumed to be kilometres");
+});
