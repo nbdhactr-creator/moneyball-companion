@@ -512,7 +512,7 @@ function matchesScoutingFilter(player: PlayerSeasonRecord, filter: ScoutingFilte
 export async function searchScoutingPlayers(input: {
   datasetId: string; query?: string; filters?: ScoutingFilterCondition[]; logic?: "and" | "or";
   sortField?: string; sortDirection?: "asc" | "desc"; offset?: number; limit?: number;
-  scoreByUid?: ReadonlyMap<string, { roleScore: number | null; philosophyScore: number | null; tacticalFit: number | null }>;
+  scoreByUid?: ReadonlyMap<string, { roleScore: number | null; dofEvaluationScore: number | null; philosophyScore: number | null; tacticalFit: number | null }>;
 }): Promise<ScoutingSearchResult> {
   const db = await openLocalDatabase();
   try {
@@ -536,6 +536,7 @@ export async function searchScoutingPlayers(input: {
     const sortValue = (player: PlayerSeasonRecord): string => {
       const scores = input.scoreByUid?.get(player.uid);
       if (field === "roleScore") return scores?.roleScore == null ? "" : String(scores.roleScore);
+      if (field === "dofEvaluationScore") return scores?.dofEvaluationScore == null ? "" : String(scores.dofEvaluationScore);
       if (field === "philosophyScore") return scores?.philosophyScore == null ? "" : String(scores.philosophyScore);
       if (field === "tacticalFit") return scores?.tacticalFit == null ? "" : String(scores.tacticalFit);
       return scoutingFieldValue(player, field);
