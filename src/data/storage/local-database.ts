@@ -16,6 +16,7 @@ export interface SeasonDatasetRecord {
   id: string;
   saveId: string;
   seasonLabel: string;
+  seasonKey: string;
   fileName: string;
   fileSize: number;
   format: string;
