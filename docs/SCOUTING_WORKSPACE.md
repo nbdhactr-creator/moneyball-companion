@@ -2,9 +2,11 @@
 
 ## Status
 - The original search, saved-search and decision workspace is implemented on `main` through PRs #10 and #11.
-- The FM24 role/philosophy scoring layer and Scouting UI integration were merged through PR #12 into `main` (squash commit `ece5e6ce31a530f7626bb174f9537bb2d0a31af6`).
-- GitHub Actions build, 45 automated tests and TypeScript/Vite production build passed. The GitHub Pages deployment job also completed successfully (run #43314079346).
-- User browser testing and independent visual verification of the live page remain pending.
+- The FM24 role/philosophy scoring layer and Scouting UI integration were merged through PR #12. The DoF Planning workspace and editable role/duty philosophy profiles were merged through PR #14.
+- Optional V1-style small-sample shrinkage was merged through PR #13. It remains off by default.
+- Pagination, grouped AND/OR filters and the dedicated shortlist workflow were merged through PR #21 (merge commit `67b12946bd6a0e7ab787d6541fefad6ba5329ab4`).
+- The latest main-branch GitHub Actions run (#43316843858) passed the import/domain test suite, TypeScript/Vite production build and GitHub Pages deployment.
+- User manually tested the deployed Scouting and DoF workflows and reports that they work. An independent screenshot-based browser audit has not been performed.
 
 ## Search behaviour
 - Result tables use clickable column headings rather than separate Sort by/Order controls. Scouting sorting applies to the full filtered result set before 50-row pagination; DoF category sorting applies before the eight-row display cap. Numeric values sort numerically, missing values remain last, and the third click restores the default ordering.
@@ -48,7 +50,7 @@ These decisions are user-authored and never alter the original imported player-s
 - Custom principle weights are editable; custom principle-stat lists remain deferred. The nine V1 templates remain starting profiles, not universal tactical truths.
 - Explicit league factors are supported by the scoring engine but there is not yet a settings UI for mapping and auditing competition factors. Unknown leagues are not silently adjusted.
 - The player profile does not yet show a full 115-variant role-fit matrix; Scouting currently calculates the selected role/duty.
-- The DoF recommendation workspace is implemented on the current feature branch but is not yet merged/deployed. It provides Best Role Fits, Upgrades, Value Options, Squad Depth and Young Targets, with editable budget/wage caps, starter selection and a measured-philosophy threshold. It preserves V1's role-led ranking by default and offers an explicit balanced mode.
+- The DoF recommendation workspace is merged and deployed. It provides Best Role Fits, Upgrades, Value Options, Squad Depth and Young Targets, with editable budget/wage caps, starter selection and a measured-philosophy threshold. It preserves V1's role-led ranking by default and offers an explicit balanced mode.
 - Custom six-principle philosophy weights are editable per V1 role-type/duty key and persist per career. The underlying metric membership per principle is still fixed to the recovered V1 list.
 - The current V2 export has no verified league reputation mapping or transfer acceptance model. Dream-signing/stronger-league filters are therefore deliberately not claimed.
 - The current dataset export cannot directly measure pressing height, compactness, line height, off-ball runs, rest-defence or exact transition timing. Pressure and other season stats are proxies, not proof of tactical behaviour.
