@@ -35,7 +35,7 @@ export function buildFormationSlots(id:string,previous:SquadTacticSlot[]=[]):Squ
 function tactic(){return state.squadTactics??createDefaultTactic()}
 function clubRows(){return club?players.filter(p=>p.club.trim().toLowerCase()===club.trim().toLowerCase()):[]}
 async function load(save:SaveWithDatasets,did:string,render:()=>void){
- const id=++token;loading=true;message="";render();
+ const id=++token;loading=true;message="";workspaceSaveId=save.save.id;workspaceDatasetId=did;saveId=save.save.id;datasetId=did;club=save.save.club;state=emptyScoutingWorkspaceState();players=[];render();
  try{const [s,p]=await Promise.all([getScoutingWorkspaceState(save.save.id),did?getDatasetPlayers(did):Promise.resolve([])]);
  if(id!==token)return;state={...emptyScoutingWorkspaceState(),...s};state.squadTactics??=createDefaultTactic();players=p;club=save.save.club;saveId=save.save.id;datasetId=did;
  }catch(e){if(id===token)message=e instanceof Error?e.message:"Could not load Squad data."}
@@ -69,7 +69,6 @@ function overview(){
  const ages=rows.map(p=>ageKey?Number.parseFloat(p.rawValues[ageKey]??""):NaN).filter(Number.isFinite);
  const bins=[["U21",0,20],["21–24",21,24],["25–28",25,28],["29–32",29,32],["33+",33,100]];
  const counts=bins.map(([l,min,max])=>({l:String(l),n:ages.filter(a=>a>=Number(min)&&a<=Number(max)).length}));
- const max=Math.max(1,...counts.map(x=>x.n));
  const pos=new Map<string,number>();rows.forEach(p=>{const k=p.position.trim()||"Not supplied";pos.set(k,(pos.get(k)??0)+1)});
  const bars=(items:Array<{l:string;n:number}>)=>items.map(x=>'<div class="squad-chart-row"><span>'+esc(x.l)+'</span><div class="squad-chart-track"><i style="width:'+Math.round(x.n/Math.max(1,...items.map(y=>y.n))*100)+'%"></i></div><b>'+x.n+'</b></div>').join("");
  return '<div class="squad-overview-stats"><article class="content-card"><span>Players at '+esc(club)+'</span><strong>'+rows.length+'</strong><small>Exact club match</small></article><article class="content-card"><span>Age values</span><strong>'+ages.length+'/'+rows.length+'</strong><small>Readable source values</small></article><article class="content-card"><span>Position labels</span><strong>'+pos.size+'</strong><small>Distinct exported strings</small></article></div><div class="squad-grid-two"><article class="content-card"><div class="card-kicker">AGE PROFILE</div><h3>Squad age distribution</h3>'+(ages.length?bars(counts):'<p>Age is unavailable in this export.</p>')+'</article><article class="content-card"><div class="card-kicker">POSITION PROFILE</div><h3>Imported position labels</h3>'+bars([...pos.entries()].map(([l,n])=>({l,n})).sort((a,b)=>b.n-a.n).slice(0,8))+'<p class="squad-note">Counts use exact source position strings, not inferred positional eligibility or role depth.</p></article></div>';
