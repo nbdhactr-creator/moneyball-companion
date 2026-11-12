@@ -255,7 +255,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<p>Core Role Fit measures role-specific performance. DoF Role Evaluation preserves V1’s small aerial adjustment for relevant defensive roles. Philosophy Fit measures alignment with your selected playing principles. Tactical Fit combines DoF Role Evaluation and Philosophy Fit only when both have sufficient evidence.</p>' +
     '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-scouting-role><option value="">Choose a role…</option>' + roleOptions + '</select></label>' +
     '<label>Club philosophy<select data-scouting-philosophy><option value="">Choose a philosophy…</option>' + philosophyOptions + '</select></label>' +
-    '<label>DoF role weight<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label></div>' +
+    '<label>DoF role weight<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label><label class="scouting-shrink-control"><span>Small-sample adjustment</span><span><input type="checkbox" data-scouting-shrink' + (analysis.shrinkSmallSamples ? ' checked' : '') + '> Shrink low-minute DoF scores toward 50</span></label></div>' +
     philosophyWeightControls +
     '<p class="scouting-score-note" data-scoring-status="' + scoringStatus + '">' + esc(scoringMessage || "Choose a role and philosophy to calculate player fit. Tactical Fit uses DoF Role Evaluation plus Philosophy Fit; its blend is a configurable starting point, not a universal formula. Scores use the full selected season as the comparison pool.") + '</p>' +
     '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>' +
@@ -302,7 +302,7 @@ function numberField(player: PlayerSeasonRecord, key: string): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
-function currentClubPlayers(save: SaveWithDatasets, roleId: string): PlayerSeasonRecord[] {
+function currentClubPlayers(save: SaveWithDatasets): PlayerSeasonRecord[] {
   const club = save.save.club.trim().toLocaleLowerCase();
   if (!club) return [];
   return planningRecords.filter((player) => player.club.trim().toLocaleLowerCase() === club && fitByUid.get(player.uid)?.listedForRole === true && (fitByUid.get(player.uid)?.roleScore ?? null) != null);
@@ -377,7 +377,7 @@ function dofCandidates(save: SaveWithDatasets): { eligible: DofCandidate[]; star
     valueCap: recommendations.valueCap,
   };
 }
-function dofTable(title: string, description: string, rows: DofCandidate[], mode: string): string {
+function dofTable(title: string, description: string, rows: DofCandidate[]): string {
   const body = rows.slice(0, 8).map((candidate) => {
     const fit = candidate.fit;
     const flags = [
@@ -439,17 +439,16 @@ export function renderPlanningWorkspace(save: SaveWithDatasets | undefined): str
     '<div class="scouting-fit-controls"><label>Role and duty<select data-planning-role><option value="">Choose a role…</option>' + roleOptions + '</select></label><label>Philosophy<select data-planning-philosophy><option value="">Choose a profile…</option>' + philosophyOptions + '</select></label></div></section>';
   if (scoringStatus !== "complete") return '<section class="content-card"><h2>Director of Football recommendations</h2><p>' + esc(scoringMessage || "Calculating player fit…") + '</p>' +
     '<div class="scouting-fit-controls"><label>Role and duty<select data-planning-role>' + roleOptions + '</select></label><label>Philosophy<select data-planning-philosophy>' + philosophyOptions + '</select></label><label class="scouting-shrink-control"><span>Small-sample adjustment</span><span><input type="checkbox" data-scouting-shrink' + (analysis.shrinkSmallSamples ? ' checked' : '') + '> Shrink low-minute DoF scores toward 50</span></label></div></section>';
-  const currentPlayers = currentClubPlayers(save, analysis.roleId);
+  const currentPlayers = currentClubPlayers(save);
   const starterOptions = currentPlayers.map((player) => '<option value="' + esc(player.uid) + '"' + (player.uid === config.starterUid ? " selected" : "") + '>' + esc(player.displayName) + ' · ' + (fitByUid.get(player.uid)?.dofEvaluationScore ?? "—") + '</option>').join("");
   const selected = dofCandidates(save);
   const starter = selected.starter;
-  const thresholdOptions = [50, 60, 70].map((value) => '<option value="' + value + '"' + (config.philosophyThreshold === value ? " selected" : "") + '>' + value + ' or higher</option>').join("");
   const categoryHtml =
-    dofTable("Best role fits", config.rankingMode === "balanced" ? "Balanced Tactical Fit ranking. Both role and philosophy evidence are required." : "V1-style role-led ranking. Philosophy Fit is an independent signal and tie-breaker, not silently averaged into Role Fit.", selected.categories.best, config.rankingMode) +
-    dofTable("Upgrades", "At least 10 points above the selected starter, aged 22–29, with medium or high role-score confidence.", selected.categories.upgrades, config.rankingMode) +
-    dofTable("Value options", selected.valueCap == null ? "Set a transfer budget to calculate the V1-style value ceiling." : "At least 3 points above the starter, within the value ceiling (" + formatMillions(selected.valueCap) + "), ranked by score improvement per estimated transfer value.", selected.categories.value, config.rankingMode) +
-    dofTable("Squad depth", "Within 10 points of the starter, aged 23–31, high confidence. League-level equivalence is not inferred.", selected.categories.depth, config.rankingMode) +
-    dofTable("Young targets", "Players aged 21 or under with at least 300 minutes. Ranked by overall role evaluation, not an age-adjusted score.", selected.categories.young, config.rankingMode);
+    dofTable("Best role fits", config.rankingMode === "balanced" ? "Balanced Tactical Fit ranking. Both role and philosophy evidence are required." : "V1-style role-led ranking. Philosophy Fit is an independent signal and tie-breaker, not silently averaged into Role Fit.", selected.categories.best) +
+    dofTable("Upgrades", "At least 10 points above the selected starter, aged 22–29, with medium or high role-score confidence.", selected.categories.upgrades) +
+    dofTable("Value options", selected.valueCap == null ? "Set a transfer budget to calculate the V1-style value ceiling." : "At least 3 points above the starter, within the value ceiling (" + formatMillions(selected.valueCap) + "), ranked by score improvement per estimated transfer value.", selected.categories.value) +
+    dofTable("Squad depth", "Within 10 points of the starter, aged 23–31, high confidence. League-level equivalence is not inferred.", selected.categories.depth) +
+    dofTable("Young targets", "Players aged 21 or under with at least 300 minutes. Ranked by overall role evaluation, not an age-adjusted score.", selected.categories.young);
   return '<section class="content-card planning-dof-workspace"><div class="card-kicker">ROLE-LED RECRUITMENT</div><h2>Director of Football recommendations</h2>' +
     '<p>Role performance and Philosophy Fit stay separate. By default, candidates rank on DoF Role Evaluation; Philosophy Score breaks ties and the threshold below can exclude measured low-fit players. Missing philosophy evidence is not treated as poor fit.</p>' +
     '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-planning-role>' + roleOptions + '</select></label><label>Club philosophy<select data-planning-philosophy>' + philosophyOptions + '</select></label><label class="scouting-shrink-control"><span>Small-sample adjustment</span><span><input type="checkbox" data-scouting-shrink' + (analysis.shrinkSmallSamples ? ' checked' : '') + '> Shrink low-minute DoF scores toward 50</span></label><label>Role weight<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label><label>Ranking mode<select data-planning-ranking-mode><option value="role-led"' + (config.rankingMode === "role-led" ? " selected" : "") + '>Role-led (V1 default)</option><option value="balanced"' + (config.rankingMode === "balanced" ? " selected" : "") + '>Balanced Tactical Fit</option></select></label></div>' +
