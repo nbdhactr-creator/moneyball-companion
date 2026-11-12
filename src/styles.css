@@ -49,3 +49,38 @@
 @keyframes import-spin{to{transform:rotate(360deg)}}
 @media(max-width:640px){.import-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.result-heading{align-items:flex-start}.result-pill{font-size:9px}.preview-heading{align-items:flex-start;flex-direction:column;gap:3px}}
 @media(prefers-reduced-motion:reduce){.processing-spinner{animation:none}}
+
+
+/* Local save and season management */
+.create-save-form,.persist-import-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:12px;margin-top:19px;padding:16px;background:#f8faf9;border:1px solid #edf1ef;border-radius:8px}
+.persist-import-form{grid-template-columns:1fr 1fr auto;margin-top:18px}
+.form-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.form-field label{font-size:10px;font-weight:700;color:#58676d}
+.form-field label span{font-weight:400;color:#9aa4a8}
+.form-field input,.form-field select{width:100%;min-width:0;height:37px;padding:0 10px;border:1px solid #dce4e1;border-radius:6px;background:#fff;color:#34434a;font:inherit;font-size:11px;outline:none}
+.form-field input:focus,.form-field select:focus{border-color:#6b9d8e;box-shadow:0 0 0 3px rgba(83,137,120,.12)}
+.create-save-form .primary-button,.persist-import-form .primary-button{height:37px;margin:0;white-space:nowrap}
+.primary-button:disabled{opacity:.55;cursor:not-allowed}
+.save-list-heading{display:flex;justify-content:space-between;align-items:center;margin:23px 0 10px;font-size:11px;color:#45545a}
+.save-list-heading span{font-size:10px;color:#929da1;font-weight:500}
+.save-list{display:flex;flex-direction:column;gap:8px}
+.save-list-item{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 14px;border:1px solid #e9eeec;border-radius:7px;background:#fff}
+.save-list-item.selected{border-color:#a9c7bd;background:#f8fbf9}
+.save-list-main{display:flex;flex-direction:column;gap:4px;min-width:0}
+.save-list-main strong{font-size:12px;color:#34434a;overflow-wrap:anywhere}
+.save-list-main span{font-size:10px;color:#75838a}
+.save-list-main small{font-size:9px;color:#a0aaae}
+.compact-button{margin:0;padding:8px 11px;font-size:10px;white-space:nowrap}
+.empty-save-state{padding:18px;border:1px dashed #d7e0dd;border-radius:7px;color:#8a979b;font-size:11px;text-align:center}
+.save-feedback{margin-top:13px;padding:10px 12px;border-radius:6px;font-size:11px;line-height:1.5}
+.feedback-success{background:#eef7f1;color:#386d55}
+.feedback-error{background:#fbf0ee;color:#9b5148}
+.dataset-list{display:flex;flex-direction:column;margin-top:12px}
+.dataset-list-item{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf0f1}
+.dataset-list-item>div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.dataset-list-item strong{font-size:11px;color:#43535a}
+.dataset-list-item span,.dataset-list-item small{font-size:9px;color:#879399;overflow-wrap:anywhere}
+.form-help{grid-column:1/-1;font-size:9px;color:#8a969a}
+.save-manager-card{margin-bottom:13px}
+@media(max-width:760px){.create-save-form,.persist-import-form{grid-template-columns:1fr}.create-save-form .primary-button,.persist-import-form .primary-button{width:100%}.form-help{grid-column:auto}}
+@media(max-width:480px){.save-list-item{align-items:flex-start;flex-direction:column}.compact-button{align-self:flex-start}}

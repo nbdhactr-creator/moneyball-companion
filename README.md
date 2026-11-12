@@ -38,11 +38,12 @@ The exact dependency choices will be confirmed in the architecture blueprint. No
 
 ## Current status
 
-The initial TypeScript/Vite application shell and GitHub Pages workflow are in place. Core recruitment modules and the FM data engine are being built in phases. The existing Recruitment Lab remains separate and operational.
+The TypeScript/Vite application shell and GitHub Pages deployment are live. The FM24 pipe-table import preview is implemented. Local save and season persistence is under review in a feature pull request; it is not yet part of the live website.
 
-See [the product and architecture blueprint](docs/PRODUCT_BLUEPRINT.md) for the working plan.
+The existing Recruitment Lab remains separate and operational.
 
+## Project documentation
 
-## Product research
-
-See [User Research and Product Decisions](docs/USER_RESEARCH_AND_PRODUCT_DECISIONS.md) for community pain points, competitor capabilities, product decisions and the revised roadmap.
+- [Product and architecture blueprint](docs/PRODUCT_BLUEPRINT.md)
+- [User research and product decisions](docs/USER_RESEARCH_AND_PRODUCT_DECISIONS.md)
+- [Local save and season data foundation](docs/LOCAL_DATA_FOUNDATION.md)

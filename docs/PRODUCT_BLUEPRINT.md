@@ -381,3 +381,20 @@ Public Football Manager community discussions and competitor documentation have 
 6. Optional cloud sync after local reliability is proven.
 
 These requirements do not expand the supported FM import formats by assumption. The current import contract remains limited to the observed FM24 pipe-table sample until additional export variants are tested.
+
+
+## 9. Local save and season foundation implementation
+
+The first persistence milestone is being implemented in [LOCAL_DATA_FOUNDATION.md](LOCAL_DATA_FOUNDATION.md).
+
+The current implementation scope is deliberately limited to:
+- named local save containers;
+- multiple labelled season datasets per save;
+- browser IndexedDB schema version 1;
+- SHA-256 duplicate-file detection within a save;
+- case-insensitive season-label uniqueness;
+- batched player-row writes and a final dataset commit;
+- cleanup/failed-job reporting for interrupted imports;
+- protection against silent replacement of existing seasons.
+
+This milestone does not yet include backup/restore, explicit season replacement, player search, saved filters, shortlists, cloud sync or analytical calculations. Those features remain separate phases and must not be implied by the presence of local persistence.
