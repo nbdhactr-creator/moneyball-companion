@@ -70,6 +70,8 @@ let playerSearchQuery = "";
 let playerSearchResults: PlayerSeasonRecord[] = [];
 let selectedPlayerUid: string | null = null;
 let playerHistory: PlayerSeasonHistoryEntry[] = [];
+let historyComparePreviousId = "";
+let historyCompareCurrentId = "";
 let playerSearchMessage = "";
 let isSearchingPlayers = false;
 let isLoadingPlayerHistory = false;
@@ -166,6 +168,8 @@ function resetPlayerWorkspace(): void {
   playerSearchResults = [];
   selectedPlayerUid = null;
   playerHistory = [];
+  historyComparePreviousId = "";
+  historyCompareCurrentId = "";
   playerSearchMessage = "";
   isSearchingPlayers = false;
   isLoadingPlayerHistory = false;
@@ -182,8 +186,9 @@ function playerProfileView(): string {
   const latestPlayer = [...present].reverse()[0]?.player;
   if (!latestPlayer) return `<section class="content-card"><p>${escapeHtml(playerSearchMessage || "This player has no season records in the active career.")}</p><button class="secondary-button" data-player-back>Back to player search</button></section>`;
 
-  const previous = playerHistory.length > 1 ? playerHistory[playerHistory.length - 2] : undefined;
-  const current = playerHistory[playerHistory.length - 1];
+  const previous = playerHistory.find((entry) => entry.dataset.id === historyComparePreviousId);
+  const current = playerHistory.find((entry) => entry.dataset.id === historyCompareCurrentId) ?? playerHistory[playerHistory.length - 1];
+  const comparisonOptions = playerHistory.map((entry) => `<option value="${entry.dataset.id}">${escapeHtml(entry.dataset.seasonLabel)}</option>`).join("");
   const previousLabel = previous?.dataset.seasonLabel ?? "Earlier season";
   const currentLabel = current?.dataset.seasonLabel ?? "Latest season";
   const sourcePlayers = [previous?.player, current?.player].filter((player): player is PlayerSeasonRecord => Boolean(player));
@@ -296,6 +301,8 @@ async function openPlayerHistory(uid: string): Promise<void> {
     const history = await getPlayerHistory(saveId, uid);
     if (requestId !== playerHistoryRequestId || activeSaveId !== saveId) return;
     playerHistory = history;
+    historyCompareCurrentId = history[history.length - 1]?.dataset.id ?? "";
+    historyComparePreviousId = history.length > 1 ? history[history.length - 2].dataset.id : "";
   } catch (error) {
     if (requestId !== playerHistoryRequestId || activeSaveId !== saveId) return;
     playerSearchMessage = formatStorageError(error);
