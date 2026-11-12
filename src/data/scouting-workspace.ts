@@ -61,6 +61,12 @@ function fieldValue(player: PlayerSeasonRecord, field: string): string {
 function label(field: string): string {
   return ({ name: "Player", position: "Position", club: "Club", uid: "FM UID", roleScore: "Role fit", dofEvaluationScore: "DoF role evaluation", philosophyScore: "Philosophy fit", tacticalFit: "Tactical fit" } as Record<string, string>)[field] ?? field;
 }
+function sortableHeader(field: string, title = label(field)): string {
+  const active = sortField === field;
+  const direction = active ? sortDirection : "none";
+  const indicator = active ? (sortDirection === "asc" ? "↑" : "↓") : "↕";
+  return '<th aria-sort="' + (direction === "asc" ? "ascending" : direction === "desc" ? "descending" : "none") + '"><button type="button" class="table-sort-button' + (active ? ' is-active' : '') + '" data-scouting-sort-field="' + esc(field) + '" aria-label="Sort by ' + esc(title) + '">' + esc(title) + '<span aria-hidden="true">' + indicator + '</span></button></th>';
+}
 function flatFilters(): ScoutingFilterCondition[] { return filterGroups.flatMap((group) => group.filters); }
 function statusMap(): Map<string, ShortlistStatus> {
   return new Map<string, ShortlistStatus>(Object.entries(state.players).map(([uid, player]) => [uid, player.status] as [string, ShortlistStatus]));
@@ -276,7 +282,6 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
       FM24_PHILOSOPHY_PRINCIPLES.map((principle, index) => '<label><span>' + esc(principle.name) + '</span><input type="range" min="0" max="3" step="0.5" value="' + (currentWeights[index] ?? 0) + '" data-philosophy-weight="' + index + '"><output>' + (currentWeights[index] ?? 0) + '</output></label>').join("") +
       '</div></section>'
     : '';
-  const sortFields = [...fieldList, "roleScore", "dofEvaluationScore", "philosophyScore", "tacticalFit"];
   const datasetOptions = save.datasets.map((entry) => '<option value="' + esc(entry.id) + '"' + (entry.id === datasetId ? " selected" : "") + '>' + esc(entry.seasonLabel) + ' · ' + entry.playerCount.toLocaleString() + ' players</option>').join("");
   const operators = [["contains","contains"],["equals","equals"],["gt","greater than"],["gte","at least"],["lt","less than"],["lte","at most"],["is-empty","is empty"],["is-not-empty","is not empty"]];
   const groupRows = filterGroups.map((group, groupIndex) => {
@@ -295,7 +300,9 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
   }).join("");
   const savedOptions = state.savedSearches.map((entry) => '<option value="' + esc(entry.id) + '">' + esc(entry.name) + '</option>').join("");
   const columnOptions = fieldList.map((field) => '<label class="scouting-column-option"><input type="checkbox" data-scouting-column value="' + esc(field) + '"' + (columns().includes(field) ? " checked" : "") + '> ' + esc(label(field)) + '</label>').join("");
-  const header = '<th class="scouting-select-heading">Select</th>' + columns().map((field) => '<th>' + esc(label(field)) + '</th>').join("");
+  const header = '<th class="scouting-select-heading">Select</th>' + columns().map((field) => sortableHeader(field)).join("") +
+    sortableHeader("roleScore", "Role fit") + sortableHeader("dofEvaluationScore", "DoF eval") +
+    sortableHeader("philosophyScore", "Philosophy") + sortableHeader("tacticalFit", "Tactical fit");
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const statusOptions = [["shortlist","Shortlist"],["watching","Watching"],["revisit","Revisit"],["all-tracked","All tracked players"]];
   const rows = results.map((player) => {
@@ -339,8 +346,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>' +
     (viewMode === "shortlist" ? '<label>Show <select data-shortlist-status>' + statusOptions.map((entry) => '<option value="' + entry[0] + '"' + (shortlistStatusFilter === entry[0] ? ' selected' : '') + '>' + entry[1] + '</option>').join("") + '</select></label>' : '') +
     '<label class="scouting-query">Search players<input type="search" data-scouting-query value="' + esc(query) + '" placeholder="Name, club, position or source value"></label>' +
-    '<label>Sort by<select data-scouting-sort>' + sortFields.map((field) => '<option value="' + esc(field) + '"' + (sortField === field ? " selected" : "") + '>' + esc(label(field)) + '</option>').join("") + '</select></label>' +
-    '<label>Order<select data-scouting-direction><option value="asc"' + (sortDirection === "asc" ? " selected" : "") + '>Ascending</option><option value="desc"' + (sortDirection === "desc" ? " selected" : "") + '>Descending</option></select></label></div>' +
+    '</div>' +
     '<div class="scouting-filter-panel"><div class="scouting-panel-heading"><strong>Filter groups</strong><label>Match groups <select data-scouting-group-logic><option value="and"' + (groupLogic === "and" ? " selected" : "") + '>All groups (AND)</option><option value="or"' + (groupLogic === "or" ? " selected" : "") + '>Any group (OR)</option></select></label></div>' +
     groupRows +
     '<div class="scouting-actions"><button type="button" class="secondary-button compact-button" data-add-filter-group-new>Add group</button><button type="button" class="text-button" data-scouting-reset>Reset filters</button><button type="button" class="primary-button" data-scouting-search' + (loading ? ' disabled' : '') + '>' + (loading ? 'Searching…' : 'Apply search') + '</button></div></div>' +
@@ -351,7 +357,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<div class="scouting-bulk-toolbar"><span>' + selectedUids.size + ' selected</span><button type="button" class="secondary-button compact-button" data-select-page>Select visible page</button><button type="button" class="secondary-button compact-button" data-bulk-shortlist' + (selectedUids.size ? '' : ' disabled') + '>Add to shortlist</button><button type="button" class="secondary-button compact-button" data-bulk-remove-shortlist' + (selectedUids.size ? '' : ' disabled') + '>Remove from shortlist</button><button type="button" class="text-button" data-clear-selection' + (selectedUids.size ? '' : ' disabled') + '>Clear selection</button></div>' +
     '<div class="player-search-meta"><span>' + total.toLocaleString() + ' matching player(s) · showing ' + (total ? ((page - 1) * pageSize + 1) + '–' + Math.min(page * pageSize, total) : 0) + ' · page ' + page + ' of ' + pageCount + '</span></div>' +
     (message ? '<p class="player-search-message" role="status">' + esc(message) + '</p>' : '') +
-    (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Role fit</th><th>DoF eval</th><th>Philosophy</th><th>Tactical fit</th><th>Evidence</th><th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
+    (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Evidence</th><th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
       '<div class="player-search-empty">' + (loading ? 'Searching the selected season…' : 'No players match the current search. Check conditions or reset filters.') + '</div>') +
     '<div class="scouting-pagination"><button type="button" class="secondary-button compact-button" data-page-prev' + (page <= 1 ? ' disabled' : '') + '>Previous</button><span>Page ' + page + ' of ' + pageCount + '</span><button type="button" class="secondary-button compact-button" data-page-next' + (page >= pageCount ? ' disabled' : '') + '>Next</button></div>' +
     '<p class="player-data-footnote">Scouting metadata is stored with this career. Imported player rows remain unchanged. Numeric comparisons exclude blank and dash values. Removing a player from the shortlist changes their status to Watching; notes and tags are kept.</p></section>';
@@ -458,8 +464,41 @@ function dofCandidates(save: SaveWithDatasets): { eligible: DofCandidate[]; star
     valueCap: recommendations.valueCap,
   };
 }
+let dofSortField = "recommendation";
+let dofSortDirection: "asc" | "desc" = "asc";
+function sortDofCandidates(rows: DofCandidate[]): DofCandidate[] {
+  if (dofSortField === "recommendation") return rows;
+  const value = (candidate: DofCandidate): string | number | null => {
+    switch (dofSortField) {
+      case "name": return candidate.player.displayName;
+      case "roleScore": return candidate.fit.roleScore;
+      case "dofEvaluationScore": return candidate.fit.dofEvaluationScore;
+      case "philosophyScore": return candidate.fit.philosophyScore;
+      case "tacticalFit": return candidate.fit.tacticalFit;
+      case "age": return candidate.age;
+      case "value": return candidate.value;
+      case "wage": return candidate.wage;
+      default: return null;
+    }
+  };
+  return [...rows].sort((a, b) => {
+    const left = value(a), right = value(b);
+    if (left == null && right != null) return 1;
+    if (left != null && right == null) return -1;
+    if (left == null && right == null) return a.player.uid.localeCompare(b.player.uid, undefined, { numeric: true });
+    const comparison = typeof left === "number" && typeof right === "number" ? left - right :
+      String(left).localeCompare(String(right), undefined, { numeric: true, sensitivity: "base" });
+    return comparison * (dofSortDirection === "desc" ? -1 : 1) || a.player.uid.localeCompare(b.player.uid, undefined, { numeric: true });
+  });
+}
+function dofSortHeader(field: string, title: string): string {
+  const active = dofSortField === field;
+  const indicator = active ? (dofSortDirection === "asc" ? "↑" : "↓") : "↕";
+  return '<th aria-sort="' + (active ? (dofSortDirection === "asc" ? "ascending" : "descending") : "none") + '"><button type="button" class="table-sort-button' + (active ? ' is-active' : '') + '" data-dof-sort-field="' + field + '" aria-label="Sort by ' + esc(title) + '">' + esc(title) + '<span aria-hidden="true">' + indicator + '</span></button></th>';
+}
 function dofTable(title: string, description: string, rows: DofCandidate[]): string {
-  const body = rows.slice(0, 8).map((candidate) => {
+  const sortedRows = sortDofCandidates(rows);
+  const body = sortedRows.slice(0, 8).map((candidate) => {
     const fit = candidate.fit;
     const flags = [
       candidate.retraining ? '<span class="scouting-status">Retraining review</span>' : "",
@@ -482,8 +521,8 @@ function dofTable(title: string, description: string, rows: DofCandidate[]): str
       '<td>' + (fit.tacticalFit ?? "—") + '</td><td>' + (candidate.age ?? "—") + '</td><td>' + esc(candidate.valueText) + '</td><td>' + esc(candidate.wageText) + '</td></tr>';
   }).join("");
   return '<section class="content-card dof-category"><div class="dof-category-heading"><div><h3>' + esc(title) + '</h3><p>' + esc(description) + '</p></div><span>' + rows.length + ' match(es)</span></div>' +
-    (body ? '<div class="player-table-wrap"><table class="player-data-table dof-results-table"><thead><tr><th>Candidate</th><th>Role fit</th><th>DoF evaluation</th><th>Philosophy fit</th><th>Tactical fit</th><th>Age</th><th>Value</th><th>Wage</th></tr></thead><tbody>' + body + '</tbody></table></div>' : '<p class="form-help">No candidates currently meet this category. Adjust the role, filters or financial limits.</p>') +
-    (rows.length > 8 ? '<p class="form-help">Showing the top 8 of ' + rows.length + ' matches.</p>' : '') + '</section>';
+    (body ? '<div class="player-table-wrap"><table class="player-data-table dof-results-table"><thead><tr>' + dofSortHeader("name", "Candidate") + dofSortHeader("roleScore", "Role fit") + dofSortHeader("dofEvaluationScore", "DoF evaluation") + dofSortHeader("philosophyScore", "Philosophy fit") + dofSortHeader("tacticalFit", "Tactical fit") + dofSortHeader("age", "Age") + dofSortHeader("value", "Value") + dofSortHeader("wage", "Wage") + '</tr></thead><tbody>' + body + '</tbody></table></div>' : '<p class="form-help">No candidates currently meet this category. Adjust the role, filters or financial limits.</p>') +
+    (rows.length > 8 ? '<p class="form-help">Showing 8 of ' + rows.length + ' matches. Click a heading to sort the full category; the third click restores recommendation order.</p>' : '') + '</section>';
 }
 
 export async function loadPlanningWorkspace(save: SaveWithDatasets | undefined, render: () => void): Promise<void> {
@@ -552,6 +591,25 @@ export function renderPlanningWorkspace(save: SaveWithDatasets | undefined): str
 }
 
 export async function handleScoutingWorkspaceClick(target: HTMLElement, render: () => void): Promise<boolean> {
+  if (target.dataset.scoutingSortField) {
+    const field = target.dataset.scoutingSortField;
+    if (sortField === field) {
+      if (sortDirection === "asc") sortDirection = "desc";
+      else { sortField = "name"; sortDirection = "asc"; }
+    } else { sortField = field; sortDirection = "asc"; }
+    page = 1;
+    await runSearch(render);
+    return true;
+  }
+  if (target.dataset.dofSortField) {
+    const field = target.dataset.dofSortField;
+    if (dofSortField === field) {
+      if (dofSortDirection === "asc") dofSortDirection = "desc";
+      else { dofSortField = "recommendation"; dofSortDirection = "asc"; }
+    } else { dofSortField = field; dofSortDirection = "asc"; }
+    render();
+    return true;
+  }
   if (target.hasAttribute("data-add-filter-group-new")) {
     filterGroups.push({ id: crypto.randomUUID(), logic: "and", filters: [] }); render(); return true;
   }
