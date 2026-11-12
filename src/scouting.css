@@ -1,5 +1,5 @@
 .scouting-workspace { overflow: hidden; }
-.scouting-toolbar { display: grid; grid-template-columns: minmax(150px,1fr) minmax(220px,2fr) minmax(140px,1fr) minmax(120px,.7fr); gap: 12px; align-items: end; margin: 20px 0; }
+.scouting-toolbar { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 12px; align-items: end; margin: 20px 0; }
 .scouting-toolbar label, .scouting-saved-searches label { display: grid; gap: 7px; color: var(--muted, #687386); font-size: 12px; font-weight: 650; }
 .scouting-toolbar input, .scouting-toolbar select, .scouting-filter-row input, .scouting-filter-row select, .scouting-panel-heading select, .scouting-saved-searches input, .scouting-saved-searches select, .scouting-player-editor input, .scouting-player-editor select, .scouting-player-editor textarea { min-width: 0; width: 100%; border: 1px solid var(--border, #dfe5ec); border-radius: 9px; background: #fff; color: var(--ink, #1d2939); padding: 10px 11px; font: inherit; }
 .scouting-filter-panel { border: 1px solid var(--border, #dfe5ec); border-radius: 12px; padding: 15px; background: #f8fafc; }
@@ -95,3 +95,11 @@
 .scouting-pagination { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 16px 0 6px; color: var(--muted, #687386); font-size: 12px; }
 @media (max-width: 900px) { .scouting-fit-controls { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 560px) { .scouting-fit-controls { grid-template-columns: 1fr; } .scouting-bulk-toolbar > span { flex-basis: 100%; } .scouting-pagination { justify-content: space-between; } }
+
+
+/* Consistent sortable table headings across result workspaces. */
+.table-sort-button { display:inline-flex; align-items:center; gap:7px; max-width:100%; padding:2px 0; border:0; background:transparent; color:inherit; font:inherit; font-weight:inherit; letter-spacing:inherit; text-align:left; white-space:nowrap; cursor:pointer; }
+.table-sort-button span { color:#9aa7a3; font-size:11px; line-height:1; }
+.table-sort-button:hover, .table-sort-button.is-active { color:#286b60; }
+.table-sort-button.is-active span { color:#286b60; font-weight:800; }
+.table-sort-button:focus-visible { outline:2px solid #6b9d8e; outline-offset:3px; border-radius:3px; }

@@ -420,8 +420,10 @@ export async function persistSeasonImport(input: {
 }
 
 
-/** Prefix-searches one immutable season snapshot using its indexed, normalised player name. */
-export async function searchPlayersInDataset(datasetId: string, query = "", limit = 100): Promise<PlayerSeasonRecord[]> {
+/** Prefix-searches one immutable season snapshot; sorting is applied to all matches before the limit. */
+export async function searchPlayersInDataset(
+  datasetId: string, query = "", limit = 100, sortField = "name", sortDirection: "asc" | "desc" = "asc",
+): Promise<PlayerSeasonRecord[]> {
   const db = await openLocalDatabase();
   try {
     const transaction = db.transaction("playerRecords", "readonly");
@@ -430,22 +432,35 @@ export async function searchPlayersInDataset(datasetId: string, query = "", limi
     const range = prefix
       ? IDBKeyRange.bound([datasetId, prefix], [datasetId, `${prefix}\uffff`])
       : IDBKeyRange.bound([datasetId, ""], [datasetId, "\uffff"]);
-    const results: PlayerSeasonRecord[] = [];
+    const matches: PlayerSeasonRecord[] = [];
     await new Promise<void>((resolve, reject) => {
       const request = transaction.objectStore("playerRecords").index("datasetName").openCursor(range);
       request.onsuccess = () => {
         const cursor = request.result;
-        if (!cursor || results.length >= Math.max(1, limit)) {
-          resolve();
-          return;
-        }
-        results.push(cursor.value as PlayerSeasonRecord);
+        if (!cursor) { resolve(); return; }
+        matches.push(cursor.value as PlayerSeasonRecord);
         cursor.continue();
       };
       request.onerror = () => reject(request.error ?? new Error("Player search failed."));
     });
     await done;
-    return results;
+    const value = (player: PlayerSeasonRecord): string => {
+      if (sortField === "name") return player.displayName;
+      if (sortField === "position") return player.position;
+      if (sortField === "club") return player.club;
+      if (sortField === "uid") return player.uid;
+      return player.rawValues[sortField] ?? "";
+    };
+    matches.sort((a, b) => {
+      const left = value(a).trim(), right = value(b).trim();
+      if (!left && right) return 1;
+      if (left && !right) return -1;
+      const ln = Number(left.replace(/,/g, "")), rn = Number(right.replace(/,/g, ""));
+      const comparison = left && right && Number.isFinite(ln) && Number.isFinite(rn) ? ln - rn :
+        left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+      return comparison * (sortDirection === "desc" ? -1 : 1) || a.uid.localeCompare(b.uid, undefined, { numeric: true });
+    });
+    return matches.slice(0, Math.max(1, limit));
   } finally {
     db.close();
   }

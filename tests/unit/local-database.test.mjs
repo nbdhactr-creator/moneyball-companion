@@ -289,3 +289,23 @@ test("scopes identical FM UIDs to separate careers", async () => {
   assert.equal((await getPlayerHistory(firstSave.id, "8200"))[0].player.displayName, "First Career Player");
   assert.equal((await getPlayerHistory(secondSave.id, "8200"))[0].player.displayName, "Different Career Player");
 });
+
+
+test("sorts all matching Squad search results before limiting the visible page", async () => {
+  await resetDatabase();
+  const save = await createSave("Squad Sorting Test");
+  const dataset = await persistSeasonImport(importInput(save.id, {
+    rows: [
+      { sourceLine: 2, values: { UID: "8301", Name: "Alex Zulu", Position: "ST", Age: "29", Club: "Zulu FC" } },
+      { sourceLine: 3, values: { UID: "8302", Name: "Alex Alpha", Position: "GK", Age: "18", Club: "Alpha FC" } },
+      { sourceLine: 4, values: { UID: "8303", Name: "Alex Bravo", Position: "MC", Age: "23", Club: "Bravo FC" } },
+      { sourceLine: 5, values: { UID: "8304", Name: "Alex Missing", Position: "DC", Age: "", Club: "Missing FC" } },
+    ],
+  }));
+  const byAge = await searchPlayersInDataset(dataset.id, "alex", 2, "Age", "asc");
+  assert.deepEqual(byAge.map((player) => player.uid), ["8302", "8303"]);
+  const byClub = await searchPlayersInDataset(dataset.id, "alex", 4, "club", "desc");
+  assert.deepEqual(byClub.map((player) => player.uid), ["8301", "8304", "8303", "8302"]);
+  const byAgeDescending = await searchPlayersInDataset(dataset.id, "alex", 4, "Age", "desc");
+  assert.deepEqual(byAgeDescending.map((player) => player.uid), ["8301", "8303", "8302", "8304"]);
+});
