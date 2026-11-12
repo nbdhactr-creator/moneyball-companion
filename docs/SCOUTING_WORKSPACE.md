@@ -20,7 +20,7 @@ Implemented on the feature branch for PR #10. The first build exposed one unused
 
 ## Player decisions
 Each career can store a separate scouting decision per FM UID:
-- Watching, shortlist, reject, signed or revisit.
+- Unreviewed by default; watching, shortlist, reject, signed or revisit after a user decision.
 - Free-text notes (up to 2,000 characters).
 - Tags (up to 20).
 - Optional next-review date.
@@ -28,7 +28,7 @@ Each career can store a separate scouting decision per FM UID:
 These decisions are user-authored and never alter the original imported player-season rows. They follow the career backup/restore workflow.
 
 ## Known limitations and next steps
-- The first filter builder combines conditions in one AND/OR group; nested groups are not yet implemented.
+- The first filter builder combines conditions in one AND/OR group; nested groups are not yet implemented. Players with no saved decision are marked Unreviewed rather than being implicitly treated as watched.
 - Results show the first 200 matches; next/previous page controls are planned.
 - Filtering and sorting currently load the selected dataset's player records into the browser before applying conditions. This is suitable as a first implementation but must be profiled against larger exports before adding more complex filters.
 - Saved search editing/renaming and duplicate names are not supported; saving an existing name replaces it.

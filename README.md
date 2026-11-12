@@ -38,7 +38,7 @@ The exact dependency choices will be confirmed in the architecture blueprint. No
 
 ## Current status
 
-The TypeScript/Vite application shell and GitHub Pages deployment are live. FM24 import, local multi-season persistence, career-scoped player identities, season history and versioned backup/restore are implemented. The first Scouting workspace milestone (whole-season search, AND/OR filters, saved searches, visible columns and persistent player decisions) is under review in PR #10; it is not yet deployed.
+The TypeScript/Vite application shell and GitHub Pages deployment are live. FM24 import, local multi-season persistence, career-scoped player identities, season history, versioned backup/restore and the first Scouting workspace milestone (whole-season search, AND/OR filters, saved searches, visible columns and persistent player decisions) are implemented, merged and deployed. Browser verification of the Scouting workspace is pending.
 
 The existing Recruitment Lab remains separate and operational.
 
