@@ -45,7 +45,7 @@ function fieldValue(player: PlayerSeasonRecord, field: string): string {
   return player.rawValues[field] ?? "";
 }
 function label(field: string): string {
-  return ({ name: "Player", position: "Position", club: "Club", uid: "FM UID" } as Record<string, string>)[field] ?? field;
+  return ({ name: "Player", position: "Position", club: "Club", uid: "FM UID", roleScore: "Role fit", philosophyScore: "Philosophy fit", tacticalFit: "Tactical fit" } as Record<string, string>)[field] ?? field;
 }
 function fields(): string[] {
   const output = new Set<string>(["name", "position", "club", "uid"]);
@@ -102,6 +102,7 @@ async function runScoring(render: () => void): Promise<void> {
           ((response.inferredMissingLeagues ?? 0) ? "; " + response.inferredMissingLeagues + " competition(s) contain inferred missing advanced data." : ".") +
           " Estimated season progress: " + Math.round((response.seasonProgress ?? 1) * 100) + "%; reference-pool minimum: " + (response.poolMinimumMinutes ?? 900).toLocaleString() + " minutes. Scores are relative to this season's eligible position groups.";
         worker.terminate(); if (scoringWorker === worker) scoringWorker = null;
+        if (["roleScore", "philosophyScore", "tacticalFit"].includes(sortField)) void runSearch(render);
       } else if (response.phase === "error") {
         scoringStatus = "error"; scoringMessage = response.message ?? "Scoring failed.";
         worker.terminate(); if (scoringWorker === worker) scoringWorker = null;
@@ -131,7 +132,7 @@ async function runSearch(render: () => void): Promise<void> {
   loading = true; message = ""; render();
   try {
     const response = await searchScoutingPlayers({
-      datasetId, query, filters, logic, sortField, sortDirection, limit: 200,
+      datasetId, query, filters, logic, sortField, sortDirection, limit: 200, scoreByUid: fitByUid,
     });
     if (token !== requestToken) return;
     results = response.players; total = response.total; sourceFields = response.fields;
@@ -179,6 +180,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '</optgroup>').join("");
   const philosophyOptions = Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([key, template]) =>
     '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
+  const sortFields = [...fieldList, "roleScore", "philosophyScore", "tacticalFit"];
   const datasetOptions = save.datasets.map((entry) => '<option value="' + esc(entry.id) + '"' + (entry.id === datasetId ? " selected" : "") + '>' + esc(entry.seasonLabel) + ' · ' + entry.playerCount.toLocaleString() + ' players</option>').join("");
   const filterRows = filters.map((filter) => {
     const operators = [["contains","contains"],["equals","equals"],["gt","greater than"],["gte","at least"],["lt","less than"],["lte","at most"],["is-empty","is empty"],["is-not-empty","is not empty"]];
@@ -227,7 +229,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<p class="scouting-score-note" data-scoring-status="' + scoringStatus + '">' + esc(scoringMessage || "Choose a role and philosophy to calculate player fit. Scores use the full selected season as the comparison pool.") + '</p>' +
     '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>' +
     '<label class="scouting-query">Search players<input type="search" data-scouting-query value="' + esc(query) + '" placeholder="Name, club, position or source value"></label>' +
-    '<label>Sort by<select data-scouting-sort>' + fieldList.map((field) => '<option value="' + esc(field) + '"' + (sortField === field ? " selected" : "") + '>' + esc(label(field)) + '</option>').join("") + '</select></label>' +
+    '<label>Sort by<select data-scouting-sort>' + sortFields.map((field) => '<option value="' + esc(field) + '"' + (sortField === field ? " selected" : "") + '>' + esc(label(field)) + '</option>').join("") + '</select></label>' +
     '<label>Order<select data-scouting-direction><option value="asc"' + (sortDirection === "asc" ? " selected" : "") + '>Ascending</option><option value="desc"' + (sortDirection === "desc" ? " selected" : "") + '>Descending</option></select></label></div>' +
     '<div class="scouting-filter-panel"><div class="scouting-panel-heading"><strong>Filter conditions</strong><span>Combine conditions with</span><select data-scouting-logic><option value="and"' + (logic === "and" ? " selected" : "") + '>AND</option><option value="or"' + (logic === "or" ? " selected" : "") + '>OR</option></select></div>' +
     (filterRows || '<p class="form-help">No filters applied. Add a condition to narrow the results.</p>') +
@@ -307,14 +309,16 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
       tacticalFit: fit.roleScore == null || fit.philosophyScore == null ? null
         : Math.round(fit.roleScore * state.analysis!.roleWeight + fit.philosophyScore * (1 - state.analysis!.roleWeight)),
     }]));
-    await updateScoutingWorkspaceState(saveId, state); return true;
+    await updateScoutingWorkspaceState(saveId, state);
+    if (sortField === "tacticalFit") await runSearch(render);
+    return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-dataset]")) {
     datasetId = target.value; filters = []; query = ""; await runSearch(render); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-logic]")) { logic = target.value as "and" | "or"; return true; }
-  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-sort]")) { sortField = target.value; return true; }
-  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-direction]")) { sortDirection = target.value as "asc" | "desc"; return true; }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-sort]")) { sortField = target.value; await runSearch(render); return true; }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-direction]")) { sortDirection = target.value as "asc" | "desc"; await runSearch(render); return true; }
   if (target instanceof HTMLSelectElement && target.dataset.filterField) {
     filters = filters.map((entry) => entry.id === target.dataset.filterField ? { ...entry, field: target.value } : entry); return true;
   }
