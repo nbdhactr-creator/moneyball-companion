@@ -533,10 +533,16 @@ export async function searchScoutingPlayers(input: {
     });
     const field = input.sortField || "name";
     const direction = input.sortDirection === "desc" ? -1 : 1;
+    const sortValue = (player: PlayerSeasonRecord): string => {
+      const scores = input.scoreByUid?.get(player.uid);
+      if (field === "roleScore") return scores?.roleScore == null ? "" : String(scores.roleScore);
+      if (field === "philosophyScore") return scores?.philosophyScore == null ? "" : String(scores.philosophyScore);
+      if (field === "tacticalFit") return scores?.tacticalFit == null ? "" : String(scores.tacticalFit);
+      return scoutingFieldValue(player, field);
+    };
     matched.sort((a, b) => {
-      const scoreField = field === "roleScore" || field === "philosophyScore" || field === "tacticalFit";
-      const left = (scoreField ? String(input.scoreByUid?.get(a.uid)?.[field] ?? "") : scoutingFieldValue(a, field)).trim();
-      const right = (scoreField ? String(input.scoreByUid?.get(b.uid)?.[field] ?? "") : scoutingFieldValue(b, field)).trim();
+      const left = sortValue(a).trim();
+      const right = sortValue(b).trim();
       if (!left && right) return 1;
       if (left && !right) return -1;
       const ln = Number(left.replace(/,/g, ""));
