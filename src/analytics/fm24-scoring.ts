@@ -54,9 +54,11 @@ export interface Fm24PhilosophyScore {
 }
 export interface Fm24DofEvaluation {
   score: number | null;
+  displayScore: number | null;
   coreRoleScore: number | null;
   aerialScore: number | null;
   aerialAdjustmentApplied: boolean;
+  sampleAdjusted: boolean;
 }
 export interface TacticalFitScore {
   score: number | null; roleScore: number | null; philosophyScore: number | null;
@@ -311,6 +313,12 @@ function floorSatisfied(player: NormalizedFm24Player, metric: string): boolean {
   const value = player.stats[floor[0]];
   return value != null && value >= floor[1];
 }
+function shrinkScore(score: number | null, minutes: number | null, highConfidenceMinutes: number, enabled: boolean): number | null {
+  if (score == null || !enabled) return score;
+  const weight = Math.min(1, Math.sqrt(Math.max(0, minutes ?? 0) / Math.max(1, highConfidenceMinutes)));
+  return Math.round(50 + (score - 50) * weight);
+}
+
 function percentile(value: number, sorted: number[], direction: number): number | null {
   if (sorted.length < MIN_REFERENCE_POOL) return null;
   let low = 0, high = sorted.length;
@@ -329,6 +337,7 @@ export interface Fm24ScoringOptions {
   philosophyWeightsByRoleType?: Record<string, number[]>;
   philosophyMetricCoverage?: number;
   minimumScoreCoverage?: number;
+  shrinkSmallSamples?: boolean;
 }
 export function inferFm24SeasonProgress(sourcePlayers: Fm24ScoringPlayer[]): 0.25 | 0.5 | 0.75 | 1 {
   const minutes = sourcePlayers.map((player) => parseNumber(player.rawValues.Mins) ?? 0)
@@ -446,7 +455,8 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
     if (!role) throw new Error("Unknown FM24 role/duty identifier.");
     const coreRoleScore = suppliedCoreScore === undefined ? scoreRole(player, role).score : suppliedCoreScore;
     if (coreRoleScore == null || !["DC", "DLR", "WB", "DM"].includes(role.strata)) {
-      return { score: coreRoleScore, coreRoleScore, aerialScore: null, aerialAdjustmentApplied: false };
+      const displayScore = shrinkScore(coreRoleScore, player.minutes, highConfidenceMinutes, options.shrinkSmallSamples ?? false);
+      return { score: coreRoleScore, displayScore, coreRoleScore, aerialScore: null, aerialAdjustmentApplied: false, sampleAdjusted: displayScore !== coreRoleScore };
     }
     const aerialQuality = getPercentile(player, "Hdr %", role.strata);
     const aerialOutput = ["Hdrs W/90", "K Hdrs/90"]
@@ -456,9 +466,11 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
       return { score: coreRoleScore, coreRoleScore, aerialScore: null, aerialAdjustmentApplied: false };
     }
     const aerialScore = Math.round((aerialQuality + aerialOutput.reduce((sum, value) => sum + value, 0) / aerialOutput.length) / 2);
+    const score = Math.round(coreRoleScore * 0.9 + aerialScore * 0.1);
+    const displayScore = shrinkScore(score, player.minutes, highConfidenceMinutes, options.shrinkSmallSamples ?? false);
     return {
-      score: Math.round(coreRoleScore * 0.9 + aerialScore * 0.1),
-      coreRoleScore, aerialScore, aerialAdjustmentApplied: true,
+      score, displayScore, coreRoleScore, aerialScore, aerialAdjustmentApplied: true,
+      sampleAdjusted: displayScore !== score,
     };
   };
   return {
