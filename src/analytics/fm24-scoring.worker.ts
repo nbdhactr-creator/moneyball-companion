@@ -12,14 +12,17 @@ interface ScoreRequest {
   roleId: string;
   philosophyTemplate: Fm24PhilosophyTemplate | "";
   roleWeight: number;
+  shrinkSmallSamples: boolean;
 }
 interface ScoreResult {
   uid: string;
   positionEligible: boolean;
   roleScore: number | null;
   dofEvaluationScore: number | null;
+  dofEvaluationRawScore: number | null;
   aerialScore: number | null;
   aerialAdjustmentApplied: boolean;
+  sampleAdjusted: boolean;
   roleCoverage: number;
   confidence: "low" | "medium" | "high";
   philosophyScore: number | null;
@@ -46,7 +49,7 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
       division: record.rawValues.Division ?? "",
       rawValues: record.rawValues,
     }));
-    const scorer = createFm24Scorer(source);
+    const scorer = createFm24Scorer(source, { shrinkSmallSamples: request.shrinkSmallSamples });
     const role = scorer.roles.find((entry) => entry.id === request.roleId);
     if (!role) throw new Error("Choose a valid FM24 role and duty.");
 
@@ -61,15 +64,17 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
         ? scorer.scorePhilosophy(player, role, philosophyWeights)
         : null;
       const tactical = philosophyResult
-        ? combineTacticalFit({ ...roleResult, score: dofResult.score }, philosophyResult, request.roleWeight)
+        ? combineTacticalFit({ ...roleResult, score: dofResult.displayScore }, philosophyResult, request.roleWeight)
         : null;
       return {
         uid: player.uid ?? "",
         positionEligible: roleResult.families.length > 0,
         roleScore: roleResult.score,
-        dofEvaluationScore: dofResult.score,
+        dofEvaluationScore: dofResult.displayScore,
+        dofEvaluationRawScore: dofResult.score,
         aerialScore: dofResult.aerialScore,
         aerialAdjustmentApplied: dofResult.aerialAdjustmentApplied,
+        sampleAdjusted: dofResult.sampleAdjusted,
         roleCoverage: roleResult.coverage,
         confidence: roleResult.confidence,
         philosophyScore: philosophyResult?.score ?? null,
