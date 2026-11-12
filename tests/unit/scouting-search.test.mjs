@@ -87,3 +87,18 @@ test("persists saved searches, visible columns and shortlist decisions with the 
   assert.deepEqual(restored.players["9002"].tags, ["value", "U21"]);
   assert.deepEqual(restored.columnsByDataset["dataset-1"], ["name", "position", "Age"]);
 });
+
+test("sorts the complete filtered dataset by Tactical Fit before applying the result limit", async () => {
+  const { dataset } = await fixture();
+  const scoreByUid = new Map([
+    ["9001", { roleScore: 55, dofEvaluationScore: 60, philosophyScore: 70, tacticalFit: 63 }],
+    ["9002", { roleScore: 80, dofEvaluationScore: 85, philosophyScore: 90, tacticalFit: 86 }],
+    ["9003", { roleScore: 70, dofEvaluationScore: 75, philosophyScore: 65, tacticalFit: 72 }],
+    ["9004", { roleScore: null, dofEvaluationScore: null, philosophyScore: null, tacticalFit: null }],
+  ]);
+  const result = await searchScoutingPlayers({
+    datasetId: dataset.id, sortField: "tacticalFit", sortDirection: "desc", limit: 2, scoreByUid,
+  });
+  assert.equal(result.total, 4);
+  assert.deepEqual(result.players.map((entry) => entry.uid), ["9002", "9003"]);
+});
