@@ -38,7 +38,7 @@ The exact dependency choices will be confirmed in the architecture blueprint. No
 
 ## Current status
 
-The TypeScript/Vite application shell and GitHub Pages deployment are live. FM24 import, local multi-season persistence, career-scoped player identities, season history, versioned backup/restore, Scouting search and the FM24 role/philosophy scoring engine are implemented, merged and deployed. The next Planning/DoF workflow and editable philosophy-profile controls are being developed in PR #14 and are not yet deployed.
+The TypeScript/Vite application shell and GitHub Pages deployment are live. FM24 import, local multi-season persistence, career-scoped player identities, season history, versioned backup/restore, Scouting search, the FM24 role/philosophy scoring engine and the Planning/DoF recommendation workspace are implemented and merged. The DoF release is awaiting a clean GitHub Pages deployment; browser verification remains pending.
 
 The existing Recruitment Lab remains separate and operational.
 
