@@ -653,8 +653,10 @@ export async function updateScoutingWorkspaceState(saveId: string, state: Scouti
     const mergedState: ScoutingWorkspaceState = { ...state };
     // Squad tactic configuration is written by the Squad workspace. Preserve it
     // when an already-open Scouting workspace saves an older in-memory snapshot.
-    if (!mergedState.squadTactics && save.scoutingState?.squadTactics) {
-      mergedState.squadTactics = save.scoutingState.squadTactics;
+    const storedTactic = save.scoutingState?.squadTactics;
+    const incomingTactic = mergedState.squadTactics;
+    if (storedTactic && (!incomingTactic || Date.parse(storedTactic.updatedAt) > Date.parse(incomingTactic.updatedAt))) {
+      mergedState.squadTactics = storedTactic;
     }
     store.put({ ...save, scoutingState: mergedState, updatedAt: new Date().toISOString() });
     await transactionDone(transaction);
