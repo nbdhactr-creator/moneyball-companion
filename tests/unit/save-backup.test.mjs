@@ -246,3 +246,55 @@ test("restores legacy version 1 backups by deriving player identities", async ()
     db.close();
   }
 });
+
+test("upgrades the currently deployed version 2 database without losing existing players", async () => {
+  await resetDatabase();
+  await new Promise((resolve, reject) => {
+    const request = indexedDB.open("moneyball-companion", 2);
+    request.onupgradeneeded = () => {
+      const store = request.result.createObjectStore("playerRecords", { keyPath: "id" });
+      store.createIndex("datasetId", "datasetId");
+      store.createIndex("importJobId", "importJobId");
+      store.createIndex("saveUid", ["saveId", "uid"]);
+      store.createIndex("datasetUid", ["datasetId", "uid"], { unique: true });
+      store.createIndex("saveId", "saveId");
+      store.add({
+        id: "existing-season:7200",
+        saveId: "existing-career",
+        datasetId: "existing-season",
+        importJobId: "existing-job",
+        uid: "7200",
+        sourceLine: 3,
+        rawValues: { UID: "7200", Name: "Existing Player" },
+        displayName: "Existing Player",
+        club: "Existing FC",
+        position: "DC",
+      });
+    };
+    request.onsuccess = () => {
+      request.result.close();
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+
+  const db = await openLocalDatabase();
+  try {
+    assert.equal(db.version, 3);
+    const transaction = db.transaction(["playerRecords", "playerIdentities"], "readonly");
+    const player = await new Promise((resolve, reject) => {
+      const request = transaction.objectStore("playerRecords").get("existing-season:7200");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const identity = await new Promise((resolve, reject) => {
+      const request = transaction.objectStore("playerIdentities").get("existing-career:7200");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    assert.equal(player.normalizedName, "existing player");
+    assert.deepEqual(identity, { id: "existing-career:7200", saveId: "existing-career", uid: "7200" });
+  } finally {
+    db.close();
+  }
+});
