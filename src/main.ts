@@ -68,6 +68,8 @@ let isPersisting = false;
 let isBackingUp = false;
 let isRestoring = false;
 let squadDatasetId = "";
+let squadSortField = "name";
+let squadSortDirection: "asc" | "desc" = "asc";
 let playerSearchQuery = "";
 let playerSearchResults: PlayerSeasonRecord[] = [];
 let selectedPlayerUid: string | null = null;
@@ -249,6 +251,11 @@ function squadView(): string {
       : playerProfileView();
   }
   const options = selected.datasets.map((dataset) => `<option value="${dataset.id}" ${dataset.id === squadDatasetId ? "selected" : ""}>${escapeHtml(dataset.seasonLabel)} · ${dataset.playerCount.toLocaleString()} players</option>`).join("");
+  const squadSortHeader = (field: string, title: string) => {
+    const active = squadSortField === field;
+    const indicator = active ? (squadSortDirection === "asc" ? "↑" : "↓") : "↕";
+    return `<th aria-sort="${active ? (squadSortDirection === "asc" ? "ascending" : "descending") : "none"}"><button type="button" class="table-sort-button${active ? " is-active" : ""}" data-squad-sort-field="${field}" aria-label="Sort by ${title}">${title}<span aria-hidden="true">${indicator}</span></button></th>`;
+  };
   const resultRows = playerSearchResults.map((player) => `
     <tr><td><button class="player-name-button" data-player-uid="${escapeHtml(player.uid)}">${escapeHtml(player.displayName)}</button></td><td>${escapeHtml(player.position || "—")}</td><td>${escapeHtml(player.club || "—")}</td><td class="uid-cell">${escapeHtml(player.uid)}</td></tr>`).join("");
   return `
@@ -262,7 +269,7 @@ function squadView(): string {
       <div class="player-search-meta"><span>Indexed search · first 100 matches · ${escapeHtml(selected.datasets.find((dataset) => dataset.id === squadDatasetId)?.seasonLabel ?? "")}</span><span>${playerSearchResults.length ? playerSearchResults.length + " result(s)" : ""}</span></div>
       ${playerSearchMessage ? `<p class="player-search-message" role="status">${escapeHtml(playerSearchMessage)}</p>` : ""}
       ${playerSearchResults.length ? `
-        <div class="player-table-wrap"><table class="player-data-table player-results-table"><thead><tr><th>Player</th><th>Position</th><th>Club</th><th>FM UID</th></tr></thead><tbody>${resultRows}</tbody></table></div>`
+        <div class="player-table-wrap"><table class="player-data-table player-results-table"><thead><tr>${squadSortHeader("name", "Player")}${squadSortHeader("position", "Position")}${squadSortHeader("club", "Club")}${squadSortHeader("uid", "FM UID")}</tr></thead><tbody>${resultRows}</tbody></table></div>`
         : `<div class="player-search-empty">${isSearchingPlayers ? "Searching the selected season…" : "Search for a player to open their career history. The search reads the selected season only."}</div>`}
     </section>
     <p class="player-data-footnote">Player identity is matched only by FM UID within this career. Names are used for finding players, never for merging them.</p>`;
@@ -279,7 +286,7 @@ async function runPlayerSearch(): Promise<void> {
   playerSearchMessage = "";
   render();
   try {
-    const results = await searchPlayersInDataset(datasetId, query, 100);
+    const results = await searchPlayersInDataset(datasetId, query, 100, squadSortField, squadSortDirection);
     if (requestId !== playerSearchRequestId || activeSaveId !== saveId || squadDatasetId !== datasetId) return;
     playerSearchResults = results;
     playerSearchMessage = results.length
@@ -541,7 +548,16 @@ async function refreshSaveLibrary(): Promise<void> {
 }
 
 app.addEventListener("click", (event: MouseEvent) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field]");
+  if (target?.dataset.squadSortField) {
+    const field = target.dataset.squadSortField;
+    if (squadSortField === field) {
+      if (squadSortDirection === "asc") squadSortDirection = "desc";
+      else { squadSortField = "name"; squadSortDirection = "asc"; }
+    } else { squadSortField = field; squadSortDirection = "asc"; }
+    void runPlayerSearch();
+    return;
+  }
   if (target) void handleScoutingWorkspaceClick(target, render).then((handled) => { if (handled) render(); });
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
