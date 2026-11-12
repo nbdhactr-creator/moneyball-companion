@@ -204,7 +204,7 @@ export async function persistSeasonImport(input: {
   const jobId = makeId();
   const datasetId = makeId();
   const now = new Date().toISOString();
-  let staged = false;
+  let jobCreated = false;
 
   try {
     const save = await requestResult(db.transaction("saves", "readonly").objectStore("saves").get(input.saveId) as IDBRequest<SaveRecord | undefined>);
@@ -225,6 +225,7 @@ export async function persistSeasonImport(input: {
     const jobTransaction = db.transaction("importJobs", "readwrite");
     jobTransaction.objectStore("importJobs").add(job);
     await transactionDone(jobTransaction);
+    jobCreated = true;
 
     for (let offset = 0; offset < input.rows.length; offset += IMPORT_BATCH_SIZE) {
       const transaction = db.transaction("playerRecords", "readwrite");
@@ -246,7 +247,6 @@ export async function persistSeasonImport(input: {
         } satisfies PlayerSeasonRecord);
       }
       await transactionDone(transaction);
-      staged = true;
     }
 
     const dataset: SeasonDatasetRecord = {
@@ -270,7 +270,7 @@ export async function persistSeasonImport(input: {
     await transactionDone(commit);
     return dataset;
   } catch (error) {
-    if (staged) {
+    if (jobCreated) {
       try {
         await removeStagedRows(db, jobId);
         const cleanup = db.transaction("importJobs", "readwrite");
