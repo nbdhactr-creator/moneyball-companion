@@ -95,3 +95,52 @@
 .restore-backup-form input[type=file]{height:auto;min-height:38px;padding:8px;font-size:10px}
 .backup-actions .form-help{line-height:1.5}
 @media(max-width:760px){.backup-actions{grid-template-columns:1fr}}
+
+
+/* Career-scoped player identity, search and season history */
+.squad-search-card h2{margin-bottom:7px}
+.squad-search-controls{display:grid;grid-template-columns:minmax(210px,.8fr) minmax(300px,1.6fr);gap:13px;align-items:end;margin-top:20px;padding:15px;border:1px solid #e9eeec;border-radius:8px;background:#fafcfb}
+.squad-search-controls .form-field{min-width:0}
+.player-search-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}
+.player-search-form .primary-button{height:37px;margin:0;white-space:nowrap}
+.player-search-meta{display:flex;justify-content:space-between;gap:12px;margin:15px 0 9px;color:#8b979c;font-size:10px}
+.player-search-message{margin:0 0 10px;padding:9px 11px;border-radius:6px;background:#f3f7f5;color:#55736a;font-size:10px}
+.player-search-empty{padding:34px 15px;border:1px dashed #dce5e1;border-radius:7px;text-align:center;color:#8a979b;font-size:11px}
+.player-table-wrap{max-width:100%;overflow:auto;border:1px solid #e9eeec;border-radius:7px}
+.player-data-table{width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap}
+.player-data-table thead th{position:sticky;top:0;z-index:1;background:#f6f9f8;text-align:left;padding:11px 12px;color:#718087;font-size:9px;letter-spacing:.55px;font-weight:750;border-bottom:1px solid #e7edeb}
+.player-data-table tbody td,.player-data-table tbody th{padding:9px 12px;border-bottom:1px solid #edf1ef;color:#46565d;text-align:left;font-weight:450}
+.player-data-table tbody th{font-weight:650;color:#536168;background:#fbfcfc}
+.player-data-table tbody tr:last-child td,.player-data-table tbody tr:last-child th{border-bottom:0}
+.player-results-table tbody tr:hover{background:#f8fbf9}
+.player-name-button{border:0;background:none;padding:0;color:#286b60;font:inherit;font-size:11px;font-weight:700;text-align:left;cursor:pointer}
+.player-name-button:hover{text-decoration:underline}
+.uid-cell{font-variant-numeric:tabular-nums;color:#8a969b!important}
+.player-data-footnote{margin:13px 2px 0;color:#929da1;font-size:10px;line-height:1.6}
+.player-profile-card{padding:24px}
+.player-profile-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:14px;border-bottom:1px solid #edf0f1}
+.text-button{border:0;background:none;padding:0;color:#286b60;font:inherit;font-size:11px;font-weight:650;cursor:pointer}
+.player-profile-heading{display:flex;align-items:center;gap:15px;padding:20px 0 22px}
+.player-avatar{width:48px;height:48px;flex:0 0 48px;border-radius:50%;display:grid;place-items:center;background:#eaf3f0;border:1px solid #dce9e4;color:#286b60;font-size:20px;font-weight:750}
+.player-profile-heading h2{font-size:21px;margin:5px 0 3px}
+.player-profile-heading p{margin:0;color:#7b888e;font-size:11px}
+.player-history-section{margin-top:18px}
+.player-section-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px}
+.player-section-heading strong{font-size:12px;color:#46555b}
+.player-section-heading span{font-size:10px;color:#8b979c}
+.player-history-list{border:1px solid #e9eeec;border-radius:7px;overflow:hidden}
+.player-history-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid #edf1ef}
+.player-history-item:last-child{border-bottom:0}
+.player-history-item>div{display:flex;flex-direction:column;gap:3px}
+.player-history-item strong{font-size:11px;color:#4b5a60}
+.player-history-item small{font-size:9px;color:#8a969b}
+.player-presence{font-size:9px;font-weight:700;padding:4px 7px;border-radius:12px}
+.player-presence.present{color:#367457;background:#edf6f0}
+.player-presence.absent{color:#8b7770;background:#f6f1ef}
+.player-comparison-note{font-size:10px!important;color:#89959a!important;margin:0 0 10px}
+.not-present-value{color:#a18a80;font-size:10px}
+.player-data-table tbody td{font-variant-numeric:tabular-nums}
+.player-data-table tbody th{position:sticky;left:0;z-index:0}
+.player-data-table thead th:first-child{position:sticky;left:0;z-index:2}
+@media(max-width:760px){.squad-search-controls{grid-template-columns:1fr}.player-search-form{grid-template-columns:minmax(0,1fr) auto}.player-profile-toolbar{align-items:flex-start;flex-direction:column}.player-section-heading{align-items:flex-start;flex-direction:column;gap:3px}}
+@media(max-width:480px){.player-search-form{grid-template-columns:1fr}.player-search-form .primary-button{width:100%}.player-search-meta{align-items:flex-start;flex-direction:column;gap:4px}.player-profile-card{padding:16px}.player-profile-heading h2{font-size:18px}}
