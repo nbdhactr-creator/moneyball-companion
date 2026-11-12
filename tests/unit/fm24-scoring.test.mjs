@@ -176,9 +176,10 @@ test("V1 philosophy templates reproduce source transformations for a centre-back
 test("V1 philosophy goalkeeper exceptions are preserved", () => {
   const role = { id: "gk-GK-D", type: "gk", strata: "GK" };
   const base = philosophyWeightsForRole(role, "possession");
-  for (const template of ["lowblock", "wing", "positional", "press", "physical"]) {
+  for (const template of ["lowblock", "wing", "press", "physical"]) {
     assert.deepEqual(philosophyWeightsForRole(role, template), base);
   }
+  assert.deepEqual(philosophyWeightsForRole(role, "positional"), [2, 1, 0, 0, 1, 0]);
 });
 
 test("DoF evaluation preserves the V1 90/10 aerial adjustment without altering core role fit", () => {
