@@ -7,6 +7,7 @@
 - User browser testing and independent visual verification of the live page remain pending.
 
 ## Search behaviour
+- Result tables use clickable column headings rather than separate Sort by/Order controls. Scouting sorting applies to the full filtered result set before 50-row pagination; DoF category sorting applies before the eight-row display cap. Numeric values sort numerically, missing values remain last, and the third click restores the default ordering.
 - Search is restricted to one selected, committed season dataset in the active career.
 - Free-text search checks player name, club, position and the imported source values.
 - Filter conditions support contains, equals, greater/less comparisons, and empty/not-empty checks.
