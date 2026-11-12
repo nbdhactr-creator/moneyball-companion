@@ -1,4 +1,4 @@
 import test from "node:test";import assert from "node:assert/strict";import {createDefaultTactic,buildFormationSlots} from "../../src/data/squad-workspace.ts";
-test("default FM24 tactic contains eleven slots with compatible roles",()=>{const t=createDefaultTactic();assert.equal(t.formationId,"433");assert.equal(t.slots.length,11);assert.ok(t.slots.every(s=>s.roleId));});
+test("default FM24 tactic contains eleven slots with compatible roles",()=>{const t=createDefaultTactic();assert.equal(t.formationId,"433");assert.equal(t.slots.length,11);assert.ok(t.slots.every(s=>s.roleId));const backThree=createDefaultTactic("352");assert.ok(backThree.slots.every(s=>s.roleId));});
 test("formation changes preserve matching slot assignments",()=>{const t=createDefaultTactic();t.slots[0].playerUid="123";const n=buildFormationSlots("4231",t.slots);assert.equal(n.length,11);assert.equal(n[0].playerUid,"123");});
 test("formation changes drop slots no longer present",()=>{const t=createDefaultTactic("442");const n=buildFormationSlots("433",t.slots);assert.equal(n.some(s=>s.label==="ML"),false);assert.equal(n.length,11);});

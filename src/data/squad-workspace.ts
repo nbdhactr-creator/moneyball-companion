@@ -12,10 +12,10 @@ const tabs: Array<{id:Tab;label:string;hint:string}>=[
  {id:"tactics",label:"Tactics",hint:"Formation, roles and instructions"},{id:"philosophy",label:"Philosophy",hint:"Club identity and principles"},{id:"depth",label:"Depth & Needs",hint:"Tactical coverage"},
 ];
 const formations=[
- {id:"433",name:"4-3-3 DM Wide",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DM","DM",50,55],["MCL","M-C",34,39],["MCR","M-C",66,39],["AML","AM-L",17,19],["AMR","AM-R",83,19],["ST","ST",50,9]]},
- {id:"4231",name:"4-2-3-1 Wide",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DML","DM",38,53],["DMR","DM",62,53],["AML","AM-L",17,31],["AMC","AM-C",50,34],["AMR","AM-R",83,31],["ST","ST",50,9]]},
- {id:"442",name:"4-4-2",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["ML","M-L",15,43],["MCL","M-C",39,45],["MCR","M-C",61,45],["MR","M-R",85,43],["STL","ST",39,15],["STR","ST",61,15]]},
- {id:"352",name:"3-5-2",p:[["GK","GK",50,88],["DCL","D-C",25,72],["DC","D-C",50,75],["DCR","D-C",75,72],["WBL","D-L",10,48],["MCL","M-C",32,45],["MC","M-C",50,39],["MCR","M-C",68,45],["WBR","D-R",90,48],["STL","ST",39,13],["STR","ST",61,13]]},
+ {id:"433",name:"4-3-3 DM Wide",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DM","DM",50,55],["MCL","M-C",34,39],["MCR","M-C",66,39],["AML","AM-L",17,19],["AMR","AM-R",83,19],["ST","ST-C",50,9]]},
+ {id:"4231",name:"4-2-3-1 Wide",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DML","DM",38,53],["DMR","DM",62,53],["AML","AM-L",17,31],["AMC","AM-C",50,34],["AMR","AM-R",83,31],["ST","ST-C",50,9]]},
+ {id:"442",name:"4-4-2",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["ML","M-L",15,43],["MCL","M-C",39,45],["MCR","M-C",61,45],["MR","M-R",85,43],["STL","ST-C",39,15],["STR","ST-C",61,15]]},
+ {id:"352",name:"3-5-2",p:[["GK","GK",50,88],["DCL","D-C",25,72],["DC","D-C",50,75],["DCR","D-C",75,72],["WBL","WB-L",10,48],["MCL","M-C",32,45],["MC","M-C",50,39],["MCR","M-C",68,45],["WBR","WB-R",90,48],["STL","ST-C",39,13],["STR","ST-C",61,13]]},
 ];
 let tab:Tab="overview", saveId="", datasetId="", state:ScoutingWorkspaceState=emptyScoutingWorkspaceState(), players:PlayerSeasonRecord[]=[];
 let loading=false, message="", club="", selectedSlot="";
