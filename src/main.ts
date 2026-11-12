@@ -14,7 +14,7 @@ import {
   type PlayerSeasonHistoryEntry,
 } from "./data/storage/local-database";
 import { createSaveBackup, restoreSaveBackup } from "./data/storage/save-backup";
-import { loadScoutingWorkspace, renderScoutingWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange } from "./data/scouting-workspace";
+import { loadScoutingWorkspace, renderScoutingWorkspace, renderPlanningWorkspace, loadPlanningWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange } from "./data/scouting-workspace";
 
 type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "Planning" | "Data & Saves";
 const sections: Section[] = ["Overview", "Squad", "Scouting", "Market", "Intelligence", "Planning", "Data & Saves"];
@@ -464,6 +464,7 @@ function sectionView(section: Section): string {
   if (section === "Data & Saves") return dataSavesView();
   if (section === "Squad") return squadView();
   if (section === "Scouting") return renderScoutingWorkspace(activeSave());
+  if (section === "Planning") return renderPlanningWorkspace(activeSave());
   return `
     <section class="empty-workspace content-card">
       <span class="empty-icon">◎</span><div class="card-kicker">MODULE FOUNDATION</div>
@@ -540,11 +541,12 @@ async function refreshSaveLibrary(): Promise<void> {
 }
 
 app.addEventListener("click", (event: MouseEvent) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy]");
   if (target) void handleScoutingWorkspaceClick(target, render).then((handled) => { if (handled) render(); });
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
     activeSection = next;
+    if (next === "Planning") void loadPlanningWorkspace(activeSave(), render);
     render();
     return;
   }
