@@ -102,3 +102,42 @@ test("sorts the complete filtered dataset by Tactical Fit before applying the re
   assert.equal(result.total, 4);
   assert.deepEqual(result.players.map((entry) => entry.uid), ["9002", "9003"]);
 });
+
+test("evaluates grouped AND/OR filters with outer group logic", async () => {
+  const { dataset } = await fixture();
+  const result = await searchScoutingPlayers({
+    datasetId: dataset.id, groupLogic: "and", groups: [
+      { id: "g1", logic: "or", filters: [
+        { id: "a", field: "Age", operator: "lt", value: "20" },
+        { id: "b", field: "Rating", operator: "gt", value: "90" },
+      ] },
+      { id: "g2", logic: "and", filters: [
+        { id: "c", field: "Position", operator: "equals", value: "MC" },
+      ] },
+    ], sortField: "name", limit: 50,
+  });
+  assert.equal(result.total, 2);
+  assert.deepEqual(result.players.map((entry) => entry.uid), ["9002", "9003"]);
+});
+
+test("supports pagination offsets after filtering and sorting the complete result set", async () => {
+  const { dataset } = await fixture();
+  const result = await searchScoutingPlayers({ datasetId: dataset.id, sortField: "name", sortDirection: "asc", offset: 2, limit: 2 });
+  assert.equal(result.total, 4);
+  assert.deepEqual(result.players.map((entry) => entry.uid), ["9004", "9003"]);
+});
+
+test("shortlist status filters only return selected tracked players", async () => {
+  const { dataset } = await fixture();
+  const statusByUid = new Map([
+    ["9001", "unreviewed"], ["9002", "shortlist"], ["9003", "watching"], ["9004", "unreviewed"],
+  ]);
+  const shortlisted = await searchScoutingPlayers({
+    datasetId: dataset.id, shortlistStatus: "shortlist", scoutingStatusByUid: statusByUid, limit: 50,
+  });
+  assert.deepEqual(shortlisted.players.map((entry) => entry.uid), ["9002"]);
+  const tracked = await searchScoutingPlayers({
+    datasetId: dataset.id, shortlistStatus: "all-tracked", scoutingStatusByUid: statusByUid, limit: 50,
+  });
+  assert.deepEqual(tracked.players.map((entry) => entry.uid), ["9002", "9003"]);
+});
