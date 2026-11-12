@@ -10,13 +10,20 @@ const workerScope = self as unknown as {
   postMessage: (message: unknown) => void;
 };
 
+function toHex(bytes: ArrayBuffer): string {
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 workerScope.onmessage = async (event) => {
   const { requestId, file } = event.data;
 
   try {
     const bytes = await file.arrayBuffer();
     const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-    const parsed = parseFm24Export(source);
+    const [parsed, digest] = await Promise.all([
+      Promise.resolve(parseFm24Export(source)),
+      crypto.subtle.digest("SHA-256", bytes),
+    ]);
     const validation = validateFm24Import(parsed);
 
     workerScope.postMessage({
@@ -24,6 +31,7 @@ workerScope.onmessage = async (event) => {
       requestId,
       fileName: file.name,
       fileSize: file.size,
+      fingerprint: toHex(digest),
       parsed,
       validation,
     });
