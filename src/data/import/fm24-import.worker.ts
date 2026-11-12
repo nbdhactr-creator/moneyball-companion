@@ -14,7 +14,8 @@ workerScope.onmessage = async (event) => {
   const { requestId, file } = event.data;
 
   try {
-    const source = await file.text();
+    const bytes = await file.arrayBuffer();
+    const source = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     const parsed = parseFm24Export(source);
     const validation = validateFm24Import(parsed);
 
