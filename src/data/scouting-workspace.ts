@@ -84,7 +84,7 @@ async function runScoring(render: () => void): Promise<void> {
   try {
     const worker = new Worker(new URL("../analytics/fm24-scoring.worker.ts", import.meta.url), { type: "module" });
     scoringWorker = worker;
-    worker.onmessage = (event: MessageEvent<{ requestId: number; phase: string; scores?: PlayerFitSummary[]; playerCount?: number; inferredMissingLeagues?: number; message?: string }>) => {
+    worker.onmessage = (event: MessageEvent<{ requestId: number; phase: string; scores?: PlayerFitSummary[]; playerCount?: number; inferredMissingLeagues?: number; seasonProgress?: number; poolMinimumMinutes?: number; message?: string }>) => {
       const response = event.data;
       if (response.requestId !== requestId || requestId !== scoringRequestToken) return;
       if (response.phase === "loading") {
@@ -98,7 +98,7 @@ async function runScoring(render: () => void): Promise<void> {
         scoringStatus = "complete";
         scoringMessage = "Scores calculated for " + (response.playerCount ?? 0).toLocaleString() + " players" +
           ((response.inferredMissingLeagues ?? 0) ? "; " + response.inferredMissingLeagues + " competition(s) contain inferred missing advanced data." : ".") +
-          " Scores are relative to this season's eligible position groups.";
+          " Estimated season progress: " + Math.round((response.seasonProgress ?? 1) * 100) + "%; reference-pool minimum: " + (response.poolMinimumMinutes ?? 900).toLocaleString() + " minutes. Scores are relative to this season's eligible position groups.";
         worker.terminate(); if (scoringWorker === worker) scoringWorker = null;
       } else if (response.phase === "error") {
         scoringStatus = "error"; scoringMessage = response.message ?? "Scoring failed.";
