@@ -63,7 +63,7 @@ function label(field: string): string {
 }
 function flatFilters(): ScoutingFilterCondition[] { return filterGroups.flatMap((group) => group.filters); }
 function statusMap(): Map<string, ShortlistStatus> {
-  return new Map(Object.entries(state.players).map(([uid, player]) => [uid, player.status]));
+  return new Map<string, ShortlistStatus>(Object.entries(state.players).map(([uid, player]) => [uid, player.status] as [string, ShortlistStatus]));
 }
 function fields(): string[] {
   const output = new Set<string>(["name", "position", "club", "uid"]);
