@@ -1,6 +1,6 @@
 # Local Save and Season Data Foundation
 
-Status: local persistence foundation merged. Versioned career backup and non-destructive restore are implemented in the current development branch; merge/deployment status is tracked in the project handover.
+Status: local import, multi-season persistence, versioned career backup/restore, career-scoped player identities and the first season-history workflow are implemented. The player identity/history milestone is in the current development branch; merge/deployment status is tracked in the project handover.
 
 ## User workflow
 
@@ -13,6 +13,10 @@ Status: local persistence foundation merged. Versioned career backup and non-des
 7. Save the season. The app confirms success only after the IndexedDB commit completes.
 
 A save is a career container. A season dataset is an immutable imported snapshot within that save. A second import with the same file fingerprint or an existing season label is rejected; it never silently replaces existing data.
+
+## IndexedDB schema v3
+
+Version 3 adds a `playerIdentities` store, a unique `saveUid` identity index and a compound `datasetName` index on player-season rows. Existing player records are backfilled into one identity per `saveId + FM UID`; existing raw values and season records are preserved. A normalised name key is added for indexed prefix search, while the original source name remains unchanged.
 
 ## IndexedDB schema v2
 
@@ -27,11 +31,12 @@ Database: `moneyball-companion`.
 | `saves` | Save UUID | Career metadata and last-updated timestamp |
 | `datasets` | Dataset UUID | Season label, source filename/size, format, SHA-256 fingerprint, row count and commit status |
 | `playerRecords` | Dataset UUID + FM UID | One player's raw source row in one season; includes save, dataset, import-job and source-line references |
+| `playerIdentities` | Save UUID + FM UID | Stable player identity within a career, independent of season rows |
 | `importJobs` | Import-job UUID | Staging, committed or failed import status and diagnostics |
 
 Indexes support save-to-dataset lookup, duplicate fingerprint detection, season-label uniqueness, dataset-to-player lookup, UID lookup across seasons and cleanup by import job.
 
-Raw source values remain strings. This phase does not claim that every FM field has been semantically normalised. Player rows are season-scoped; the same FM UID can therefore appear in several seasons without overwriting earlier evidence.
+Raw source values remain strings. This phase does not claim that every FM field has been semantically normalised. Player rows are season-scoped; the same FM UID can therefore appear in several seasons without overwriting earlier evidence. Player identity is scoped to a career plus FM UID; identical UIDs in unrelated careers remain separate. Names are search/display values, never identity keys.
 
 ## Import safety
 
@@ -54,7 +59,8 @@ IndexedDB is local to the browser profile and origin. It is not a cloud backup. 
 
 - Export creates a portable JSON file for the selected career only.
 - The file contains the career metadata, all committed season metadata, committed import-job relationships and original player source rows.
-- Backup format is versioned (`moneyball-companion-save-backup`, version 1) and includes a SHA-256 checksum plus record counts.
+- Backup format is versioned (`moneyball-companion-save-backup`, version 2) and includes stable player identities, a SHA-256 checksum plus record counts.
+- Version 1 backups remain restorable; identities are derived from validated season rows during restore.
 - Restore validates the format version, checksum, record counts, season ownership, player UID uniqueness, and season/import/player references before writing.
 - Restore always creates a separate career named with a `(Restored)` suffix. It regenerates save, season, import-job and player-record IDs so the restored copy cannot overwrite or collide with the source career.
 - The restored records are written in one IndexedDB transaction across all four stores. A failed transaction does not publish a partial restored career.
@@ -91,6 +97,11 @@ Community reports are qualitative and often version-specific. FM26/FM27 reports 
 - Simulate or encounter a storage failure and verify that no partial dataset appears as committed.
 - Leave a staging job behind and verify startup recovery removes its uncommitted rows.
 - Confirm the app remains usable without an account or network connection after the page has loaded.
+- Upgrade existing v1/v2 databases without losing player rows; backfill one career-scoped identity per distinct save + UID.
+- Confirm the same UID across seasons creates one identity and multiple immutable player-season rows.
+- Search a selected dataset using its indexed normalised player-name prefix.
+- Open a player history and show every committed season, explicitly distinguishing absence from zero/blank statistics.
+- Confirm raw imported values remain unchanged and no calculated score is implied by the history view.
 - Export a selected career and confirm the backup contains all committed seasons and raw player rows for that career only.
 - Restore a valid backup and confirm it appears as a separate career while the source career remains unchanged.
 - Restore the same backup twice and confirm both restored careers remain isolated.

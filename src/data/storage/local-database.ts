@@ -1,7 +1,7 @@
 import type { Fm24RawPlayerRow } from "../import/fm24-pipe-parser";
 
 const DATABASE_NAME = "moneyball-companion";
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 const IMPORT_BATCH_SIZE = 400;
 
 export interface SaveRecord {
@@ -36,7 +36,13 @@ interface ImportJobRecord {
   error?: string;
 }
 
-interface PlayerSeasonRecord {
+export interface PlayerIdentityRecord {
+  id: string;
+  saveId: string;
+  uid: string;
+}
+
+export interface PlayerSeasonRecord {
   id: string;
   saveId: string;
   datasetId: string;
@@ -45,8 +51,14 @@ interface PlayerSeasonRecord {
   sourceLine: number;
   rawValues: Record<string, string>;
   displayName: string;
+  normalizedName: string;
   club: string;
   position: string;
+}
+
+export interface PlayerSeasonHistoryEntry {
+  dataset: SeasonDatasetRecord;
+  player?: PlayerSeasonRecord;
 }
 
 export interface SaveWithDatasets {
@@ -71,6 +83,10 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
 
 function makeId(): string {
   return crypto.randomUUID();
+}
+
+function normalizePlayerName(value: string): string {
+  return value.normalize("NFKC").trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
 function playerField(row: Fm24RawPlayerRow, candidates: string[]): string {
@@ -121,6 +137,34 @@ export function openLocalDatabase(): Promise<IDBDatabase> {
       // player rows belonging to every other career in the same browser.
       const playerStore = request.transaction!.objectStore("playerRecords");
       if (!playerStore.indexNames.contains("saveId")) playerStore.createIndex("saveId", "saveId");
+
+      // Version 3 separates stable career-scoped identity from season rows.
+      if (!db.objectStoreNames.contains("playerIdentities")) {
+        const identities = db.createObjectStore("playerIdentities", { keyPath: "id" });
+        identities.createIndex("saveId", "saveId");
+        identities.createIndex("saveUid", ["saveId", "uid"], { unique: true });
+      }
+      if (!playerStore.indexNames.contains("datasetName")) {
+        playerStore.createIndex("datasetName", ["datasetId", "normalizedName"]);
+      }
+
+      // Backfill identity rows and a searchable name key without changing source values.
+      const cursorRequest = playerStore.openCursor();
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) return;
+        const player = cursor.value as PlayerSeasonRecord;
+        const normalizedName = normalizePlayerName(player.displayName ?? "");
+        if (player.normalizedName !== normalizedName) cursor.update({ ...player, normalizedName });
+        if (player.saveId && player.uid) {
+          request.transaction!.objectStore("playerIdentities").put({
+            id: `${player.saveId}:${player.uid}`,
+            saveId: player.saveId,
+            uid: player.uid,
+          } satisfies PlayerIdentityRecord);
+        }
+        cursor.continue();
+      };
     };
     request.onsuccess = () => {
       const db = request.result;
@@ -281,6 +325,7 @@ export async function persistSeasonImport(input: {
           rawValues: row.values,
           displayName: name || `UID ${uid}`,
           club: playerField(row, ["club", "team"]),
+          normalizedName: normalizePlayerName(name || `UID ${uid}`),
           position: playerField(row, ["position", "positions"]),
         } satisfies PlayerSeasonRecord);
       }
@@ -301,10 +346,15 @@ export async function persistSeasonImport(input: {
       status: "committed",
     };
 
-    const commit = db.transaction(["datasets", "importJobs", "saves"], "readwrite");
+    const commit = db.transaction(["datasets", "importJobs", "saves", "playerIdentities"], "readwrite");
     commit.objectStore("datasets").add(dataset);
     commit.objectStore("importJobs").put({ ...job, status: "committed" } satisfies ImportJobRecord);
     commit.objectStore("saves").put({ ...save, updatedAt: dataset.importedAt });
+    const identities = commit.objectStore("playerIdentities");
+    for (const row of input.rows) {
+      const uid = playerField(row, ["uid"]);
+      identities.put({ id: `${input.saveId}:${uid}`, saveId: input.saveId, uid } satisfies PlayerIdentityRecord);
+    }
     await transactionDone(commit);
     return dataset;
   } catch (error) {
@@ -326,6 +376,78 @@ export async function persistSeasonImport(input: {
       }
     }
     throw databaseError(error);
+  } finally {
+    db.close();
+  }
+}
+
+
+/** Prefix-searches one immutable season snapshot using its indexed, normalised player name. */
+export async function searchPlayersInDataset(datasetId: string, query = "", limit = 100): Promise<PlayerSeasonRecord[]> {
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("playerRecords", "readonly");
+    const done = transactionDone(transaction);
+    const prefix = normalizePlayerName(query);
+    const range = prefix
+      ? IDBKeyRange.bound([datasetId, prefix], [datasetId, `${prefix}\uffff`])
+      : IDBKeyRange.bound([datasetId, ""], [datasetId, "\uffff"]);
+    const results: PlayerSeasonRecord[] = [];
+    await new Promise<void>((resolve, reject) => {
+      const request = transaction.objectStore("playerRecords").index("datasetName").openCursor(range);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor || results.length >= Math.max(1, limit)) {
+          resolve();
+          return;
+        }
+        results.push(cursor.value as PlayerSeasonRecord);
+        cursor.continue();
+      };
+      request.onerror = () => reject(request.error ?? new Error("Player search failed."));
+    });
+    await done;
+    return results;
+  } finally {
+    db.close();
+  }
+}
+
+/** Returns every committed season, including explicit absence where a UID is not present. */
+export async function getPlayerHistory(saveId: string, uid: string): Promise<PlayerSeasonHistoryEntry[]> {
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction(["datasets", "playerRecords", "playerIdentities"], "readonly");
+    const done = transactionDone(transaction);
+    const [datasets, records, identity] = await Promise.all([
+      requestResult(transaction.objectStore("datasets").index("saveId").getAll(saveId) as IDBRequest<SeasonDatasetRecord[]>),
+      requestResult(transaction.objectStore("playerRecords").index("saveUid").getAll([saveId, uid]) as IDBRequest<PlayerSeasonRecord[]>),
+      requestResult(transaction.objectStore("playerIdentities").index("saveUid").get([saveId, uid]) as IDBRequest<PlayerIdentityRecord | undefined>),
+    ]);
+    await done;
+    if (!identity) return [];
+    const recordsByDataset = new Map(records.map((record) => [record.datasetId, record]));
+    return datasets
+      .filter((dataset) => dataset.status === "committed")
+      .sort((a, b) => a.importedAt.localeCompare(b.importedAt) || a.seasonKey.localeCompare(b.seasonKey))
+      .map((dataset) => ({
+        dataset,
+        ...(recordsByDataset.has(dataset.id) ? { player: recordsByDataset.get(dataset.id)! } : {}),
+      }));
+  } finally {
+    db.close();
+  }
+}
+
+/** Counts distinct career-scoped players rather than player-season rows. */
+export async function countPlayerIdentities(saveId: string): Promise<number> {
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("playerIdentities", "readonly");
+    const done = transactionDone(transaction);
+    const count = await requestResult(transaction.objectStore("playerIdentities").index("saveId").count(saveId));
+    await done;
+    return count;
   } finally {
     db.close();
   }
