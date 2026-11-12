@@ -7,6 +7,9 @@ import {
   openLocalDatabase,
   persistSeasonImport,
   recoverInterruptedImports,
+  getPlayerHistory,
+  searchPlayersInDataset,
+  countPlayerIdentities,
 } from "../../src/data/storage/local-database.ts";
 
 async function resetDatabase() {
@@ -227,4 +230,49 @@ test("does not recover an active staging import with a recent heartbeat", async 
   } finally {
     checkDb.close();
   }
+});
+
+test("creates one stable player identity across multiple season snapshots", async () => {
+  await resetDatabase();
+  const save = await createSave("Identity Test");
+  const first = await persistSeasonImport(importInput(save.id, {
+    seasonLabel: "2025/26",
+    rows: [row("8001", "Alex Example"), row("8002", "Jamie Example")],
+  }));
+  const second = await persistSeasonImport(importInput(save.id, {
+    seasonLabel: "2026/27",
+    fingerprint: "b".repeat(64),
+    rows: [row("8001", "Alex Example Updated")],
+  }));
+
+  assert.equal(await countPlayerIdentities(save.id), 2);
+  const history = await getPlayerHistory(save.id, "8001");
+  assert.equal(history.length, 2);
+  assert.equal(history[0].dataset.id, first.id);
+  assert.equal(history[0].player.displayName, "Alex Example");
+  assert.equal(history[1].dataset.id, second.id);
+  assert.equal(history[1].player.displayName, "Alex Example Updated");
+  const absent = await getPlayerHistory(save.id, "8002");
+  assert.equal(absent.length, 2);
+  assert.equal(absent[0].player.displayName, "Jamie Example");
+  assert.equal(absent[1].player, undefined);
+});
+
+test("searches players by indexed name prefix without scanning other seasons", async () => {
+  await resetDatabase();
+  const save = await createSave("Search Test");
+  const first = await persistSeasonImport(importInput(save.id, {
+    rows: [row("8101", "Alex Morgan"), row("8102", "Alexander Smith"), row("8103", "Jamie Example")],
+  }));
+  await persistSeasonImport(importInput(save.id, {
+    seasonLabel: "2027/28",
+    fingerprint: "b".repeat(64),
+    rows: [row("8104", "Alex Newcomer")],
+  }));
+
+  const results = await searchPlayersInDataset(first.id, "alex");
+  assert.deepEqual(results.map((player) => player.displayName), ["Alexander Smith", "Alex Morgan"]);
+  assert.equal(results.every((player) => player.datasetId === first.id), true);
+  assert.equal((await searchPlayersInDataset(first.id, "jam")).length, 1);
+  assert.equal((await searchPlayersInDataset(first.id, "missing")).length, 0);
 });
