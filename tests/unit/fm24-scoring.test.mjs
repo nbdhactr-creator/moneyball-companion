@@ -125,3 +125,11 @@ test("philosophy templates preserve six role-specific weights within the 0-3 sca
     assert.ok(weights.every((weight) => weight >= 0 && weight <= 3));
   }
 });
+
+test("partial-season minute samples scale reference and confidence thresholds", () => {
+  const players = Array.from({ length: 14 }, (_, index) => defender(index));
+  const scorer = createFm24Scorer(players);
+  assert.equal(scorer.seasonProgress, 0.5);
+  assert.equal(scorer.poolMinimumMinutes, 600);
+  assert.equal(scorer.highConfidenceMinutes, 1000);
+});
