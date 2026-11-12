@@ -117,7 +117,7 @@ export async function handleSquadWorkspaceChange(target:HTMLElement,render:()=>v
  if(target instanceof HTMLInputElement&&target.matches("[data-squad-weight]")){
   const a=state.analysis??emptyScoutingWorkspaceState().analysis!,r=roles.find(x=>x.id===a.roleId);if(!r||!a.philosophyTemplate)return true;
   const key=r.type+"|"+r.duty,base=a.customPhilosophyWeightsByRole?.[key]??philosophyWeightsForRole(r as never,a.philosophyTemplate),w=[...base],i=Number(target.dataset.squadWeight);if(i<0||i>5)return true;
-  w[i]=Math.max(0,Math.min(3,Number(target.value)));state.analysis={...a,customPhilosophyWeightsByRole:{...(a.customPhilosophyWeightsByRole??{}),[key]:w}};await persist(render);await refreshScoutingAnalysisSettings(render);return true;
+  w[i]=Math.max(0,Math.min(3,Number(target.value)));state.analysis={...a,customPhilosophyWeightsByRole:{...(a.customPhilosophyWeightsByRole??{}),[key]:w}};await persist(render);return true;
  }
  return false;
 }
