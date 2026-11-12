@@ -155,3 +155,49 @@ test("restoring the same backup twice creates two isolated copies without replac
   assert.equal((await listSaves()).length, 3);
   assert.equal((await listSaves()).every((entry) => entry.datasets.length === 1), true);
 });
+
+test("upgrades an existing version 1 database without dropping player records", async () => {
+  await resetDatabase();
+  await new Promise((resolve, reject) => {
+    const request = indexedDB.open("moneyball-companion", 1);
+    request.onupgradeneeded = () => {
+      const store = request.result.createObjectStore("playerRecords", { keyPath: "id" });
+      store.createIndex("datasetId", "datasetId");
+      store.createIndex("importJobId", "importJobId");
+      store.createIndex("saveUid", ["saveId", "uid"]);
+      store.createIndex("datasetUid", ["datasetId", "uid"], { unique: true });
+      store.add({
+        id: "legacy-dataset:7100",
+        saveId: "legacy-save",
+        datasetId: "legacy-dataset",
+        importJobId: "legacy-job",
+        uid: "7100",
+        sourceLine: 2,
+        rawValues: { UID: "7100", Name: "Legacy Player" },
+        displayName: "Legacy Player",
+        club: "Legacy FC",
+        position: "MC",
+      });
+    };
+    request.onsuccess = () => {
+      request.result.close();
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+
+  const db = await openLocalDatabase();
+  try {
+    assert.equal(db.version, 2);
+    const store = db.transaction("playerRecords", "readonly").objectStore("playerRecords");
+    assert.equal(store.indexNames.contains("saveId"), true);
+    const player = await new Promise((resolve, reject) => {
+      const request = store.get("legacy-dataset:7100");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    assert.equal(player.displayName, "Legacy Player");
+  } finally {
+    db.close();
+  }
+});
