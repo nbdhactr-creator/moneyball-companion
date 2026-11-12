@@ -4,6 +4,7 @@ import {
   type PlayerScoutingState, type ShortlistStatus, type SavedPlayerSearch,
 } from "./storage/local-database";
 import { FM24_ROLES, FM24_STRATA } from "../analytics/fm24-role-catalog";
+import { buildFm24DofRecommendations, type Fm24DofCandidate } from "../analytics/fm24-dof-recommendations";
 import { FM24_PHILOSOPHY_TEMPLATES, FM24_PHILOSOPHY_PRINCIPLES, philosophyWeightsForRole } from "../analytics/fm24-scoring";
 
 let saveId = "";
@@ -321,82 +322,59 @@ interface DofCandidate {
 }
 function dofCandidates(save: SaveWithDatasets): { eligible: DofCandidate[]; starter: DofCandidate | null; categories: Record<string, DofCandidate[]>; valueCap: number | null } {
   const config = dofSettings();
-  const budget = config.budgetMillions == null ? null : config.budgetMillions * 1e6;
-  const wageCap = config.wageThousands == null ? null : config.wageThousands * 1e3;
-  const myClub = save.save.club.trim().toLocaleLowerCase();
-  const own = currentClubPlayers(save, analysisSettings().roleId).map((player) => ({
-    player, fit: fitByUid.get(player.uid)!,
-    age: numberField(player, "Age"), minutes: numberField(player, "Mins") ?? 0,
-    value: parseFmMoneyMaximum(player.rawValues["Transfer Value"]),
-    wage: parseFmMoneyMaximum(player.rawValues.Wage),
-    valueText: player.rawValues["Transfer Value"] || "Unknown",
-    wageText: player.rawValues.Wage || "Unknown",
-    philosophyStatus: fitByUid.get(player.uid)?.philosophyScore == null ? "Philosophy evidence unavailable" : "Philosophy measured",
-    retraining: !fitByUid.get(player.uid)?.listedForRole,
-  } satisfies DofCandidate)).filter((candidate) => candidate.minutes >= 450 && candidate.fit.dofEvaluationScore != null);
-  const configuredStarter = own.find((candidate) => candidate.player.uid === config.starterUid);
-  const starter = configuredStarter ?? own.filter((candidate) => candidate.fit.listedForRole)
-    .sort((a, b) => (b.fit.dofEvaluationScore ?? -1) - (a.fit.dofEvaluationScore ?? -1))[0] ?? null;
-  const candidates: DofCandidate[] = [];
-  for (const player of planningRecords) {
-    if (player.club.trim().toLocaleLowerCase() === myClub) continue;
+  const byUid = new Map<string, DofCandidate>();
+  const engineCandidates: Fm24DofCandidate[] = planningRecords.flatMap((player) => {
     const fit = fitByUid.get(player.uid);
-    if (!fit || !fit.positionEligible || fit.dofEvaluationScore == null) continue;
-    const minutes = numberField(player, "Mins") ?? 0;
-    if (minutes < scorePoolMinimumMinutes) continue;
-    const age = numberField(player, "Age");
-    const valueText = player.rawValues["Transfer Value"] || "";
-    const wageText = player.rawValues.Wage || "";
-    if (/not for sale/i.test(valueText)) continue;
-    const value = parseFmMoneyMaximum(valueText);
-    const wage = parseFmMoneyMaximum(wageText);
-    if (budget != null) {
-      if (config.requireKnownValue && value == null) continue;
-      if (value != null && value > budget) continue;
-    }
-    if (wageCap != null && wage != null && wage > wageCap) continue;
-    if (config.philosophyThreshold != null && fit.philosophyScore != null && fit.philosophyScore < config.philosophyThreshold) continue;
-    candidates.push({
-      player, fit, age, minutes, value, wage,
-      valueText: valueText || "Unknown", wageText: wageText || "Unknown",
+    if (!fit) return [];
+    const candidate: DofCandidate = {
+      player, fit,
+      age: numberField(player, "Age"),
+      minutes: numberField(player, "Mins") ?? 0,
+      value: parseFmMoneyMaximum(player.rawValues["Transfer Value"]),
+      wage: parseFmMoneyMaximum(player.rawValues.Wage),
+      valueText: player.rawValues["Transfer Value"] || "Unknown",
+      wageText: player.rawValues.Wage || "Unknown",
       philosophyStatus: fit.philosophyScore == null ? "Philosophy evidence unavailable" : fit.philosophyScore < 50 ? "Below philosophy baseline" : fit.philosophyScore >= 70 ? "Strong philosophy fit" : "Moderate philosophy fit",
       retraining: !fit.listedForRole,
-    });
-  }
-  const baseline = starter?.fit.dofEvaluationScore ?? 0;
-  const confidenceOkay = (candidate: DofCandidate) => candidate.fit.confidence !== "low";
-  const roleSort = (a: DofCandidate, b: DofCandidate) =>
-    (b.fit.dofEvaluationScore ?? -1) - (a.fit.dofEvaluationScore ?? -1) ||
-    (b.fit.philosophyScore ?? -1) - (a.fit.philosophyScore ?? -1);
-  const best = candidates.slice().filter((candidate) =>
-    config.rankingMode !== "balanced" || candidate.fit.tacticalFit != null
-  ).sort(config.rankingMode === "balanced"
-    ? (a, b) => (b.fit.tacticalFit ?? -1) - (a.fit.tacticalFit ?? -1) || roleSort(a, b)
-    : roleSort);
-  const upgrades = starter ? candidates.filter((candidate) =>
-    candidate.fit.dofEvaluationScore! >= baseline + 10 &&
-    candidate.age != null && candidate.age >= 22 && candidate.age <= 29 &&
-    confidenceOkay(candidate) && (budget == null || candidate.value == null || candidate.value <= budget / 2)
-  ).sort(roleSort) : [];
-  const valueCap = budget == null ? null : Math.max(5e5, Math.min(3e6, budget * 0.15));
-  const value = starter && valueCap != null ? candidates.filter((candidate) =>
-    candidate.value != null && candidate.value <= valueCap &&
-    candidate.fit.dofEvaluationScore! >= baseline + 3 && confidenceOkay(candidate)
-  ).sort((a, b) =>
-    ((b.fit.dofEvaluationScore! - baseline + 1) / Math.max(b.value!, 5e5)) -
-    ((a.fit.dofEvaluationScore! - baseline + 1) / Math.max(a.value!, 5e5))
-  ) : [];
-  const depthCap = budget == null ? null : Math.max(4e5, Math.min(2.5e6, budget * 0.12));
-  const depth = starter ? candidates.filter((candidate) =>
-    candidate.fit.dofEvaluationScore! >= baseline - 10 &&
-    candidate.age != null && candidate.age >= 23 && candidate.age <= 31 &&
-    candidate.fit.confidence === "high" &&
-    (depthCap == null || candidate.value == null || candidate.value <= depthCap)
-  ).sort(roleSort) : [];
-  const young = candidates.filter((candidate) => candidate.age != null && candidate.age <= 21 && candidate.minutes >= 300).sort(roleSort);
-  return { eligible: candidates, starter, categories: { best, upgrades, value, depth, young }, valueCap };
+    };
+    byUid.set(player.uid, candidate);
+    return [{
+      uid: player.uid, name: player.displayName, club: player.club,
+      age: candidate.age, minutes: candidate.minutes,
+      transferValue: candidate.value, transferValueLabel: candidate.valueText,
+      wage: candidate.wage, wageLabel: candidate.wageText,
+      notForSale: /not for sale/i.test(candidate.valueText),
+      positionEligible: fit.positionEligible, listedForRole: fit.listedForRole,
+      roleScore: fit.roleScore, dofEvaluationScore: fit.dofEvaluationScore,
+      philosophyScore: fit.philosophyScore, tacticalFit: fit.tacticalFit,
+      confidence: fit.confidence,
+    }];
+  });
+  const recommendations = buildFm24DofRecommendations(engineCandidates, {
+    currentClub: save.save.club,
+    starterUid: config.starterUid,
+    budget: config.budgetMillions == null ? null : config.budgetMillions * 1e6,
+    wageCap: config.wageThousands == null ? null : config.wageThousands * 1e3,
+    philosophyThreshold: config.philosophyThreshold,
+    requireKnownValue: config.requireKnownValue,
+    rankingMode: config.rankingMode,
+    poolMinimumMinutes: scorePoolMinimumMinutes,
+    prospectMinimumMinutes: 300,
+  });
+  const map = (list: Fm24DofCandidate[]) => list.map((candidate) => byUid.get(candidate.uid)!).filter(Boolean);
+  return {
+    eligible: map(recommendations.eligible),
+    starter: recommendations.starter ? byUid.get(recommendations.starter.uid) ?? null : null,
+    categories: {
+      best: map(recommendations.categories.best),
+      upgrades: map(recommendations.categories.upgrades),
+      value: map(recommendations.categories.value),
+      depth: map(recommendations.categories.depth),
+      young: map(recommendations.categories.young),
+    },
+    valueCap: recommendations.valueCap,
+  };
 }
-
 function dofTable(title: string, description: string, rows: DofCandidate[], mode: string): string {
   const body = rows.slice(0, 8).map((candidate) => {
     const fit = candidate.fit;
@@ -420,7 +398,7 @@ function dofTable(title: string, description: string, rows: DofCandidate[], mode
 
 export async function loadPlanningWorkspace(save: SaveWithDatasets | undefined, render: () => void): Promise<void> {
   if (!save || !datasetId) return;
-  if (planningDatasetId === datasetId && planningRecords.length) return;
+  if (planningDatasetId === datasetId) return;
   planningLoading = true; planningMessage = "Loading the selected season for Director of Football recommendations…"; render();
   try {
     planningRecords = await getDatasetPlayers(datasetId);
