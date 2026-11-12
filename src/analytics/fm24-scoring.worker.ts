@@ -57,12 +57,11 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
     const scores: ScoreResult[] = scorer.players.map((player) => {
       const roleResult = scorer.scoreRole(player, role);
       const dofResult = scorer.scoreDofEvaluation(player, role);
-      const dofEvaluation = scorer.scoreDofEvaluation(player, role);
       const philosophyResult = request.philosophyTemplate
         ? scorer.scorePhilosophy(player, role, philosophyWeights)
         : null;
       const tactical = philosophyResult
-        ? combineTacticalFit({ ...roleResult, score: dofEvaluation.score }, philosophyResult, request.roleWeight)
+        ? combineTacticalFit({ ...roleResult, score: dofResult.score }, philosophyResult, request.roleWeight)
         : null;
       return {
         uid: player.uid ?? "",
