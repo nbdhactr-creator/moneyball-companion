@@ -6,7 +6,6 @@ import {
   listSaves,
   persistSeasonImport,
   type SaveWithDatasets,
-  type SeasonDatasetRecord,
 } from "./data/storage/local-database";
 
 type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "Planning" | "Data & Saves";
