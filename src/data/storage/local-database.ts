@@ -210,8 +210,10 @@ export async function persistSeasonImport(input: {
     const check = db.transaction("datasets", "readonly");
     const checkDone = transactionDone(check);
     const datasetStore = check.objectStore("datasets");
-    const duplicate = await requestResult(datasetStore.index("saveFingerprint").get([input.saveId, input.fingerprint]) as IDBRequest<SeasonDatasetRecord | undefined>);
-    const sameSeason = await requestResult(datasetStore.index("saveSeason").get([input.saveId, seasonLabel]) as IDBRequest<SeasonDatasetRecord | undefined>);
+    const [duplicate, sameSeason] = await Promise.all([
+      requestResult(datasetStore.index("saveFingerprint").get([input.saveId, input.fingerprint]) as IDBRequest<SeasonDatasetRecord | undefined>),
+      requestResult(datasetStore.index("saveSeason").get([input.saveId, seasonLabel]) as IDBRequest<SeasonDatasetRecord | undefined>),
+    ]);
     await checkDone;
     if (duplicate) throw new Error(`This exact file is already saved as season "${duplicate.seasonLabel}". Duplicate imports are blocked.`);
     if (sameSeason) throw new Error(`Season "${seasonLabel}" already exists in this save. Existing data is protected; explicit season replacement will be added separately.`);
