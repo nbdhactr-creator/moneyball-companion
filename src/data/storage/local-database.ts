@@ -18,7 +18,7 @@ export interface ScoutingAnalysisSettings {
   philosophyTemplate: "" | "possession" | "counter" | "direct" | "balanced" | "lowblock" | "wing" | "positional" | "press" | "physical";
   roleWeight: number;
   shrinkSmallSamples?: boolean;
-  customPhilosophyWeightsByRoleType?: Record<string, number[]>;
+  customPhilosophyWeightsByRole?: Record<string, number[]>;
   dof?: {
     budgetMillions: number | null;
     wageThousands: number | null;
