@@ -85,12 +85,12 @@ V1 supports league-strength adjustment of per-90 volume metrics while leaving pe
 
 The engine exposes a separate **Tactical Fit** indicator:
 
-- 70% role fit
+- 70% DoF role evaluation (the core role score, plus V1's 10% aerial adjustment for DC, DLR, WB and DM roles when both aerial quality and at least one aerial-output percentile are available)
 - 30% philosophy fit
 
 This is a transparent starting product setting, not a scientifically established universal ratio. It should be configurable (within a bounded range) and both component scores must remain visible. If either component is unavailable, the combined score is **incomplete**, not a fabricated 50 or zero.
 
-Affordability, wage, contract, age, transfer feasibility and squad need must remain separate recruitment dimensions. They should not be hidden inside a footballing-fit number.
+The core Role Fit and DoF role evaluation remain separately visible. Affordability, wage, contract, age, transfer feasibility and squad need must remain separate recruitment dimensions. They should not be hidden inside a footballing-fit number.
 
 ## 4. What real-world football research changes
 
