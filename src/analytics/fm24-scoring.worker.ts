@@ -12,22 +12,25 @@ interface ScoreRequest {
   roleId: string;
   philosophyTemplate: Fm24PhilosophyTemplate | "";
   roleWeight: number;
+  customPhilosophyWeights?: number[];
   shrinkSmallSamples: boolean;
 }
 interface ScoreResult {
   uid: string;
   positionEligible: boolean;
+  listedForRole: boolean;
   roleScore: number | null;
   dofEvaluationScore: number | null;
   dofEvaluationRawScore: number | null;
+  sampleAdjusted: boolean;
   aerialScore: number | null;
   aerialAdjustmentApplied: boolean;
-  sampleAdjusted: boolean;
   roleCoverage: number;
   confidence: "low" | "medium" | "high";
   philosophyScore: number | null;
   philosophyCoverage: number;
   principleScores: Array<number | null>;
+  principleEvidence: Array<{ id: string; name: string; weight: number; score: number | null; metricCoverage: number; metrics: Array<{ metric: string; rawValue: number | null; percentile: number | null; available: boolean; reason?: string }> }>;
   roleFamilies: Array<{ family: string; score: number | null; weight: number; available: boolean }>;
   tacticalFit: number | null;
 }
@@ -61,7 +64,7 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
       const roleResult = scorer.scoreRole(player, role);
       const dofResult = scorer.scoreDofEvaluation(player, role, roleResult.score);
       const philosophyResult = request.philosophyTemplate
-        ? scorer.scorePhilosophy(player, role, philosophyWeights)
+        ? scorer.scorePhilosophy(player, role, request.customPhilosophyWeights ?? philosophyWeights)
         : null;
       const tactical = philosophyResult
         ? combineTacticalFit({ ...roleResult, score: dofResult.displayScore }, philosophyResult, request.roleWeight)
@@ -69,17 +72,26 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
       return {
         uid: player.uid ?? "",
         positionEligible: roleResult.families.length > 0,
+        listedForRole: role.slots.some((slot) => player.positionSlots.has(slot)),
         roleScore: roleResult.score,
         dofEvaluationScore: dofResult.displayScore,
         dofEvaluationRawScore: dofResult.score,
+        sampleAdjusted: dofResult.sampleAdjusted,
         aerialScore: dofResult.aerialScore,
         aerialAdjustmentApplied: dofResult.aerialAdjustmentApplied,
-        sampleAdjusted: dofResult.sampleAdjusted,
         roleCoverage: roleResult.coverage,
         confidence: roleResult.confidence,
         philosophyScore: philosophyResult?.score ?? null,
         philosophyCoverage: philosophyResult?.coverage ?? 0,
         principleScores: philosophyResult?.principles.map((principle) => principle.score) ?? [],
+        principleEvidence: philosophyResult?.principles.map((principle) => ({
+          id: principle.id, name: principle.name, weight: principle.weight, score: principle.score,
+          metricCoverage: principle.metricCoverage,
+          metrics: principle.metrics.map((metric) => ({
+            metric: metric.metric, rawValue: metric.rawValue, percentile: metric.percentile,
+            available: metric.available, reason: metric.reason,
+          })),
+        })) ?? [],
         roleFamilies: roleResult.families.map((family) => ({
           family: family.family, score: family.score, weight: family.configuredWeight, available: family.available,
         })),
