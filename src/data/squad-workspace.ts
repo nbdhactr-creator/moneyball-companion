@@ -12,12 +12,24 @@ const tabs: Array<{id:Tab;label:string;hint:string}>=[
 ];
 const formations=[
  {id:"433",name:"4-3-3 DM Wide",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DM","DM",50,55],["MCL","M-C",34,39],["MCR","M-C",66,39],["AML","AM-L",17,19],["AMR","AM-R",83,19],["ST","ST-C",50,9]]},
- {id:"4231",name:"4-2-3-1 Wide",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DML","DM",38,53],["DMR","DM",62,53],["AML","AM-L",17,31],["AMC","AM-C",50,34],["AMR","AM-R",83,31],["ST","ST-C",50,9]]},
+ {id:"4231",name:"4-2-3-1 DM AM Wide",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DML","DM",38,55],["DMR","DM",62,55],["AML","AM-L",17,30],["AMC","AM-C",50,32],["AMR","AM-R",83,30],["ST","ST-C",50,9]]},
  {id:"442",name:"4-4-2",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["ML","M-L",15,43],["MCL","M-C",39,45],["MCR","M-C",61,45],["MR","M-R",85,43],["STL","ST-C",39,15],["STR","ST-C",61,15]]},
  {id:"352",name:"3-5-2",p:[["GK","GK",50,88],["DCL","D-C",25,72],["DC","D-C",50,75],["DCR","D-C",75,72],["WBL","WB-L",10,48],["MCL","M-C",32,45],["MC","M-C",50,39],["MCR","M-C",68,45],["WBR","WB-R",90,48],["STL","ST-C",39,13],["STR","ST-C",61,13]]},
+ {id:"343",name:"3-4-3",p:[["GK","GK",50,88],["DCL","D-C",25,72],["DC","D-C",50,75],["DCR","D-C",75,72],["WBL","WB-L",10,49],["MCL","M-C",39,45],["MCR","M-C",61,45],["WBR","WB-R",90,49],["AML","AM-L",17,20],["AMR","AM-R",83,20],["ST","ST-C",50,9]]},
+ {id:"4222",name:"4-2-2-2 DM AM Narrow",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DML","DM",38,55],["DMR","DM",62,55],["AMCL","AM-C",39,30],["AMCR","AM-C",61,30],["STL","ST-C",39,10],["STR","ST-C",61,10]]},
+ {id:"442d",name:"4-4-2 Diamond Narrow",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DM","DM",50,56],["MCL","M-C",35,43],["MCR","M-C",65,43],["AMC","AM-C",50,28],["STL","ST-C",39,10],["STR","ST-C",61,10]]},
+ {id:"424",name:"4-2-4 DM Wide",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DML","DM",38,55],["DMR","DM",62,55],["AML","AM-L",17,24],["AMR","AM-R",83,24],["STL","ST-C",39,9],["STR","ST-C",61,9]]},
+ {id:"4321",name:"4-3-2-1 DM AM Narrow",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DM","DM",50,57],["MCL","M-C",35,43],["MCR","M-C",65,43],["AMCL","AM-C",39,27],["AMCR","AM-C",61,27],["ST","ST-C",50,9]]},
+ {id:"5212",name:"5-2-1-2 DM AM",p:[["DCL","D-C",25,72],["DC","D-C",50,75],["DCR","D-C",75,72],["WBL","WB-L",10,55],["WBR","WB-R",90,55],["MCL","M-C",38,43],["MCR","M-C",62,43],["AMC","AM-C",50,26],["STL","ST-C",39,9],["STR","ST-C",61,9],["GK","GK",50,91]]},
+ {id:"5221",name:"5-2-2-1 DM AM",p:[["DCL","D-C",25,72],["DC","D-C",50,75],["DCR","D-C",75,72],["WBL","WB-L",10,55],["WBR","WB-R",90,55],["DML","DM",38,55],["DMR","DM",62,55],["AMCL","AM-C",39,28],["AMCR","AM-C",61,28],["ST","ST-C",50,9],["GK","GK",50,91]]},
+ {id:"523",name:"5-2-3 DM Wide",p:[["DCL","D-C",25,72],["DC","D-C",50,75],["DCR","D-C",75,72],["WBL","WB-L",10,55],["WBR","WB-R",90,55],["MCL","M-C",38,44],["MCR","M-C",62,44],["AML","AM-L",17,22],["AMR","AM-R",83,22],["ST","ST-C",50,9],["GK","GK",50,91]]},
+ {id:"532",name:"5-3-2 DM WB",p:[["DCL","D-C",25,72],["DC","D-C",50,75],["DCR","D-C",75,72],["WBL","WB-L",10,55],["WBR","WB-R",90,55],["DM","DM",50,55],["MCL","M-C",35,42],["MCR","M-C",65,42],["STL","ST-C",39,9],["STR","ST-C",61,9],["GK","GK",50,91]]},
+ {id:"4141",name:"4-1-4-1 DM",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DM","DM",50,56],["ML","M-L",15,39],["MCL","M-C",39,41],["MCR","M-C",61,41],["MR","M-R",85,39],["ST","ST-C",50,9]]},
+ {id:"4411",name:"4-4-1-1 2DM",p:[["GK","GK",50,88],["DL","D-L",15,70],["DCL","D-C",38,72],["DCR","D-C",62,72],["DR","D-R",85,70],["DML","DM",38,55],["DMR","DM",62,55],["ML","M-L",15,39],["MR","M-R",85,39],["AMC","AM-C",50,25],["ST","ST-C",50,9]]},
 ];
 let tab:Tab="overview", saveId="", datasetId="", state:ScoutingWorkspaceState=emptyScoutingWorkspaceState(), players:PlayerSeasonRecord[]=[];
-let loading=false, message="", club="", selectedSlot="";
+let loading=false, message="", club="", selectedSlot="", playerSearchQuery="";
+let activePitchDrag:{slotId:string;pointerId:number;pitch:HTMLElement;button:HTMLElement;x:number;y:number;moved:boolean}|null=null;
 let token=0;
 const esc=(s:string)=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]??c));
 const defaultRole=(pos:string)=>{const a=roles.filter(r=>r.slots.includes(pos));return (a.find(r=>r.duty==="D")??a[0])?.id??""};
@@ -50,16 +62,39 @@ function philosophy(){
  const templates=Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([k,v])=>'<option value="'+k+'"'+(a.philosophyTemplate===k?" selected":"")+'>'+esc(v.name)+'</option>').join("");
  const roleOpts=Object.keys(strata).map(k=>'<optgroup label="'+esc(strata[k].label)+'">'+roles.filter(r=>r.strata===k).map(r=>'<option value="'+r.id+'"'+(a.roleId===r.id?" selected":"")+'>'+esc(r.name)+' · '+esc(r.dutyName)+'</option>').join("")+'</optgroup>').join("");
  const w=role&&a.philosophyTemplate?(a.customPhilosophyWeightsByRole?.[role.type+"|"+role.duty]??philosophyWeightsForRole(role as never,a.philosophyTemplate)):[];
- return '<div class="squad-grid-two"><article class="content-card"><div class="card-kicker">CLUB IDENTITY</div><h2>Define what good football looks like.</h2><p>Choose a starting template, then tune its six principles for a role and duty. These settings are shared with Scouting and Planning.</p><div class="squad-control-grid"><label>Philosophy template<select data-squad-template><option value="">Choose template…</option>'+templates+'</select></label><label>Role and duty lens<select data-squad-role><option value="">Choose role…</option>'+roleOpts+'</select></label></div><div class="squad-section-title"><strong>Principle weights</strong><span>0–3 · 0.5 steps</span></div>'+FM24_PHILOSOPHY_PRINCIPLES.map((p,i)=>'<div class="squad-principle-row"><div><strong>'+esc(p.name)+'</strong><small>'+esc(p.description)+'</small></div><div class="squad-weight-control"><input type="range" min="0" max="3" step=".5" value="'+(w[i]??0)+'" data-squad-weight="'+i+'" '+(!role||!a.philosophyTemplate?"disabled":"")+'><output>'+(w[i]??0).toFixed(1)+'</output><div class="squad-weight-track"><span style="width:'+Math.round((w[i]??0)/3*100)+'%"></span></div></div></div>').join("")+'<p class="squad-note">Weights are saved per role type and duty. The original role catalogue remains unchanged.</p></article><aside class="content-card"><div class="card-kicker">EVIDENCE LIMITS</div><h3>Interpret the philosophy score correctly</h3><ul><li>It measures alignment with recorded season outputs.</li><li>It uses role-specific reference groups.</li><li>Missing metrics are unavailable, not zero.</li><li>Season exports cannot prove pressing structure, compactness or tactical execution.</li></ul></aside></div>';
+ const guidance=[
+  ["Keep the ball","Pass completion and possession-loss rate. Higher weight makes secure circulation and ball retention matter more in this role's Philosophy Fit."],
+  ["Always available","Passes attempted per 90 as a proxy for involvement in circulation. Higher weight favours players who are frequently involved; it does not measure off-ball movement."],
+  ["Move it to hurt","Progressive passes, open-play key passes, expected assists and dribbling. Higher weight gives more influence to progression and chance creation."],
+  ["Win it back quickly","Pressing attempts, pressing completions and possession won. Higher weight favours recorded pressing and ball-regain output; it does not measure the time taken to counter-press."],
+  ["Defend on the front foot","Interceptions, tackle rate and aerial success. Higher weight favours proactive defensive actions and duel outcomes; it is not a full defensive-positioning measure."],
+  ["Intensity","Distance covered per 90 and sprints per 90. Higher weight favours repeat running output; it is not a direct measure of work rate or tactical discipline."]
+ ];
+ const rows=FM24_PHILOSOPHY_PRINCIPLES.map((p,i)=>'<div class="squad-principle-row"><div><strong>'+esc(p.name)+'</strong><small>'+esc(p.description)+'</small><small class="squad-principle-metrics">Evidence: '+esc(p.metrics.join(" · "))+'</small></div><div class="squad-weight-control"><input type="range" min="0" max="3" step=".5" value="'+(w[i]??0)+'" data-squad-weight="'+i+'" aria-label="'+esc(p.name)+' weight" '+(!role||!a.philosophyTemplate?"disabled":"")+'><output>'+(w[i]??0).toFixed(1)+'</output><div class="squad-weight-track"><span style="width:'+Math.round((w[i]??0)/3*100)+'%"></span></div><small>'+(w[i]===0?"Excluded":w[i]===3?"Maximum emphasis":w[i]>=2?"Strong emphasis":w[i]>=1?"Moderate emphasis":"Light emphasis")+'</small></div></div>').join("");
+ const side=guidance.map(([name,description],i)=>'<div class="squad-philosophy-guide"><strong>'+(i+1)+". "+esc(name)+'</strong><p>'+esc(description)+'</p></div>').join("");
+ return '<div class="squad-grid-two squad-philosophy-layout"><article class="content-card"><div class="card-kicker">CLUB IDENTITY</div><h2>Define what good football looks like.</h2><p>Choose a starting template, then tune its six principles for a role and duty. These settings are shared with Scouting and Planning.</p><div class="squad-control-grid"><label>Philosophy template<select data-squad-template><option value="">Choose template…</option>'+templates+'</select></label><label>Role and duty lens<select data-squad-role><option value="">Choose role…</option>'+roleOpts+'</select></label></div><div class="squad-section-title"><strong>Principle weights</strong><span>0–3 · 0.5 steps</span></div>'+rows+'<p class="squad-note">Weights are saved per role type and duty. The original role catalogue remains unchanged.</p></article><aside class="content-card squad-philosophy-help"><div class="card-kicker">HOW THE PHILOSOPHY SCORE WORKS</div><h3>What changing a slider actually does</h3><p>A weight controls how strongly that principle influences a player's Philosophy Fit score for the selected role and duty.</p><ul><li><b>0</b> — exclude the principle from the score.</li><li><b>1</b> — give it a light influence.</li><li><b>2</b> — give it twice the influence of weight 1.</li><li><b>3</b> — maximum influence; three times weight 1.</li></ul><p>The score is a weighted average of the available principle percentiles. Raising one weight makes that principle count more relative to the others; it does not change the player's raw statistics or role score.</p><div class="squad-formula">Philosophy Fit = Σ (principle percentile × weight) ÷ Σ available weights</div><p>If a principle's evidence is missing, it cannot contribute. Missing evidence reduces coverage; the overall score is withheld when weighted evidence coverage is below 60%. A zero-weight principle is excluded from both the score and its denominator.</p><div class="squad-section-title"><strong>What each slider measures</strong><span>Season-export proxies</span></div>'+side+'<p class="squad-note">These are season-output indicators, not direct measurements of tactical execution, pressing structure, off-ball movement or match-engine behaviour.</p></aside></div>';
+}
+function playerPickerOptions(slot:SquadTacticSlot,rows:PlayerSeasonRecord[],query:string):string{
+ const q=query.trim().toLocaleLowerCase(),selected=rows.find(p=>p.uid===slot.playerUid);
+ const matches=q.length>=2?rows.filter(p=>[p.displayName,p.position,p.uid].some(v=>v.toLocaleLowerCase().includes(q))).sort((a,b)=>a.displayName.localeCompare(b.displayName)).slice(0,20):[];
+ const options:string[]=['<option value="">Unassigned</option>'];
+ if(selected)options.push('<option value="'+esc(selected.uid)+'" selected>'+esc(selected.displayName)+' · '+esc(selected.position||"Position unavailable")+' · current</option>');
+ for(const p of matches){if(p.uid===selected?.uid)continue;options.push('<option value="'+esc(p.uid)+'">'+esc(p.displayName)+' · '+esc(p.position||"Position unavailable")+'</option>')}
+ if(q.length<2)options.push('<option value="" disabled>Type at least 2 characters to search the squad</option>');
+ else if(!matches.length)options.push('<option value="" disabled>No matching players found</option>');
+ return options.join("");
+}
+function positionOptionMarkup(position:string):string{
+ return Object.entries(strata).map(([key,group])=>'<optgroup label="'+esc(group.label)+'">'+group.slots.map(pos=>'<option value="'+esc(pos)+'"'+(position===pos?" selected":"")+'>'+esc(pos)+'</option>').join("")+'</optgroup>').join("");
 }
 function tactics(){
  const t=tactic(),rows=clubRows(),slot=t.slots.find(s=>s.id===selectedSlot)??t.slots[0];if(slot)selectedSlot=slot.id;
- const pitch=t.slots.map(s=>{const p=rows.find(x=>x.uid===s.playerUid),r=roles.find(x=>x.id===s.roleId);return '<button class="squad-pitch-slot'+(s.id===selectedSlot?' is-selected':'')+'" type="button" style="left:'+s.x+'%;top:'+s.y+'%" data-tactic-slot="'+esc(s.id)+'"><b>'+esc(p?.displayName??s.label)+'</b><small>'+esc(r?.name??"Choose role")+' · '+esc(r?.dutyName??"—")+'</small></button>'}).join("");
+ const pitch=t.slots.map(s=>{const p=rows.find(x=>x.uid===s.playerUid),r=roles.find(x=>x.id===s.roleId);return '<button class="squad-pitch-slot'+(s.id===selectedSlot?' is-selected':'')+'" type="button" aria-label="Edit '+esc(s.label)+' position" title="Select or drag to reposition" style="left:'+s.x+'%;top:'+s.y+'%" data-tactic-slot="'+esc(s.id)+'"><b>'+esc(p?.displayName??s.label)+'</b><small>'+esc(r?.name??"Choose role")+' · '+esc(r?.dutyName??"—")+'</small></button>'}).join("");
  const roleChoices=slot?roles.filter(r=>r.slots.includes(slot.position)):[];
- const playerOptions='<option value="">Unassigned</option>'+rows.map(p=>'<option value="'+esc(p.uid)+'"'+(slot?.playerUid===p.uid?" selected":"")+'>'+esc(p.displayName)+' · '+esc(p.position||"Position unavailable")+'</option>').join("");
  const roleOptions=roleChoices.map(r=>'<option value="'+r.id+'"'+(slot?.roleId===r.id?" selected":"")+'>'+esc(r.name)+' · '+esc(r.dutyName)+'</option>').join("");
+ const picker=slot?'<div class="squad-player-picker" data-squad-player-picker><label>Find a player<input type="search" data-squad-player-search autocomplete="off" value="'+esc(playerSearchQuery)+'" placeholder="Search name, position or UID…" aria-label="Search squad players"></label><small data-squad-player-count>'+(playerSearchQuery.trim().length>=2?"Showing up to 20 matching players":"Type at least 2 characters. Only your active club is searched.")+'</small><label>Assigned player<select data-squad-slot-player>'+playerPickerOptions(slot,rows,playerSearchQuery)+'</select></label></div>':'';
  const sel=(key:string,label:string,values:string[],value:string)=>'<label>'+label+'<select data-squad-instruction="'+key+'">'+values.map(v=>'<option'+(v===value?" selected":"")+'>'+v+'</option>').join("")+'</select></label>';
- return '<div class="squad-tactics-layout"><article class="content-card"><div class="squad-tactics-toolbar"><div class="card-kicker">TACTICAL BOARD · FM24</div><label>Formation<select data-squad-formation>'+formations.map(f=>'<option value="'+f.id+'"'+(f.id===t.formationId?" selected":"")+'>'+f.name+'</option>').join("")+'</select></label></div><div class="squad-pitch"><div class="squad-pitch-half"></div><div class="squad-pitch-circle"></div><div class="squad-pitch-box squad-pitch-box-top"></div><div class="squad-pitch-box squad-pitch-box-bottom"></div>'+pitch+'</div><div class="squad-tactic-summary"><span><b>'+t.slots.filter(s=>s.playerUid).length+'</b> / 11 assigned</span><span><b>'+t.slots.filter(s=>!s.playerUid).length+'</b> unfilled slots</span></div></article><aside class="content-card squad-tactic-editor"><div class="card-kicker">POSITION EDITOR</div><h3>'+esc(slot?.label??"Select a slot")+'</h3>'+(slot?'<label>Player<select data-squad-slot-player>'+playerOptions+'</select></label><label>Role and duty<select data-squad-slot-role>'+roleOptions+'</select></label><label>Horizontal pitch position · '+slot.x+'%<input type="range" min="5" max="95" step="1" value="'+slot.x+'" data-squad-slot-x></label><label>Vertical pitch position · '+slot.y+'%<input type="range" min="5" max="95" step="1" value="'+slot.y+'" data-squad-slot-y></label><p class="squad-note">Player selection is manual. Export position strings are not a full positional-competence matrix.</p>':'')+
+ return '<div class="squad-tactics-layout"><article class="content-card"><div class="squad-tactics-toolbar"><div><div class="card-kicker">TACTICAL BOARD · FM24</div><p class="squad-note">Select a shirt to edit it. Drag it to change its pitch position.</p></div><label>Formation<select data-squad-formation>'+formations.map(f=>'<option value="'+f.id+'"'+(f.id===t.formationId?" selected":"")+'>'+f.name+'</option>').join("")+'</select></label></div><div class="squad-pitch"><div class="squad-pitch-half"></div><div class="squad-pitch-circle"></div><div class="squad-pitch-box squad-pitch-box-top"></div><div class="squad-pitch-box squad-pitch-box-bottom"></div>'+pitch+'</div><div class="squad-tactic-summary"><span><b>'+t.slots.filter(s=>s.playerUid).length+'</b> / 11 assigned</span><span><b>'+t.slots.filter(s=>!s.playerUid).length+'</b> unfilled slots</span></div></article><aside class="content-card squad-tactic-editor"><div class="card-kicker">POSITION EDITOR</div><h3>'+esc(slot?.label??"Select a slot")+'</h3>'+(slot?picker+'<label>FM24 position<select data-squad-slot-position>'+positionOptionMarkup(slot.position)+'</select></label><label>Role and duty<select data-squad-slot-role>'+roleOptions+'</select></label><label>Horizontal pitch position · '+slot.x+'%<input type="range" min="5" max="95" step="1" value="'+slot.x+'" data-squad-slot-x></label><label>Vertical pitch position · '+slot.y+'%<input type="range" min="5" max="95" step="1" value="'+slot.y+'" data-squad-slot-y></label><p class="squad-note">Player search is limited to the current club. The exported position string is not a full positional-competence matrix, so assignment remains a manager decision.</p>':'')+
  '<div class="squad-section-title"><strong>Team instructions</strong><span>Saved per career</span></div>'+sel("mentality","Mentality",["Very Defensive","Defensive","Cautious","Balanced","Positive","Attacking","Very Attacking"],t.mentality)+
  '<div class="squad-instruction-group"><b>In Possession</b>'+sel("inPossession.width","Attacking width",["Much Narrower","Narrower","Standard","Fairly Wide","Wider","Much Wider"],t.inPossession.width)+sel("inPossession.passing","Passing directness",["Much Shorter","Shorter","Standard","More Direct","Much More Direct"],t.inPossession.passing)+sel("inPossession.tempo","Tempo",["Much Lower","Lower","Standard","Higher","Much Higher"],t.inPossession.tempo)+sel("inPossession.finalThird","Final third",["Work Ball Into Box","Shoot On Sight","Run At Defence","Mixed"],t.inPossession.finalThird)+'</div>'+
  '<div class="squad-instruction-group"><b>Transition</b>'+sel("transition.win","When possession is won",["Counter","Hold Shape"],t.transition.win)+sel("transition.lose","When possession is lost",["Counter-Press","Regroup"],t.transition.lose)+sel("transition.goalkeeper","Goalkeeper distribution",["Distribute Quickly","Slow Pace Down","Take Short Kicks","Distribute to Centre-Backs","Distribute to Full-Backs"],t.transition.goalkeeper)+'</div>'+
@@ -87,9 +122,57 @@ export function renderSquadWorkspace(save:SaveWithDatasets|undefined,did:string,
  const body=tab==="players"?playersHtml:tab==="tactics"?tactics():tab==="philosophy"?philosophy():tab==="depth"?depth():overview();
  return '<nav class="squad-subnav" aria-label="Squad sections">'+tabs.map(x=>'<button type="button" data-squad-tab="'+x.id+'" class="'+(tab===x.id?"is-active":"")+'"><strong>'+x.label+'</strong><small>'+x.hint+'</small></button>').join("")+'</nav>'+(message?'<p class="squad-workspace-message" role="status">'+esc(message)+'</p>':"")+body;
 }
+export function listFm24FormationIds():string[]{return formations.map(f=>f.id)}
+export function handleSquadWorkspaceInput(target:HTMLInputElement):boolean{
+ if(!target.matches("[data-squad-player-search]"))return false;
+ playerSearchQuery=target.value;
+ const wrapper=target.closest<HTMLElement>("[data-squad-player-picker]");
+ const select=wrapper?.querySelector<HTMLSelectElement>("[data-squad-slot-player]");
+ const count=wrapper?.querySelector<HTMLElement>("[data-squad-player-count]");
+ const slot=tactic().slots.find(s=>s.id===selectedSlot);
+ if(!wrapper||!select||!count||!slot)return true;
+ select.innerHTML=playerPickerOptions(slot,clubRows(),playerSearchQuery);
+ const q=playerSearchQuery.trim();
+ const total=q.length>=2?clubRows().filter(p=>[p.displayName,p.position,p.uid].some(v=>v.toLocaleLowerCase().includes(q.toLocaleLowerCase()))).length:0;
+ count.textContent=q.length<2?"Type at least 2 characters. Only your active club is searched.":total?("Found "+total+" player(s); showing up to 20. Refine your search if needed."):"No players match that search.";
+ return true;
+}
+export function handleSquadWorkspacePointerDown(event:PointerEvent):boolean{
+ const button=(event.target as HTMLElement).closest<HTMLElement>("[data-tactic-slot]");
+ const pitch=button?.closest<HTMLElement>(".squad-pitch");
+ if(!button||!pitch)return false;
+ const id=button.dataset.tacticSlot??"";
+ if(!id)return false;
+ selectedSlot=id;
+ activePitchDrag={slotId:id,pointerId:event.pointerId,pitch,button,x:0,y:0,moved:false};
+ try{button.setPointerCapture(event.pointerId)}catch{}
+ event.preventDefault();
+ return true;
+}
+export function handleSquadWorkspacePointerMove(event:PointerEvent):boolean{
+ const drag=activePitchDrag;if(!drag||drag.pointerId!==event.pointerId)return false;
+ const rect=drag.pitch.getBoundingClientRect();
+ if(!rect.width||!rect.height)return true;
+ const x=clampTacticCoordinate((event.clientX-rect.left)/rect.width*100);
+ const y=clampTacticCoordinate((event.clientY-rect.top)/rect.height*100);
+ if(Math.abs(x-drag.x)>0||Math.abs(y-drag.y)>0)drag.moved=true;
+ drag.x=x;drag.y=y;drag.button.style.left=x+"%";drag.button.style.top=y+"%";
+ return true;
+}
+export async function handleSquadWorkspacePointerUp(event:PointerEvent,render:()=>void):Promise<boolean>{
+ const drag=activePitchDrag;if(!drag||drag.pointerId!==event.pointerId)return false;
+ activePitchDrag=null;
+ try{drag.button.releasePointerCapture(event.pointerId)}catch{}
+ if(drag.moved){
+  const t=tactic();
+  state.squadTactics={...t,slots:t.slots.map(s=>s.id===drag.slotId?{...s,x:drag.x,y:drag.y}:s),updatedAt:new Date().toISOString()};
+  await persist(render);
+ }
+ return true;
+}
 export async function handleSquadWorkspaceClick(target:HTMLElement,render:()=>void):Promise<boolean>{
  if(target.dataset.squadTab){tab=target.dataset.squadTab as Tab;render();return true}
- if(target.dataset.tacticSlot){selectedSlot=target.dataset.tacticSlot;render();return true}
+ if(target.dataset.tacticSlot){selectedSlot=target.dataset.tacticSlot;playerSearchQuery="";render();return true}
  return false;
 }
 export async function handleSquadWorkspaceChange(target:HTMLElement,render:()=>void):Promise<boolean>{
@@ -105,6 +188,10 @@ export async function handleSquadWorkspaceChange(target:HTMLElement,render:()=>v
  }
  if(target instanceof HTMLSelectElement&&target.matches("[data-squad-slot-player]")){
   state.squadTactics={...t,slots:t.slots.map(s=>({...s,playerUid:s.id===selectedSlot?target.value:target.value&&s.playerUid===target.value?"":s.playerUid})),updatedAt:new Date().toISOString()};await persist(render);return true;
+ }
+ if(target instanceof HTMLSelectElement&&target.matches("[data-squad-slot-position]")){
+  const position=target.value;if(!Object.values(strata).some(group=>group.slots.includes(position)))return true;
+  state.squadTactics={...t,slots:t.slots.map(s=>s.id===selectedSlot?{...s,position,roleId:defaultRole(position)}:s),updatedAt:new Date().toISOString()};await persist(render);return true;
  }
  if(target instanceof HTMLSelectElement&&target.matches("[data-squad-slot-role]")){
   state.squadTactics={...t,slots:t.slots.map(s=>s.id===selectedSlot?{...s,roleId:target.value}:s),updatedAt:new Date().toISOString()};await persist(render);return true;
