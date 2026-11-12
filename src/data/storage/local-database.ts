@@ -154,11 +154,12 @@ export async function listSaves(): Promise<SaveWithDatasets[]> {
   const db = await openLocalDatabase();
   try {
     const transaction = db.transaction(["saves", "datasets"], "readonly");
+    const done = transactionDone(transaction);
     const [saves, datasets] = await Promise.all([
       requestResult(transaction.objectStore("saves").getAll() as IDBRequest<SaveRecord[]>),
       requestResult(transaction.objectStore("datasets").getAll() as IDBRequest<SeasonDatasetRecord[]>),
     ]);
-    await transactionDone(transaction);
+    await done;
     return saves
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map((save) => ({
@@ -173,8 +174,9 @@ export async function listSaves(): Promise<SaveWithDatasets[]> {
 
 async function removeStagedRows(db: IDBDatabase, jobId: string): Promise<void> {
   const read = db.transaction("playerRecords", "readonly");
+  const readDone = transactionDone(read);
   const keys = await requestResult(read.objectStore("playerRecords").index("importJobId").getAllKeys(IDBKeyRange.only(jobId)));
-  await transactionDone(read);
+  await readDone;
   for (let offset = 0; offset < keys.length; offset += IMPORT_BATCH_SIZE) {
     const transaction = db.transaction("playerRecords", "readwrite");
     const store = transaction.objectStore("playerRecords");
@@ -206,10 +208,11 @@ export async function persistSeasonImport(input: {
     if (!save) throw new Error("That save no longer exists. Refresh the save library and try again.");
 
     const check = db.transaction("datasets", "readonly");
+    const checkDone = transactionDone(check);
     const datasetStore = check.objectStore("datasets");
     const duplicate = await requestResult(datasetStore.index("saveFingerprint").get([input.saveId, input.fingerprint]) as IDBRequest<SeasonDatasetRecord | undefined>);
     const sameSeason = await requestResult(datasetStore.index("saveSeason").get([input.saveId, seasonLabel]) as IDBRequest<SeasonDatasetRecord | undefined>);
-    await transactionDone(check);
+    await checkDone;
     if (duplicate) throw new Error(`This exact file is already saved as season "${duplicate.seasonLabel}". Duplicate imports are blocked.`);
     if (sameSeason) throw new Error(`Season "${seasonLabel}" already exists in this save. Existing data is protected; explicit season replacement will be added separately.`);
 
