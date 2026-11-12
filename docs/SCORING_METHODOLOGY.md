@@ -5,8 +5,8 @@
 - **Merged and deployed:** commit `ece5e6ce31a530f7626bb174f9537bb2d0a31af6` on `main`, via PR #12.
 - **Scouting integration implemented:** select an FM24 role/duty and one of nine V1 philosophy templates; calculate the full selected season in a Web Worker; show Core Role Fit, DoF Role Evaluation, Philosophy Fit, Tactical Fit, confidence, role-family evidence and six principle breakdowns.
 - **Source baseline recovered:** Recruitment Lab V1's actual role, philosophy, template and DoF candidate-ranking logic were inspected from its `recruitment-lab/custom-build` branch.
-- **Not yet integrated into Planning/DoF recommendations.** V2's Planning module remains a placeholder. The five recommendation categories, budgets, wage caps and feasibility filters are not yet built.
-- **Verification:** 45/45 automated tests passed, TypeScript/Vite production build passed, and GitHub Pages deployment run #43314079346 succeeded. User browser testing and independent live-page visual verification remain pending.
+- **DoF Planning implementation on feature branch:** the new Planning workspace ranks FM24 candidates against a selected current-club starter and exposes Best Role Fits, Upgrades, Value Options, Squad Depth and Young Targets. It preserves the V1 role-led default, uses Philosophy Score as a separate threshold/tie-breaker, and offers an explicit balanced Tactical Fit mode.
+- **Current branch status:** feature/dof-philosophy-workstation-v2 is not merged or deployed. CI and regression verification are pending; the existing main deployment remains unchanged.
 
 ## Scope and terminology
 
@@ -57,7 +57,7 @@ The recovered DoF implementation keeps Role Score and Philosophy Score as separa
 - Recommendation cards show a Philosophy band and score, and the player/scouting report exposes the six principle breakdowns.
 - Upgrade explanations include the Philosophy Score when it is available.
 
-This distinction matters: V1 does not calculate a universal weighted Role + Philosophy average. It uses Role Score as the main performance ranking, Philosophy as an independent fit signal, a secondary tie-break in most categories, and an optional minimum-fit filter. V2 should preserve that transparent baseline while offering an explicitly labelled, configurable combined view as an additional ranking mode.
+This distinction matters: V1 does not calculate a universal weighted Role + Philosophy average. It uses Role Score as the main performance ranking, Philosophy as an independent fit signal, a secondary tie-break in most categories, and an optional minimum-fit filter. V2 preserves that transparent baseline in Planning: Role Evaluation leads the default ranking, Philosophy Fit is an independent threshold and tie-breaker, and Balanced Tactical Fit is an explicitly selected alternative.
 
 The DoF role evaluation also has a separate, limited aerial adjustment for centre-back, full-back, wing-back and defensive-midfield strata: 90% core role score and 10% aerial score, when both aerial quality and output are available. Aerial quality is the position-group percentile for header win percentage; aerial output is the mean percentile of headers won per 90 and key headers won per 90 where available. Missing aerial evidence leaves the core score unchanged. This is a V1-specific adjustment, not part of the general role formula. V2 exposes it as a separate DoF Evaluation value so the unadjusted Role Fit remains visible.
 
@@ -93,6 +93,25 @@ This is a transparent starting product setting, not a scientifically established
 
 The core Role Fit and DoF role evaluation remain separately visible. Affordability, wage, contract, age, transfer feasibility and squad need must remain separate recruitment dimensions. They should not be hidden inside a footballing-fit number.
 
+
+### V2 Director of Football recommendation workflow
+
+The new Planning workspace uses the V1 logic as its default, but makes unsupported assumptions explicit:
+
+- The selected current-club player with the best role evaluation is the default comparison starter. The user can choose another role-qualified player.
+- Best Role Fits rank by DoF Role Evaluation, with Philosophy Score as the tie-breaker. The user can explicitly switch to Balanced Tactical Fit, which requires both scores.
+- Upgrades require a 10-point improvement over the selected starter, age 22–29, medium/high confidence and (when a budget is set) a transfer estimate no higher than half the budget.
+- Value Options require a 3-point improvement, medium/high confidence and a value ceiling based on 15% of budget, bounded between 0.5m and 3m. They are ranked by role-score improvement per estimated transfer-value unit.
+- Squad Depth targets players within 10 points of the starter, age 23–31 and high confidence. When a budget is entered, the value ceiling follows the V1 12%-of-budget rule, bounded between 0.4m and 2.5m.
+- Young Targets show players aged 21 or younger with at least 300 minutes. They are ranked by overall role evaluation; this is deliberately not described as an age-adjusted score.
+- The default Philosophy threshold is 50. Only a measured score below the threshold is filtered. Missing Philosophy evidence is retained and labelled unverified.
+- Transfer values use the upper end of a supplied range when a range is present. Unknown values are retained when no budget is set; with a budget set, the default requires a known value. Unknown wages are shown as unknown and are not falsely declared compliant with a wage cap.
+- Candidates outside their listed FM position but inside the role's broader position stratum may appear with a retraining-review flag. They are not silently presented as natural positional fits.
+
+V2 intentionally does not reproduce V1's Dream or proven-at-a-stronger-league labels yet. The current V2 save data does not include a verified league-reputation mapping. Nor does the current export provide a trustworthy likelihood-of-acceptance model. The UI must not invent these signals. League-strength mapping, transfer acceptance and a truly age-adjusted prospect score remain deferred until their source data and formulas are recovered and tested.
+
+The DoF recommendation ranking is implemented as a pure, separately tested domain function in src/analytics/fm24-dof-recommendations.ts. The financial and squad-need rules remain separate from the footballing fit scores. The current categories may overlap: a player can be both an upgrade and a value option rather than being removed from one list by arbitrary category ordering.
+
 ## 4. What real-world football research changes
 
 Research supports a multidimensional model rather than one generic “style” label:
@@ -101,12 +120,24 @@ Research supports a multidimensional model rather than one generic “style” l
 - A 2024/2025 grounded-theory study describes playing styles across game phases, including established attack/defence and attacking/defensive transitions. It distinguishes possession/direct play, progression speed, passing tempo, high/deep pressing and counterpressing. [A grounded theory for professional soccer teams' playing styles](https://doi.org/10.1177/17479541241300605)
 - A 2025 study derives four interpretable styles from event-based possession metrics using PCA and Varimax rotation, reinforcing that styles emerge from combinations of behaviours rather than a single statistic. [Data-driven approach to defining football styles in major leagues](https://doi.org/10.1016/j.chaos.2025.116926)
 - A 2026 open-access study on a context-adjusted, position-specific Player Stat Index warns that observed actions are shaped by tactical role, team possession, teammates, opposition, score state and opportunity. It retains multiple task domains rather than treating one scalar as a complete player profile. [From player actions to player profiles](https://doi.org/10.1177/22150218261497769)
+- StatsBomb's full-back recruitment example contrasts two real-player profiles. Trent Alexander-Arnold is used to illustrate chance creation, possession competence, attacking width and defending a high line, translated into measures such as average defensive-action distance, carry length, pressured pass completion, successful crosses, xA and open-play key passes. Benjamin Pavard is used as a contrasting safety-first full-back, with possession-adjusted pressures, pressured pass completion, dribbled-past frequency and blocks per shot. This is a strong reason not to give every full-back the same philosophy weights. These are profile-design examples, not universal weights, and several of these event-level metrics are not present in a standard FM24 season export. [StatsBomb: Using Data in the Search for a New Full Back](https://blogarchive.statsbomb.com/articles/soccer/using-statsbomb-iq-for-player-recruitment-full-backs/)
 
 The practical consequence for Moneyball Companion: the Philosophy Score should be described as a **role-weighted match-output alignment indicator**, not proof that a player will execute a team's game model. The role score and philosophy score are useful screens; they do not replace video, scouting or tactical judgement.
 
+The coaching literature reinforces that distinction. FIFA's analysis of an effective high press describes a coordinated unit with compact support, pressing angles, triggers and recovery shape, not simply a high count of pressure actions ([FIFA Training Centre: Understanding core principles of play](https://www.fifatrainingcentre.com/en/game/game-analysis/landing-page-core-principles.php)). England Football's defensive principles also include delaying, compactness, cover and balance, pressing, and control/restraint ([England Football Learning](https://learn.englandfootball.com/articles-and-resources/coaching/resources/2022/What-are-the-principles-of-football)). Those collective and situational behaviours cannot be reconstructed from a season-level player export.
+
+Accordingly, the six V1 principles are operational proxies:
+- Pass completion, loss rate and pass volume describe ball security and circulation, but are influenced by team possession and passing responsibility.
+- Progressive passes, key passes, xA and dribbles indicate forward progression and creation, but do not reveal whether a player chose the best option in a particular phase.
+- Pressure attempts/completions and possession won indicate pressure activity and regains, but do not establish the five-second timing, pressing trigger, support structure or height of the press.
+- Interceptions, tackle success and aerial success indicate proactive defensive actions, but cannot prove line height, compactness, cover or defensive restraint.
+- Distance and sprint output indicate physical activity, but not whether the movement was tactically useful or coordinated with teammates.
+
+The score should therefore never be labelled "pressing ability" or "positional-play execution" without qualification. It is evidence of recorded output that is consistent with selected principles, within the role and comparison pool.
+
 ### FM24 template fidelity
 
-The nine V1 philosophy templates are retained as explicit transformations of each role type's six baseline weights. V2 uses the same transformations and role-specific exceptions (including goalkeeper exceptions for Low Block, Wing Play, Positional Play, High-intensity Press and Physical). The template names and descriptions follow V1. Templates are starting profiles, not claims that every team using a broad label behaves identically. Users should be able to tune principle weights after applying a template.
+The nine V1 philosophy templates are retained as explicit transformations of each role type's six baseline weights. V2 uses the same transformations and role-specific exceptions (including goalkeeper exceptions for Low Block, Wing Play, Positional Play, High-intensity Press and Physical). The template names and descriptions follow V1. Templates are starting profiles, not claims that every team using a broad label behaves identically. V2 lets users tune the six principle weights (0–3 in 0.5 steps) after applying a template. Custom weights are stored per V1 role-type/duty key (for example, `cd|D`) in the active career, preserving V1's distinction between Defend, Support and Attack/other duties. The user can reset them to the selected template. The underlying V1 metric list for each principle is retained; editing metric membership is still deferred.
 
 ## 5. What an FM24 player-search export cannot prove
 
@@ -119,7 +150,7 @@ The supplied FM24 export contains season-level player statistics and player/club
 - rest-defence structure or counterpress coverage;
 - the exact build-up pattern, passing lanes or transition speed.
 
-Pressures, possession won, progressive passes, crossing and distance can be used as **proxies**, but their interpretation is conditional on the player's role and team context. A high pressure count can reflect team exposure or assignment, not necessarily better pressing. A high pass count can reflect team possession, not automatically superior availability.
+Pressures, possession won, progressive passes, crossing and distance can be used as **proxies**, but their interpretation is conditional on the player's role and team context. Stats Perform's explanation of pressure measurement notes that PPDA is useful but one-dimensional because pressing is collective and depends on coordinated movement beyond the player nearest the ball. [Stats Perform: How We Measure Pressure](https://www.statsperform.com/insights/how-we-measure-pressure/) The FM24 export does not contain the event sequences needed to measure pressure regains within five seconds or team pressing structure. A high pressure count can reflect team exposure or assignment, not necessarily better pressing. A high pass count can reflect team possession, not automatically superior availability.
 
 FM24's own manual explains that positional comfort affects performance and that a player can be used outside a natural position when their attributes and tactical structure support it. The current V2 export foundation preserves the position string, but it does not yet model FM's full 1–20 positional competence ratings. Out-of-position candidates must therefore be tagged for review, not silently treated as normal role fits. [Football Manager 2024 Players manual](https://community.sports-interactive.com/sigames-manual/football-manager-2024/players-r4958/)
 

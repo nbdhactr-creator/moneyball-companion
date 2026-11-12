@@ -208,6 +208,22 @@ test("missing aerial evidence never reduces a DoF role evaluation", () => {
   assert.equal(evaluation.score, core);
 });
 
+test("custom philosophy weights change the role-specific philosophy profile without changing role fit", () => {
+  const players = Array.from({ length: 14 }, (_, index) => defender(index));
+  const scorer = createFm24Scorer(players);
+  const player = scorer.players[5];
+  const role = scorer.roles.find((entry) => entry.id === "cd-DC-D");
+  assert.ok(role);
+  const core = scorer.scoreRole(player, role).score;
+  const base = scorer.scorePhilosophy(player, role);
+  const custom = scorer.scorePhilosophy(player, role, [0, 0, 3, 0, 0, 0]);
+  assert.notEqual(base.score, null);
+  assert.notEqual(custom.score, null);
+  assert.equal(custom.profile, "custom");
+  assert.notEqual(custom.principles[0].weight, base.principles[0].weight);
+  assert.equal(scorer.scoreRole(player, role).score, core);
+});
+
 test("optional sample shrinkage pulls low-minute DoF scores toward the median", () => {
   const players = Array.from({ length: 30 }, (_, index) =>
     defender(index, { Mins: index < 26 ? "2400" : "600" }));
@@ -221,4 +237,22 @@ test("optional sample shrinkage pulls low-minute DoF scores toward the median", 
   assert.notEqual(dof.score, null);
   assert.equal(dof.sampleAdjusted, true);
   assert.ok(Math.abs(dof.displayScore - 50) < Math.abs(dof.score - 50));
+});
+
+test("custom philosophy weights remain specific to the V1 role-type and duty key", () => {
+  const players = Array.from({ length: 14 }, (_, index) => defender(index));
+  const scorer = createFm24Scorer(players, {
+    philosophyWeightsByRoleDuty: {
+      "cd|D": [3, 0, 0, 0, 0, 0],
+      "cd|C": [0, 0, 3, 0, 0, 0],
+    },
+  });
+  const player = scorer.players[5];
+  const defend = scorer.roles.find((entry) => entry.id === "cd-DC-D");
+  const cover = scorer.roles.find((entry) => entry.id === "cd-DC-C");
+  assert.ok(defend && cover);
+  assert.equal(scorer.scorePhilosophy(player, defend).principles[0].weight, 3);
+  assert.equal(scorer.scorePhilosophy(player, defend).principles[2].weight, 0);
+  assert.equal(scorer.scorePhilosophy(player, cover).principles[0].weight, 0);
+  assert.equal(scorer.scorePhilosophy(player, cover).principles[2].weight, 3);
 });

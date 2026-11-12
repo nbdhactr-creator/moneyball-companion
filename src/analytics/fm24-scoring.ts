@@ -334,7 +334,7 @@ export interface Fm24ScoringOptions {
   poolMinimumMinutes?: number;
   seasonProgress?: 0.25 | 0.5 | 0.75 | 1;
   leagueFactors?: Record<string, number>;
-  philosophyWeightsByRoleType?: Record<string, number[]>;
+  philosophyWeightsByRoleDuty?: Record<string, number[]>;
   philosophyMetricCoverage?: number;
   minimumScoreCoverage?: number;
   shrinkSmallSamples?: boolean;
@@ -425,7 +425,7 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
     const role = typeof roleOrId === "string" ? ROLE_CATALOG.find((item) => item.id === roleOrId) : roleOrId;
     if (!role) throw new Error("Unknown FM24 role/duty identifier.");
     if (!isInStrata(player, role.strata)) return { score: null, coverage: 0, availableWeight: 0, totalWeight: 0, principles: [], profile: customWeights ? "custom" : "v1-baseline" };
-    const baseWeights = options.philosophyWeightsByRoleType?.[role.type] ?? FM24_PHILOSOPHY_BASE_WEIGHTS[role.type as keyof typeof FM24_PHILOSOPHY_BASE_WEIGHTS] ?? [2, 2, 2, 2, 1, 2];
+    const baseWeights = options.philosophyWeightsByRoleDuty?.[role.type + "|" + role.duty] ?? FM24_PHILOSOPHY_BASE_WEIGHTS[role.type as keyof typeof FM24_PHILOSOPHY_BASE_WEIGHTS] ?? [2, 2, 2, 2, 1, 2];
     const weights = customWeights ?? [...baseWeights];
     if (weights.length !== PRINCIPLES.length || weights.some((weight) => !Number.isFinite(weight) || weight < 0 || weight > 3)) {
       throw new Error("Philosophy weights must contain six values from 0 to 3.");
