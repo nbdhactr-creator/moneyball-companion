@@ -6,7 +6,7 @@
 - **Scouting integration implemented:** select an FM24 role/duty and one of nine V1 philosophy templates; calculate the full selected season in a Web Worker; show Core Role Fit, DoF Role Evaluation, Philosophy Fit, Tactical Fit, confidence, role-family evidence and six principle breakdowns.
 - **Source baseline recovered:** Recruitment Lab V1's actual role, philosophy, template and DoF candidate-ranking logic were inspected from its `recruitment-lab/custom-build` branch.
 - **Merged:** PR #14, merge commit 13d563a1dbe48db4f0f4c078d1053c799e99a7ab. The Planning workspace ranks FM24 candidates against a selected current-club starter and exposes Best Role Fits, Upgrades, Value Options, Squad Depth and Young Targets. It preserves the V1 role-led default, uses Philosophy Score as a separate threshold/tie-breaker, and offers an explicit balanced Tactical Fit mode.
-- **Verification:** 56/56 automated tests passed and the TypeScript/Vite production build passed on the final PR head (run #43315777486). The production Pages deployment for the merge commit was cancelled by overlapping PR workflows; a separate workflow fix is being prepared. The existing live site has not yet been verified with the new DoF release.
+- **Verification and deployment:** 56/56 automated tests passed and the TypeScript/Vite production build passed on the final PR head (run #43315777486). PR #16 separated pull-request checks from production Pages deployment. Main commit 3a2caa9a51511d4abcf606a6859e4d77de1b411d deployed successfully in run #43316162142. Independent visual/browser verification is still pending.
 
 ## Scope and terminology
 
