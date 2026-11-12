@@ -13,14 +13,20 @@ export interface SavedPlayerSearch {
   id: string; name: string; datasetId: string; query: string; logic: "and" | "or";
   filters: ScoutingFilterCondition[]; columns: string[]; sortField: string; sortDirection: "asc" | "desc"; updatedAt: string;
 }
+export interface ScoutingAnalysisSettings {
+  roleId: string;
+  philosophyTemplate: "" | "possession" | "counter" | "direct" | "balanced" | "lowblock" | "wing" | "positional" | "press" | "physical";
+  roleWeight: number;
+}
 export interface ScoutingWorkspaceState {
   savedSearches: SavedPlayerSearch[];
   players: Record<string, PlayerScoutingState>;
   columnsByDataset: Record<string, string[]>;
+  analysis?: ScoutingAnalysisSettings;
 }
 export interface ScoutingSearchResult { players: PlayerSeasonRecord[]; total: number; fields: string[]; }
 export function emptyScoutingWorkspaceState(): ScoutingWorkspaceState {
-  return { savedSearches: [], players: {}, columnsByDataset: {} };
+  return { savedSearches: [], players: {}, columnsByDataset: {}, analysis: { roleId: "", philosophyTemplate: "", roleWeight: 0.7 } };
 }
 
 export interface SaveRecord {
@@ -543,6 +549,24 @@ export async function searchScoutingPlayers(input: {
   } catch (error) {
     throw databaseError(error);
   } finally { db.close(); }
+}
+
+/** Reads every row in one committed season. Used by the scoring Web Worker to build position-specific reference pools. */
+export async function getDatasetPlayers(datasetId: string): Promise<PlayerSeasonRecord[]> {
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("playerRecords", "readonly");
+    const done = transactionDone(transaction);
+    const records = await requestResult(
+      transaction.objectStore("playerRecords").index("datasetId").getAll(datasetId) as IDBRequest<PlayerSeasonRecord[]>,
+    );
+    await done;
+    return records;
+  } catch (error) {
+    throw databaseError(error);
+  } finally {
+    db.close();
+  }
 }
 
 export async function getScoutingWorkspaceState(saveId: string): Promise<ScoutingWorkspaceState> {
