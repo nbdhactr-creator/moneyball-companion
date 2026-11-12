@@ -126,7 +126,7 @@ async function runScoring(render: () => void): Promise<void> {
     };
     const selectedRole = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((role) => role.id === settings.roleId);
     const customPhilosophyWeights = selectedRole
-      ? settings.customPhilosophyWeightsByRoleType?.[selectedRole.type]
+      ? settings.customPhilosophyWeightsByRole?.[selectedRole.type + "|" + selectedRole.duty]
       : undefined;
     worker.postMessage({
       requestId, datasetId, roleId: settings.roleId,
@@ -198,11 +198,11 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
   const philosophyOptions = Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([key, template]) =>
     '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
   const selectedRole = roles.find((role) => role.id === analysis.roleId) as (typeof roles[number] & { type?: string }) | undefined;
-  const roleType = selectedRole?.type ?? "";
+  const roleKey = selectedRole ? selectedRole.type + "|" + selectedRole.duty : "";
   const templateWeights = selectedRole && analysis.philosophyTemplate
     ? philosophyWeightsForRole(selectedRole as never, analysis.philosophyTemplate)
     : [];
-  const currentWeights = analysis.customPhilosophyWeightsByRoleType?.[roleType] ?? templateWeights;
+  const currentWeights = analysis.customPhilosophyWeightsByRole?.[roleKey] ?? templateWeights;
   const philosophyWeightControls = selectedRole && analysis.philosophyTemplate
     ? '<section class="scouting-philosophy-editor"><div class="scouting-philosophy-heading"><div><strong>Philosophy profile weights</strong><p>Adjust the six principles for this role family. 0 disables a principle; 3 gives it the strongest emphasis.</p></div><button type="button" class="text-button" data-reset-philosophy>Reset to template</button></div><div class="scouting-philosophy-sliders">' +
       FM24_PHILOSOPHY_PRINCIPLES.map((principle, index) => '<label><span>' + esc(principle.name) + '</span><input type="range" min="0" max="3" step="0.5" value="' + (currentWeights[index] ?? 0) + '" data-philosophy-weight="' + index + '"><output>' + (currentWeights[index] ?? 0) + '</output></label>').join("") +
@@ -433,7 +433,7 @@ export function renderPlanningWorkspace(save: SaveWithDatasets | undefined): str
     '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
   const selectedRole = roles.find((role) => role.id === analysis.roleId);
   const weights = selectedRole && analysis.philosophyTemplate
-    ? analysis.customPhilosophyWeightsByRoleType?.[selectedRole.type] ?? philosophyWeightsForRole(selectedRole as never, analysis.philosophyTemplate)
+    ? analysis.customPhilosophyWeightsByRole?.[selectedRole.type + "|" + selectedRole.duty] ?? philosophyWeightsForRole(selectedRole as never, analysis.philosophyTemplate)
     : [];
   const philosophyControls = selectedRole && analysis.philosophyTemplate
     ? '<div class="scouting-philosophy-editor"><div class="scouting-philosophy-heading"><div><strong>Philosophy weights</strong><p>Custom weights apply to this role family and are saved with the career.</p></div><button type="button" class="text-button" data-reset-philosophy>Reset to template</button></div><div class="scouting-philosophy-sliders">' +
@@ -507,9 +507,9 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
   if (target.matches("[data-reset-philosophy]")) {
     const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === analysisSettings().roleId);
     if (role) {
-      const custom = { ...(analysisSettings().customPhilosophyWeightsByRoleType ?? {}) };
-      delete custom[role.type];
-      state.analysis = { ...analysisSettings(), customPhilosophyWeightsByRoleType: custom };
+      const custom = { ...(analysisSettings().customPhilosophyWeightsByRole ?? {}) };
+      delete custom[role.type + "|" + role.duty];
+      state.analysis = { ...analysisSettings(), customPhilosophyWeightsByRole: custom };
       await updateScoutingWorkspaceState(saveId, state);
       await runScoring(render);
     }
@@ -536,9 +536,9 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
   if (target instanceof HTMLSelectElement && target.matches("[data-planning-philosophy]")) {
     const current = analysisSettings();
     const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
-    const custom = { ...(current.customPhilosophyWeightsByRoleType ?? {}) };
-    if (role) delete custom[role.type];
-    state.analysis = { ...current, philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"], customPhilosophyWeightsByRoleType: custom };
+    const custom = { ...(current.customPhilosophyWeightsByRole ?? {}) };
+    if (role) delete custom[role.type + "|" + role.duty];
+    state.analysis = { ...current, philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"], customPhilosophyWeightsByRole: custom };
     await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-planning-starter]")) {
@@ -573,9 +573,9 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-philosophy]")) {
     const current = analysisSettings();
     const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
-    const custom = { ...(current.customPhilosophyWeightsByRoleType ?? {}) };
-    if (role) delete custom[role.type];
-    state.analysis = { ...current, philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"], customPhilosophyWeightsByRoleType: custom };
+    const custom = { ...(current.customPhilosophyWeightsByRole ?? {}) };
+    if (role) delete custom[role.type + "|" + role.duty];
+    state.analysis = { ...current, philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"], customPhilosophyWeightsByRole: custom };
     await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-role-weight]")) {
@@ -598,7 +598,7 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
     const current = analysisSettings();
     const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
     if (!role || !current.philosophyTemplate) return true;
-    const base = current.customPhilosophyWeightsByRoleType?.[role.type] ??
+    const base = current.customPhilosophyWeightsByRole?.[role.type + "|" + role.duty] ??
       philosophyWeightsForRole(role as never, current.philosophyTemplate);
     const weights = [...base];
     const index = Number(target.dataset.philosophyWeight);
@@ -606,7 +606,7 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
     weights[index] = Math.max(0, Math.min(3, Number(target.value)));
     state.analysis = {
       ...current,
-      customPhilosophyWeightsByRoleType: { ...(current.customPhilosophyWeightsByRoleType ?? {}), [role.type]: weights },
+      customPhilosophyWeightsByRole: { ...(current.customPhilosophyWeightsByRole ?? {}), [role.type + "|" + role.duty]: weights },
     };
     await updateScoutingWorkspaceState(saveId, state);
     await runScoring(render);
