@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import "fake-indexeddb/auto";
 import {
@@ -44,7 +45,7 @@ function importInput(saveId, overrides = {}) {
 async function readAllStores() {
   const db = await openLocalDatabase();
   try {
-    const transaction = db.transaction(["saves", "datasets", "importJobs", "playerRecords"], "readonly");
+    const transaction = db.transaction(["saves", "datasets", "importJobs", "playerRecords", "playerIdentities"], "readonly");
     const read = (store) => new Promise((resolve, reject) => {
       const request = transaction.objectStore(store).getAll();
       request.onsuccess = () => resolve(request.result);
@@ -55,6 +56,7 @@ async function readAllStores() {
       read("datasets"),
       read("importJobs"),
       read("playerRecords"),
+      read("playerIdentities"),
     ]);
   } finally {
     db.close();
@@ -82,9 +84,11 @@ test("exports a complete career backup and restores it as a separate career", as
   const backupText = await createSaveBackup(original.id);
   const backup = JSON.parse(backupText);
   assert.equal(backup.format, "moneyball-companion-save-backup");
-  assert.equal(backup.version, 1);
+  assert.equal(backup.version, 2);
   assert.equal(backup.manifest.datasetCount, 2);
   assert.equal(backup.manifest.playerRecordCount, 3);
+  assert.equal(backup.manifest.identityCount, 2);
+  assert.equal(backup.playerIdentities.length, 2);
   assert.equal(backup.datasets.every((dataset) => dataset.saveId === original.id), true);
 
   const restored = await restoreSaveBackup(backup);
@@ -101,13 +105,16 @@ test("exports a complete career backup and restores it as a separate career", as
     ["2025/26", "2026/27"],
   );
 
-  const [saves, datasets, jobs, players] = await readAllStores();
+  const [saves, datasets, jobs, players, identities] = await readAllStores();
   assert.equal(saves.length, 3);
   const restoredDatasetIds = new Set(restoredEntry.datasets.map((dataset) => dataset.id));
   const restoredPlayers = players.filter((player) => player.saveId === restored.id);
   const restoredJobs = jobs.filter((job) => job.saveId === restored.id);
   assert.equal(restoredPlayers.length, 3);
   assert.equal(restoredJobs.length, 2);
+  const restoredIdentities = identities.filter((identity) => identity.saveId === restored.id);
+  assert.equal(restoredIdentities.length, 2);
+  assert.deepEqual(restoredIdentities.map((identity) => identity.uid).sort(), ["7001", "7002"]);
   assert.equal(restoredPlayers.every((player) => restoredDatasetIds.has(player.datasetId)), true);
   assert.equal(restoredPlayers.every((player) => restoredJobs.some((job) =>
     job.id === player.importJobId && job.datasetId === player.datasetId)), true);
@@ -188,15 +195,53 @@ test("upgrades an existing version 1 database without dropping player records", 
 
   const db = await openLocalDatabase();
   try {
-    assert.equal(db.version, 2);
-    const store = db.transaction("playerRecords", "readonly").objectStore("playerRecords");
+    assert.equal(db.version, 3);
+    const store = db.transaction(["playerRecords", "playerIdentities"], "readonly").objectStore("playerRecords");
     assert.equal(store.indexNames.contains("saveId"), true);
+    assert.equal(store.indexNames.contains("datasetName"), true);
     const player = await new Promise((resolve, reject) => {
       const request = store.get("legacy-dataset:7100");
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
     assert.equal(player.displayName, "Legacy Player");
+    assert.equal(player.normalizedName, "legacy player");
+    const identityStore = db.transaction("playerIdentities", "readonly").objectStore("playerIdentities");
+    const identity = await new Promise((resolve, reject) => {
+      const request = identityStore.get("legacy-save:7100");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    assert.deepEqual(identity, { id: "legacy-save:7100", saveId: "legacy-save", uid: "7100" });
+  } finally {
+    db.close();
+  }
+});
+
+test("restores legacy version 1 backups by deriving player identities", async () => {
+  await resetDatabase();
+  const save = await createSave("Legacy Backup");
+  await persistSeasonImport(importInput(save.id));
+  const current = JSON.parse(await createSaveBackup(save.id));
+  const legacy = { ...current, version: 1, manifest: {
+    datasetCount: current.manifest.datasetCount,
+    playerRecordCount: current.manifest.playerRecordCount,
+    importJobCount: current.manifest.importJobCount,
+  } };
+  delete legacy.playerIdentities;
+  delete legacy.checksum;
+  legacy.checksum = createHash("sha256").update(JSON.stringify(legacy)).digest("hex");
+
+  const restored = await restoreSaveBackup(legacy);
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("playerIdentities", "readonly");
+    const identities = await new Promise((resolve, reject) => {
+      const request = transaction.objectStore("playerIdentities").index("saveId").getAll(restored.id);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    assert.deepEqual(identities.map((identity) => identity.uid), ["7001"]);
   } finally {
     db.close();
   }
