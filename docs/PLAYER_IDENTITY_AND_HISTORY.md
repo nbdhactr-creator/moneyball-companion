@@ -59,7 +59,7 @@ The first Squad workflow:
 - Compares the two most recently imported season snapshots using original source fields.
 - Shows a single-season raw field view if the career contains only one season.
 
-The comparison currently uses import order, not inferred football chronology. Users should import seasons in chronological order for the default comparison to read as previous/latest. A future explicit season-order field can remove this assumption.
+The default comparison uses import order, not inferred football chronology. Users should import seasons in chronological order for the default pair to read as previous/latest; the selectors allow choosing a different pair when needed. A future explicit season-order field can remove this assumption.
 
 ## Backup compatibility
 
