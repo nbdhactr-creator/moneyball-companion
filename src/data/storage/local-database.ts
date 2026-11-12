@@ -17,6 +17,8 @@ export interface ScoutingAnalysisSettings {
   roleId: string;
   philosophyTemplate: "" | "possession" | "counter" | "direct" | "balanced" | "lowblock" | "wing" | "positional" | "press" | "physical";
   roleWeight: number;
+  customPhilosophyWeightsByRoleType?: Record<string, number[]>;
+  dof?: { budgetMillions: number; wageThousands: number; philosophyThreshold: number | null; requireKnownValue: boolean };
 }
 export interface ScoutingWorkspaceState {
   savedSearches: SavedPlayerSearch[];
