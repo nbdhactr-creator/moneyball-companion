@@ -221,3 +221,52 @@ The differentiators should be:
 - SortitoutSI Save Explorer: https://sortitoutsi.net/content/77841/new-fm-scouting-tool-access-your-save-from-anywhere
 - Genie Scout features: https://geniescout.com/features/
 - Genie Scout: https://geniescout.com/
+
+
+## 8. Additional community evidence checked on 13 November 2026
+
+A second targeted review was used to test whether the earlier themes were supported by more specific user reports. These examples add detail; they do not turn the research into a representative survey.
+
+### Search flexibility and result correctness
+
+- An FM24 forum user reported that the revised search conditions made OR-style combinations of attribute and contract conditions difficult or impossible to express in the way they expected. Replies also described the interface as less flexible and unintuitive. This supports a deliberate filter builder with explicit AND/OR groups rather than hidden or inconsistent condition behaviour.
+  - https://community.sports-interactive.com/forums/topic/583943-why-cant-we-add-certain-filters-to-additional-conditions-in-player-searches/
+- An FM26 Reddit report described a player database returning a subset of the full database and contract-expiry filters returning incomplete or unexpected results. This is a version-specific report, but it reinforces the need for transparent result counts and testable filter semantics.
+  - https://www.reddit.com/r/footballmanagergames/comments/1ohvr2w
+- SI community reports also describe age, attribute and contract filters returning incorrect results or behaving inconsistently.
+  - https://community.sports-interactive.com/bugtracker/previous-versions/1644_football-manager-26-bugs-tracker/1883_transfer-scouting-contracts-intermediaries/search-filter-not-working-in-player-database-r30672/
+  - https://community.sports-interactive.com/bugtracker/previous-versions/1644_football-manager-26-bugs-tracker/user-interface/2166_advanced-access-betas-ui-issues/2077_recruitment-ui-issues/filter-by-attributes-doesnt-work-on-player-database-r35266/
+
+**Product decision:** Filter results must be deterministic and unit-tested. Show the active conditions and matched/total counts. Provide a one-action reset. Filters should support grouped AND/OR logic where the underlying data permits it. Never silently cap results or discard rows during sorting.
+
+### Comparison access and selection
+
+- SI bug reports describe comparison being restricted to a manager's squad or shortlist, and users asking for sorting/filtering when selecting from large shortlists.
+  - https://community.sports-interactive.com/bugtracker/previous-versions/1644_football-manager-26-bugs-tracker/1883_transfer-scouting-contracts-intermediaries/comparison-tool-issue-r25637/
+  - https://community.sports-interactive.com/bugtracker/previous-versions/1644_football-manager-26-bugs-tracker/1883_transfer-scouting-contracts-intermediaries/comparison-issue-r31245/
+- The SI community's FM26 UX issue list also records saved-view reliability, shortlist refresh problems, missing player history and difficult search navigation.
+  - https://community.sports-interactive.com/forums/topic/598916-fm26-comprehensive-bug-missing-features-uiux-issues-megalist-updated/
+
+**Product decision:** Candidate comparison should be independent of in-game shortlist membership. Select candidates from any loaded dataset, search within the selection dialog, and compare with role-relevant metrics plus a raw evidence table.
+
+### Scouting workload and organisation
+
+- Reddit users describe being overwhelmed by dozens of recommendations and unsure how to organise shortlists, report grades, scout duration and discard decisions.
+  - https://www.reddit.com/r/footballmanagergames/comments/1ok7muq
+- Another discussion describes the difficulty of building a proactive shortlist before transfer windows when budgets and squad exits are uncertain.
+  - https://www.reddit.com/r/footballmanagergames/comments/1th72u0
+
+**Product decision:** Shortlists need meaningful states, tags, notes, next-review dates and filters. A recruitment plan should connect future squad exits and positional needs to saved candidate searches rather than merely accumulating names.
+
+### Research-to-build mapping
+
+| Community pain signal | Product response |
+|---|---|
+| Filters are inflexible or return confusing results | Explicit filter groups, stable result counts, deterministic tests |
+| Comparison is limited to a squad/shortlist | Dataset-wide candidate selection and role-aware comparisons |
+| Saved views and shortlist state are unreliable | Local persistence and explicit saved-search/decision records |
+| Scouting volume becomes overwhelming | Persistent shortlist states, tags, notes and review workflow |
+| Season planning is difficult | Career containers, immutable season datasets and player history |
+| Large datasets make workflows slow | Worker processing, IndexedDB indexes and measured table rendering |
+
+These findings reinforce the previously documented product direction. They do not justify importing hidden attributes, CA/PA, or any field absent from the user's export.
