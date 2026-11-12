@@ -114,7 +114,9 @@ function decodeHtmlText(value: string): string {
  * where browser DOMParser is not available. Markup is treated only as data.
  */
 function parseFm24HtmlExport(source: string): Fm24ParseResult {
-  const tableRows: Array<{ cells: string[]; line: number }> = [];
+  const tables: Array<Array<{ cells: string[]; line: number }>> = [];
+  let activeTableRows: Array<{ cells: string[]; line: number }> | null = null;
+  let tableDepth = 0;
   let currentRow: { cells: string[]; line: number } | null = null;
   let currentCell = "";
   let inCell = false;
@@ -146,18 +148,33 @@ function parseFm24HtmlExport(source: string): Fm24ParseResult {
     }
     if (ignoredTagDepth > 0) continue;
 
-    if (tag === "tr") {
+    if (tag === "table") {
       if (closing) {
-        if (currentRow) tableRows.push(currentRow);
+        tableDepth = Math.max(0, tableDepth - 1);
+        if (tableDepth === 0 && activeTableRows) {
+          if (currentRow) activeTableRows.push(currentRow);
+          currentRow = null;
+          tables.push(activeTableRows);
+          activeTableRows = null;
+        }
+      } else {
+        if (tableDepth === 0) activeTableRows = [];
+        tableDepth += 1;
+      }
+      continue;
+    }
+    if (tag === "tr" && tableDepth > 0) {
+      if (closing) {
+        if (currentRow && activeTableRows) activeTableRows.push(currentRow);
         currentRow = null;
         inCell = false;
       } else {
-        if (currentRow) tableRows.push(currentRow);
+        if (currentRow && activeTableRows) activeTableRows.push(currentRow);
         currentRow = { cells: [], line };
       }
       continue;
     }
-    if (tag === "td" || tag === "th") {
+    if ((tag === "td" || tag === "th") && tableDepth > 0) {
       if (closing) {
         if (currentRow && inCell) currentRow.cells.push(currentCell.replace(/\s+/g, " ").trim());
         currentCell = "";
