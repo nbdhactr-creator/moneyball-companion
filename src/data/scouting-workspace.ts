@@ -4,7 +4,7 @@ import {
   type PlayerScoutingState, type ShortlistStatus, type SavedPlayerSearch,
 } from "./storage/local-database";
 import { FM24_ROLES, FM24_STRATA } from "../analytics/fm24-role-catalog";
-import { FM24_PHILOSOPHY_TEMPLATES } from "../analytics/fm24-scoring";
+import { FM24_PHILOSOPHY_TEMPLATES, FM24_PHILOSOPHY_PRINCIPLES, philosophyWeightsForRole } from "../analytics/fm24-scoring";
 
 let saveId = "";
 let state: ScoutingWorkspaceState = emptyScoutingWorkspaceState();
@@ -25,6 +25,7 @@ interface PlayerFitSummary {
   aerialScore: number | null; aerialAdjustmentApplied: boolean; roleCoverage: number;
   confidence: "low" | "medium" | "high"; philosophyScore: number | null;
   philosophyCoverage: number; principleScores: Array<number | null>;
+  principleEvidence: Array<{ id: string; name: string; weight: number; score: number | null; metricCoverage: number; metrics: Array<{ metric: string; rawValue: number | null; percentile: number | null; available: boolean; reason?: string }> }>;
   roleFamilies: Array<{ family: string; score: number | null; weight: number; available: boolean }>;
   tacticalFit: number | null;
 }
@@ -115,10 +116,15 @@ async function runScoring(render: () => void): Promise<void> {
       scoringStatus = "error"; scoringMessage = "The scoring worker stopped unexpectedly. Your imported data is unchanged.";
       worker.terminate(); if (scoringWorker === worker) scoringWorker = null; render();
     };
+    const selectedRole = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((role) => role.id === settings.roleId);
+    const customPhilosophyWeights = selectedRole
+      ? settings.customPhilosophyWeightsByRoleType?.[selectedRole.type]
+      : undefined;
     worker.postMessage({
       requestId, datasetId, roleId: settings.roleId,
       philosophyTemplate: settings.philosophyTemplate,
       roleWeight: settings.roleWeight,
+      customPhilosophyWeights,
     });
   } catch (error) {
     scoringStatus = "error";
@@ -181,6 +187,17 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '</optgroup>').join("");
   const philosophyOptions = Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([key, template]) =>
     '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
+  const selectedRole = roles.find((role) => role.id === analysis.roleId) as (typeof roles[number] & { type?: string }) | undefined;
+  const roleType = selectedRole?.type ?? "";
+  const templateWeights = selectedRole && analysis.philosophyTemplate
+    ? philosophyWeightsForRole(selectedRole as never, analysis.philosophyTemplate)
+    : [];
+  const currentWeights = analysis.customPhilosophyWeightsByRoleType?.[roleType] ?? templateWeights;
+  const philosophyWeightControls = selectedRole && analysis.philosophyTemplate
+    ? '<section class="scouting-philosophy-editor"><div class="scouting-philosophy-heading"><div><strong>Philosophy profile weights</strong><p>Adjust the six principles for this role family. 0 disables a principle; 3 gives it the strongest emphasis.</p></div><button type="button" class="text-button" data-reset-philosophy>Reset to template</button></div><div class="scouting-philosophy-sliders">' +
+      FM24_PHILOSOPHY_PRINCIPLES.map((principle, index) => '<label><span>' + esc(principle.name) + '</span><input type="range" min="0" max="3" step="0.5" value="' + (currentWeights[index] ?? 0) + '" data-philosophy-weight="' + index + '"><output>' + (currentWeights[index] ?? 0) + '</output></label>').join("") +
+      '</div></section>'
+    : '';
   const sortFields = [...fieldList, "roleScore", "dofEvaluationScore", "philosophyScore", "tacticalFit"];
   const datasetOptions = save.datasets.map((entry) => '<option value="' + esc(entry.id) + '"' + (entry.id === datasetId ? " selected" : "") + '>' + esc(entry.seasonLabel) + ' · ' + entry.playerCount.toLocaleString() + ' players</option>').join("");
   const filterRows = filters.map((filter) => {
@@ -207,8 +224,9 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     const philosophyCell = scoreCell(fit?.philosophyScore, fit ? 'Philosophy evidence: ' + Math.round(fit.philosophyCoverage * 100) + '% coverage' : 'Philosophy score not calculated');
     const tacticalCell = scoreCell(fit?.tacticalFit, 'Combined tactical fit uses DoF role evaluation and philosophy fit; both require sufficient evidence');
     const principleDetails = fit?.principleScores.length
-      ? '<details class="scouting-fit-details"><summary>Philosophy principles</summary><div>' +
-        fit.principleScores.map((score, index) => '<span>' + esc(["Keep the ball", "Availability", "Progression", "Regains", "Front-foot defending", "Intensity"][index]) + ': <b>' + (score == null ? '—' : score) + '</b></span>').join("") +
+      ? '<details class="scouting-fit-details"><summary>Philosophy principles and evidence</summary><div>' +
+        fit.principleEvidence.map((principle) => '<section><span>' + esc(principle.name) + ' · weight ' + principle.weight + ': <b>' + (principle.score == null ? 'Insufficient evidence' : principle.score) + '</b></span>' +
+          '<small>' + principle.metrics.map((metric) => esc(metric.metric) + ': ' + (metric.percentile == null ? '—' : Math.round(metric.percentile) + 'th pct')).join(' · ') + '</small></section>').join("") +
         '</div></details>'
       : '';
     const familyDetails = fit?.roleFamilies.length
@@ -228,6 +246,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-scouting-role><option value="">Choose a role…</option>' + roleOptions + '</select></label>' +
     '<label>Club philosophy<select data-scouting-philosophy><option value="">Choose a philosophy…</option>' + philosophyOptions + '</select></label>' +
     '<label>DoF role weight<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label></div>' +
+    + philosophyWeightControls +
     '<p class="scouting-score-note" data-scoring-status="' + scoringStatus + '">' + esc(scoringMessage || "Choose a role and philosophy to calculate player fit. Tactical Fit uses DoF Role Evaluation plus Philosophy Fit; its blend is a configurable starting point, not a universal formula. Scores use the full selected season as the comparison pool.") + '</p>' +
     '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>' +
     '<label class="scouting-query">Search players<input type="search" data-scouting-query value="' + esc(query) + '" placeholder="Name, club, position or source value"></label>' +
@@ -281,6 +300,17 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
     state.savedSearches = state.savedSearches.filter((entry) => entry.id !== id);
     await updateScoutingWorkspaceState(saveId, state); message = "Saved search deleted."; render(); return true;
   }
+  if (target.matches("[data-reset-philosophy]")) {
+    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === analysisSettings().roleId);
+    if (role) {
+      const custom = { ...(analysisSettings().customPhilosophyWeightsByRoleType ?? {}) };
+      delete custom[role.type];
+      state.analysis = { ...analysisSettings(), customPhilosophyWeightsByRoleType: custom };
+      await updateScoutingWorkspaceState(saveId, state);
+      await runScoring(render);
+    }
+    return true;
+  }
   if (target.dataset.savePlayerState) {
     const row = target.closest<HTMLElement>("[data-scouting-row]");
     if (!row) return true;
@@ -300,7 +330,11 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
     await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-philosophy]")) {
-    state.analysis = { ...analysisSettings(), philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"] };
+    const current = analysisSettings();
+    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
+    const custom = { ...(current.customPhilosophyWeightsByRoleType ?? {}) };
+    if (role) delete custom[role.type];
+    state.analysis = { ...current, philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"], customPhilosophyWeightsByRoleType: custom };
     await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-role-weight]")) {
@@ -313,6 +347,24 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
     }]));
     await updateScoutingWorkspaceState(saveId, state);
     if (sortField === "tacticalFit") await runSearch(render);
+    return true;
+  }
+  if (target instanceof HTMLInputElement && target.matches("[data-philosophy-weight]")) {
+    const current = analysisSettings();
+    const role = (FM24_ROLES as unknown as Array<{ id: string; type: string }>).find((entry) => entry.id === current.roleId);
+    if (!role || !current.philosophyTemplate) return true;
+    const base = current.customPhilosophyWeightsByRoleType?.[role.type] ??
+      philosophyWeightsForRole(role as never, current.philosophyTemplate);
+    const weights = [...base];
+    const index = Number(target.dataset.philosophyWeight);
+    if (index < 0 || index >= 6) return true;
+    weights[index] = Math.max(0, Math.min(3, Number(target.value)));
+    state.analysis = {
+      ...current,
+      customPhilosophyWeightsByRoleType: { ...(current.customPhilosophyWeightsByRoleType ?? {}), [role.type]: weights },
+    };
+    await updateScoutingWorkspaceState(saveId, state);
+    await runScoring(render);
     return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-dataset]")) {
