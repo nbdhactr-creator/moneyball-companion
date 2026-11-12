@@ -46,7 +46,7 @@ function fieldValue(player: PlayerSeasonRecord, field: string): string {
   return player.rawValues[field] ?? "";
 }
 function label(field: string): string {
-  return ({ name: "Player", position: "Position", club: "Club", uid: "FM UID", roleScore: "Role fit", philosophyScore: "Philosophy fit", tacticalFit: "Tactical fit" } as Record<string, string>)[field] ?? field;
+  return ({ name: "Player", position: "Position", club: "Club", uid: "FM UID", roleScore: "Role fit", dofEvaluationScore: "DoF role evaluation", philosophyScore: "Philosophy fit", tacticalFit: "Tactical fit" } as Record<string, string>)[field] ?? field;
 }
 function fields(): string[] {
   const output = new Set<string>(["name", "position", "club", "uid"]);
@@ -103,7 +103,7 @@ async function runScoring(render: () => void): Promise<void> {
           ((response.inferredMissingLeagues ?? 0) ? "; " + response.inferredMissingLeagues + " competition(s) contain inferred missing advanced data." : ".") +
           " Estimated season progress: " + Math.round((response.seasonProgress ?? 1) * 100) + "%; reference-pool minimum: " + (response.poolMinimumMinutes ?? 900).toLocaleString() + " minutes. Scores are relative to this season's eligible position groups.";
         worker.terminate(); if (scoringWorker === worker) scoringWorker = null;
-        if (["roleScore", "philosophyScore", "tacticalFit"].includes(sortField)) void runSearch(render);
+        if (["roleScore", "dofEvaluationScore", "philosophyScore", "tacticalFit"].includes(sortField)) void runSearch(render);
       } else if (response.phase === "error") {
         scoringStatus = "error"; scoringMessage = response.message ?? "Scoring failed.";
         worker.terminate(); if (scoringWorker === worker) scoringWorker = null;
@@ -181,7 +181,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '</optgroup>').join("");
   const philosophyOptions = Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([key, template]) =>
     '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
-  const sortFields = [...fieldList, "roleScore", "philosophyScore", "tacticalFit"];
+  const sortFields = [...fieldList, "roleScore", "dofEvaluationScore", "philosophyScore", "tacticalFit"];
   const datasetOptions = save.datasets.map((entry) => '<option value="' + esc(entry.id) + '"' + (entry.id === datasetId ? " selected" : "") + '>' + esc(entry.seasonLabel) + ' · ' + entry.playerCount.toLocaleString() + ' players</option>').join("");
   const filterRows = filters.map((filter) => {
     const operators = [["contains","contains"],["equals","equals"],["gt","greater than"],["gte","at least"],["lt","less than"],["lte","at most"],["is-empty","is empty"],["is-not-empty","is not empty"]];
