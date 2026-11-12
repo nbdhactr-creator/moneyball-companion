@@ -305,5 +305,7 @@ test("sorts all matching Squad search results before limiting the visible page",
   const byAge = await searchPlayersInDataset(dataset.id, "alex", 2, "Age", "asc");
   assert.deepEqual(byAge.map((player) => player.uid), ["8302", "8303"]);
   const byClub = await searchPlayersInDataset(dataset.id, "alex", 4, "club", "desc");
-  assert.deepEqual(byClub.map((player) => player.uid), ["8301", "8303", "8304", "8302"]);
+  assert.deepEqual(byClub.map((player) => player.uid), ["8301", "8304", "8303", "8302"]);
+  const byAgeDescending = await searchPlayersInDataset(dataset.id, "alex", 4, "Age", "desc");
+  assert.deepEqual(byAgeDescending.map((player) => player.uid), ["8301", "8303", "8302", "8304"]);
 });
