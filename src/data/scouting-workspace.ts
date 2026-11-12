@@ -406,7 +406,8 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
         : Math.round(fit.dofEvaluationScore * state.analysis!.roleWeight + fit.philosophyScore * (1 - state.analysis!.roleWeight)),
     }]));
     await updateScoutingWorkspaceState(saveId, state);
-    if (sortField === "tacticalFit") await runSearch(render);
+    if (sortField === "tacticalFit") { page = 1; await runSearch(render); }
+    else render();
     return true;
   }
   if (target instanceof HTMLInputElement && target.matches("[data-scouting-shrink]")) {
@@ -414,19 +415,41 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
     await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-dataset]")) {
-    datasetId = target.value; filters = []; query = ""; await runSearch(render); await runScoring(render); return true;
+    datasetId = target.value; filterGroups = [{ id: crypto.randomUUID(), logic: "and", filters: [] }];
+    groupLogic = "and"; query = ""; page = 1; selectedUids.clear();
+    await runSearch(render); await runScoring(render); return true;
   }
-  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-logic]")) { logic = target.value as "and" | "or"; return true; }
-  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-sort]")) { sortField = target.value; await runSearch(render); return true; }
-  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-direction]")) { sortDirection = target.value as "asc" | "desc"; await runSearch(render); return true; }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-group-logic]")) {
+    groupLogic = target.value as "and" | "or"; return true;
+  }
+  if (target instanceof HTMLSelectElement && target.dataset.filterGroupLogic) {
+    filterGroups = filterGroups.map((group) => group.id === target.dataset.filterGroupLogic
+      ? { ...group, logic: target.value as "and" | "or" } : group);
+    return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-shortlist-status]")) {
+    shortlistStatusFilter = target.value as ShortlistStatus | "all-tracked"; page = 1;
+    await runSearch(render); return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-sort]")) {
+    sortField = target.value; page = 1; await runSearch(render); return true;
+  }
+  if (target instanceof HTMLSelectElement && target.matches("[data-scouting-direction]")) {
+    sortDirection = target.value as "asc" | "desc"; page = 1; await runSearch(render); return true;
+  }
   if (target instanceof HTMLSelectElement && target.dataset.filterField) {
-    filters = filters.map((entry) => entry.id === target.dataset.filterField ? { ...entry, field: target.value } : entry); return true;
+    updateFilter(target.dataset.filterField, { field: target.value }); return true;
   }
   if (target instanceof HTMLSelectElement && target.dataset.filterOperator) {
-    filters = filters.map((entry) => entry.id === target.dataset.filterOperator ? { ...entry, operator: target.value as ScoutingFilterCondition["operator"] } : entry); render(); return true;
+    updateFilter(target.dataset.filterOperator, { operator: target.value as ScoutingFilterCondition["operator"] });
+    render(); return true;
   }
   if (target instanceof HTMLInputElement && target.dataset.filterValue) {
-    filters = filters.map((entry) => entry.id === target.dataset.filterValue ? { ...entry, value: target.value } : entry); return true;
+    updateFilter(target.dataset.filterValue, { value: target.value }); return true;
+  }
+  if (target instanceof HTMLInputElement && target.matches("[data-scouting-select]")) {
+    if (target.checked) selectedUids.add(target.value); else selectedUids.delete(target.value);
+    render(); return true;
   }
   if (target instanceof HTMLInputElement && target.matches("[data-scouting-column]")) {
     const selected = [...document.querySelectorAll<HTMLInputElement>("[data-scouting-column]:checked")].map((input) => input.value);
