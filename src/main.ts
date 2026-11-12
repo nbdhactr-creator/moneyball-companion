@@ -173,8 +173,7 @@ function displayRawValue(value: string | undefined): string {
 }
 
 function playerProfileView(): string {
-  const selected = activeSave();
-  if (!selected || !selectedPlayerUid) return "";
+  if (!selectedPlayerUid) return "";
   const present = playerHistory.filter((entry) => entry.player);
   const latestPlayer = [...present].reverse()[0]?.player;
   if (!latestPlayer) return '<section class="content-card"><p>This player has no season records in the active career.</p><button class="secondary-button" data-player-back>Back to player search</button></section>';
@@ -286,7 +285,8 @@ async function openPlayerHistory(uid: string): Promise<void> {
     render();
   }
 }
-\nfunction saveLibraryView(): string {
+
+function saveLibraryView(): string {
   if (!saveLibrary.length) {
     return '<div class="empty-save-state">No saves yet. Create a save above to start organising your Football Manager seasons.</div>';
   }
