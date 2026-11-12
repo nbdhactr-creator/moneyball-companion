@@ -2,9 +2,9 @@
 
 ## Status
 - The original search, saved-search and decision workspace is implemented on `main` through PRs #10 and #11.
-- The FM24 role/philosophy scoring layer and its Scouting UI integration are implemented on the open feature PR `feature/fm24-role-philosophy-engine` (PR #12).
-- The new scoring integration is **not merged or deployed**. CI verification is being rerun against the latest feature-branch commit.
-- User browser testing remains pending.
+- The FM24 role/philosophy scoring layer and Scouting UI integration were merged through PR #12 into `main` (squash commit `ece5e6ce31a530f7626bb174f9537bb2d0a31af6`).
+- GitHub Actions build, 45 automated tests and TypeScript/Vite production build passed. The GitHub Pages deployment job also completed successfully (run #43314079346).
+- User browser testing and independent visual verification of the live page remain pending.
 
 ## Search behaviour
 - Search is restricted to one selected, committed season dataset in the active career.
@@ -13,7 +13,7 @@
 - Conditions combine with an explicit AND or OR mode.
 - Numeric comparisons require both values to be numeric. Blank and dash values are missing, not zero.
 - Sorting is deterministic and numeric where both values are numeric.
-- When calculated scores are available, results can also be sorted globally by Role Fit, Philosophy Fit or Tactical Fit before the 200-row page is returned.
+- When calculated scores are available, results can also be sorted globally by Core Role Fit, DoF Role Evaluation, Philosophy Fit or Tactical Fit before the 200-row page is returned.
 - Results are capped at 200 per query and the total match count is shown. Refine filters when the result set is larger; pagination is a follow-up.
 
 ## Saved views and columns
@@ -39,7 +39,7 @@ These decisions are user-authored and never alter the original imported player-s
 - Tactical Fit combines DoF Role Evaluation and Philosophy Fit. The default is 70/30; the UI offers 60/40 and 80/20 alternatives. This ratio is a transparent product choice, not a universal research result.
 - Both component scores remain visible. Tactical Fit is unavailable if either component lacks sufficient evidence; missing evidence is never converted to zero or a neutral 50.
 - The scoring worker reads the full selected dataset from IndexedDB and computes the reference pools off the main thread. It does not mutate imported player rows.
-- The candidate table shows core Role Fit, the V1-adjusted DoF Role Evaluation, Philosophy Fit, combined Tactical Fit, confidence/evidence status and the six principle scores. It can sort all matching records by calculated fit before applying the 200-row result cap.
+- The candidate table shows core Role Fit, the V1-adjusted DoF Role Evaluation, Philosophy Fit, combined Tactical Fit, confidence/evidence status, role-family evidence and the six philosophy principle scores. It can sort all matching records by calculated fit before applying the 200-row result cap.
 - Analysis settings are saved per career and are included in the existing career backup/restore path.
 
 ## Known limitations and next steps
