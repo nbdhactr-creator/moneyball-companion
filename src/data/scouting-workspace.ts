@@ -47,7 +47,7 @@ function columns(): string[] {
   return defaults.length ? defaults : ["name"];
 }
 function playerState(uid: string): PlayerScoutingState {
-  return state.players[uid] ?? { status: "watching", note: "", tags: [], reviewDate: "", updatedAt: "" };
+  return state.players[uid] ?? { status: "unreviewed", note: "", tags: [], reviewDate: "", updatedAt: "" };
 }
 async function runSearch(render: () => void): Promise<void> {
   if (!datasetId) return;
@@ -109,7 +109,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
       return '<td>' + (field === "name" ? '<button class="player-name-button" data-player-uid="' + esc(player.uid) + '">' + esc(value) + '</button>' : esc(value.trim() ? value : "—")) + '</td>';
     }).join("");
     return '<tr data-scouting-row="' + esc(player.uid) + '">' + cells + '<td><span class="scouting-status">' + esc(decision.status) + '</span><details class="scouting-player-details"><summary>Decision &amp; notes</summary><div class="scouting-player-editor">' +
-      '<label>Status<select data-player-status>' + [["watching","Watching"],["shortlist","Shortlist"],["reject","Reject"],["signed","Signed"],["revisit","Revisit"]].map((item) => '<option value="' + item[0] + '"' + (decision.status === item[0] ? " selected" : "") + '>' + item[1] + '</option>').join("") + '</select></label>' +
+      '<label>Status<select data-player-status>' + [["unreviewed","Unreviewed"],["watching","Watching"],["shortlist","Shortlist"],["reject","Reject"],["signed","Signed"],["revisit","Revisit"]].map((item) => '<option value="' + item[0] + '"' + (decision.status === item[0] ? " selected" : "") + '>' + item[1] + '</option>').join("") + '</select></label>' +
       '<label>Tags<input data-player-tags value="' + esc(decision.tags.join(", ")) + '" placeholder="e.g. pressing, value"></label>' +
       '<label>Next review<input data-player-review type="date" value="' + esc(decision.reviewDate) + '"></label>' +
       '<label>Notes<textarea data-player-note rows="2" maxlength="2000">' + esc(decision.note) + '</textarea></label>' +
@@ -176,7 +176,7 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
     const note = row.querySelector<HTMLTextAreaElement>("[data-player-note]")?.value ?? "";
     const tags = (row.querySelector<HTMLInputElement>("[data-player-tags]")?.value ?? "").split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 20);
     const reviewDate = row.querySelector<HTMLInputElement>("[data-player-review]")?.value ?? "";
-    state.players[target.dataset.savePlayerState] = { status: status ?? "watching", note, tags, reviewDate, updatedAt: new Date().toISOString() };
+    state.players[target.dataset.savePlayerState] = { status: status ?? "unreviewed", note, tags, reviewDate, updatedAt: new Date().toISOString() };
     await updateScoutingWorkspaceState(saveId, state); message = "Scouting decision saved to this career."; render(); return true;
   }
   return false;

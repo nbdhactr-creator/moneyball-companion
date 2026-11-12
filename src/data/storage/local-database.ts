@@ -7,7 +7,7 @@ const IMPORT_BATCH_SIZE = 400;
 
 export type ScoutingFilterOperator = "contains" | "equals" | "gt" | "gte" | "lt" | "lte" | "is-empty" | "is-not-empty";
 export interface ScoutingFilterCondition { id: string; field: string; operator: ScoutingFilterOperator; value: string; }
-export type ShortlistStatus = "watching" | "shortlist" | "reject" | "signed" | "revisit";
+export type ShortlistStatus = "unreviewed" | "watching" | "shortlist" | "reject" | "signed" | "revisit";
 export interface PlayerScoutingState { status: ShortlistStatus; note: string; tags: string[]; reviewDate: string; updatedAt: string; }
 export interface SavedPlayerSearch {
   id: string; name: string; datasetId: string; query: string; logic: "and" | "or";
