@@ -453,6 +453,50 @@ export function combineTacticalFit(
   };
 }
 
+
+export type Fm24PhilosophyTemplate = "possession" | "counter" | "direct" | "balanced" | "lowblock" | "wing" | "positional" | "press" | "physical";
+export const FM24_PHILOSOPHY_TEMPLATES: Record<Fm24PhilosophyTemplate, { name: string; description: string }> = {
+  possession: { name: "Possession", description: "Keep the ball, play through the lines and win it back early." },
+  counter: { name: "Counter-press", description: "Prioritise regains and repeat pressing actions." },
+  direct: { name: "Direct", description: "Prioritise forward threat, runners and physical output over patient circulation." },
+  balanced: { name: "Balanced", description: "Give equal importance to the principles relevant to each role." },
+  lowblock: { name: "Low block and counter", description: "Prioritise proactive defending and forward threat after regains." },
+  wing: { name: "Wing play", description: "Emphasise availability, progression and duel-winning in wide roles." },
+  positional: { name: "Positional play", description: "Prioritise secure circulation, availability and progression." },
+  press: { name: "High-intensity press", description: "Prioritise pressing, proactive defending and sustained intensity." },
+  physical: { name: "Physical", description: "Emphasise duels, regains and repeat physical output." },
+};
+
+export function philosophyWeightsForRole(
+  roleOrId: Fm24Role | string,
+  template: Fm24PhilosophyTemplate,
+): number[] {
+  const role = typeof roleOrId === "string" ? ROLE_CATALOG.find((item) => item.id === roleOrId) : roleOrId;
+  if (!role) throw new Error("Unknown FM24 role/duty identifier.");
+  const base = [...(FM24_PHILOSOPHY_BASE_WEIGHTS[role.type as keyof typeof FM24_PHILOSOPHY_BASE_WEIGHTS] ?? [2, 2, 2, 2, 1, 2])];
+  const cap = (value: number) => Math.max(0, Math.min(3, value));
+  switch (template) {
+    case "possession": return base;
+    case "counter": return [cap(base[0] - 1), base[1], base[2], cap(base[3] + 1), base[4], cap(base[5] + 1)];
+    case "direct": return [cap(base[0] - 2), cap(base[1] - 1), cap(base[2] + 1), base[3], base[4], cap(base[5] + 1)];
+    case "balanced": return base.map((weight) => weight ? 2 : 0);
+    case "lowblock": return role.strata === "GK" ? base : [cap(base[0] - 2), cap(base[1] - 1), cap(base[2] + 1), cap(base[3] - 1), cap(base[4] + 1), base[5]];
+    case "wing":
+      if (role.strata === "GK") return base;
+      if (["DLR", "WB", "MLR", "AMLR"].includes(role.strata)) return [base[0], cap(base[1] + 1), cap(base[2] + 1), base[3], base[4], cap(base[5] + 1)];
+      if (role.strata === "ST") return [cap(base[0] - 1), base[1], base[2], base[3], cap(base[4] + 2), base[5]];
+      return [base[0], base[1], cap(base[2] + 1), base[3], base[4], base[5]];
+    case "positional":
+      return role.strata === "GK"
+        ? [cap(base[0] + 1), cap(base[1] + 1), base[2], base[3], base[4], base[5]]
+        : [cap(base[0] + 1), cap(base[1] + 1), cap(base[2] + 1), base[3], base[4], cap(base[5] - 1)];
+    case "press":
+      return role.strata === "GK" ? base : [cap(base[0] - 1), base[1], base[2], cap(Math.max(2, base[3] + 1)), cap(base[4] + 1), 3];
+    case "physical":
+      return role.strata === "GK" ? base : [cap(base[0] - 1), base[1], base[2], cap(base[3] + 1), cap(base[4] + 2), cap(base[5] + 2)];
+  }
+}
+
 export const FM24_PHILOSOPHY_PRINCIPLES = PRINCIPLES;
 export const FM24_ROLE_COUNT = ROLE_CATALOG.length;
 export const FM24_ROLE_MINUTES_DEFAULT = DEFAULT_POOL_MINUTES;
