@@ -272,6 +272,217 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<p class="player-data-footnote">Scouting metadata is stored with this career. Imported player rows remain unchanged. Numeric comparisons exclude blank and dash values.</p></section>';
 }
 
+
+type DofSettings = NonNullable<ScoutingAnalysisSettings["dof"]>;
+const DEFAULT_DOF_SETTINGS: DofSettings = {
+  budgetMillions: null, wageThousands: null, philosophyThreshold: 50,
+  requireKnownValue: true, rankingMode: "role-led", starterUid: "",
+};
+function dofSettings(): DofSettings {
+  return { ...DEFAULT_DOF_SETTINGS, ...(analysisSettings().dof ?? {}) };
+}
+function parseFmMoneyMaximum(value: string | undefined): number | null {
+  if (!value) return null;
+  const matches = [...value.matchAll(/[€£$]\\s*([\\d,.]+)\\s*([KMB])?/gi)];
+  if (!matches.length) return null;
+  const values = matches.map((match) => {
+    const number = Number(match[1].replace(/,/g, ""));
+    const multiplier = match[2]?.toUpperCase() === "K" ? 1e3 : match[2]?.toUpperCase() === "M" ? 1e6 : match[2]?.toUpperCase() === "B" ? 1e9 : 1;
+    return Number.isFinite(number) ? number * multiplier : NaN;
+  }).filter(Number.isFinite);
+  return values.length ? Math.max(...values) : null;
+}
+function numberField(player: PlayerSeasonRecord, key: string): number | null {
+  const value = (player.rawValues[key] ?? "").replace(/,/g, "").trim();
+  if (!value || value === "-" || value === "—") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+function currentClubPlayers(save: SaveWithDatasets, roleId: string): PlayerSeasonRecord[] {
+  const club = save.save.club.trim().toLocaleLowerCase();
+  if (!club) return [];
+  return planningRecords.filter((player) => player.club.trim().toLocaleLowerCase() === club && (fitByUid.get(player.uid)?.roleScore ?? null) != null);
+}
+function formatMillions(value: number | null): string {
+  return value == null ? "Unknown" : (value / 1e6).toFixed(value >= 1e7 ? 1 : 2) + "m";
+}
+interface DofCandidate {
+  player: PlayerSeasonRecord;
+  fit: PlayerFitSummary;
+  age: number | null;
+  minutes: number;
+  value: number | null;
+  wage: number | null;
+  valueText: string;
+  wageText: string;
+  philosophyStatus: string;
+  retraining: boolean;
+}
+function dofCandidates(save: SaveWithDatasets): { eligible: DofCandidate[]; starter: DofCandidate | null; categories: Record<string, DofCandidate[]>; valueCap: number | null } {
+  const config = dofSettings();
+  const budget = config.budgetMillions == null ? null : config.budgetMillions * 1e6;
+  const wageCap = config.wageThousands == null ? null : config.wageThousands * 1e3;
+  const myClub = save.save.club.trim().toLocaleLowerCase();
+  const own = currentClubPlayers(save, analysisSettings().roleId).map((player) => ({
+    player, fit: fitByUid.get(player.uid)!,
+    age: numberField(player, "Age"), minutes: numberField(player, "Mins") ?? 0,
+    value: parseFmMoneyMaximum(player.rawValues["Transfer Value"]),
+    wage: parseFmMoneyMaximum(player.rawValues.Wage),
+    valueText: player.rawValues["Transfer Value"] || "Unknown",
+    wageText: player.rawValues.Wage || "Unknown",
+    philosophyStatus: fitByUid.get(player.uid)?.philosophyScore == null ? "Philosophy evidence unavailable" : "Philosophy measured",
+    retraining: !fitByUid.get(player.uid)?.listedForRole,
+  } satisfies DofCandidate)).filter((candidate) => candidate.minutes >= 450 && candidate.fit.dofEvaluationScore != null);
+  const configuredStarter = own.find((candidate) => candidate.player.uid === config.starterUid);
+  const starter = configuredStarter ?? own.filter((candidate) => candidate.fit.listedForRole)
+    .sort((a, b) => (b.fit.dofEvaluationScore ?? -1) - (a.fit.dofEvaluationScore ?? -1))[0] ?? null;
+  const candidates: DofCandidate[] = [];
+  for (const player of planningRecords) {
+    if (player.club.trim().toLocaleLowerCase() === myClub) continue;
+    const fit = fitByUid.get(player.uid);
+    if (!fit || !fit.positionEligible || fit.dofEvaluationScore == null) continue;
+    const minutes = numberField(player, "Mins") ?? 0;
+    if (minutes < scorePoolMinimumMinutes) continue;
+    const age = numberField(player, "Age");
+    const valueText = player.rawValues["Transfer Value"] || "";
+    const wageText = player.rawValues.Wage || "";
+    if (/not for sale/i.test(valueText)) continue;
+    const value = parseFmMoneyMaximum(valueText);
+    const wage = parseFmMoneyMaximum(wageText);
+    if (budget != null) {
+      if (config.requireKnownValue && value == null) continue;
+      if (value != null && value > budget) continue;
+    }
+    if (wageCap != null && wage != null && wage > wageCap) continue;
+    if (config.philosophyThreshold != null && fit.philosophyScore != null && fit.philosophyScore < config.philosophyThreshold) continue;
+    candidates.push({
+      player, fit, age, minutes, value, wage,
+      valueText: valueText || "Unknown", wageText: wageText || "Unknown",
+      philosophyStatus: fit.philosophyScore == null ? "Philosophy evidence unavailable" : fit.philosophyScore < 50 ? "Below philosophy baseline" : fit.philosophyScore >= 70 ? "Strong philosophy fit" : "Moderate philosophy fit",
+      retraining: !fit.listedForRole,
+    });
+  }
+  const baseline = starter?.fit.dofEvaluationScore ?? 0;
+  const confidenceOkay = (candidate: DofCandidate) => candidate.fit.confidence !== "low";
+  const roleSort = (a: DofCandidate, b: DofCandidate) =>
+    (b.fit.dofEvaluationScore ?? -1) - (a.fit.dofEvaluationScore ?? -1) ||
+    (b.fit.philosophyScore ?? -1) - (a.fit.philosophyScore ?? -1);
+  const best = candidates.slice().filter((candidate) =>
+    config.rankingMode !== "balanced" || candidate.fit.tacticalFit != null
+  ).sort(config.rankingMode === "balanced"
+    ? (a, b) => (b.fit.tacticalFit ?? -1) - (a.fit.tacticalFit ?? -1) || roleSort(a, b)
+    : roleSort);
+  const upgrades = starter ? candidates.filter((candidate) =>
+    candidate.fit.dofEvaluationScore! >= baseline + 10 &&
+    candidate.age != null && candidate.age >= 22 && candidate.age <= 29 &&
+    confidenceOkay(candidate) && (budget == null || candidate.value == null || candidate.value <= budget / 2)
+  ).sort(roleSort) : [];
+  const valueCap = budget == null ? null : Math.max(5e5, Math.min(3e6, budget * 0.15));
+  const value = starter && valueCap != null ? candidates.filter((candidate) =>
+    candidate.value != null && candidate.value <= valueCap &&
+    candidate.fit.dofEvaluationScore! >= baseline + 3 && confidenceOkay(candidate)
+  ).sort((a, b) =>
+    ((b.fit.dofEvaluationScore! - baseline + 1) / Math.max(b.value!, 5e5)) -
+    ((a.fit.dofEvaluationScore! - baseline + 1) / Math.max(a.value!, 5e5))
+  ) : [];
+  const depthCap = budget == null ? null : Math.max(4e5, Math.min(2.5e6, budget * 0.12));
+  const depth = starter ? candidates.filter((candidate) =>
+    candidate.fit.dofEvaluationScore! >= baseline - 10 &&
+    candidate.age != null && candidate.age >= 23 && candidate.age <= 31 &&
+    candidate.fit.confidence === "high" &&
+    (depthCap == null || candidate.value == null || candidate.value <= depthCap)
+  ).sort(roleSort) : [];
+  const young = candidates.filter((candidate) => candidate.age != null && candidate.age <= 21 && candidate.minutes >= 300).sort(roleSort);
+  return { eligible: candidates, starter, categories: { best, upgrades, value, depth, young }, valueCap };
+}
+
+function dofTable(title: string, description: string, rows: DofCandidate[], mode: string): string {
+  const body = rows.slice(0, 8).map((candidate) => {
+    const fit = candidate.fit;
+    const flags = [
+      candidate.retraining ? '<span class="scouting-status">Retraining review</span>' : "",
+      fit.confidence === "low" ? '<span class="scouting-status">Low confidence</span>' : "",
+      fit.philosophyScore == null ? '<span class="scouting-status">Philosophy unverified</span>' : "",
+    ].filter(Boolean).join(" ");
+    const principleDetails = fit.principleEvidence.map((principle) =>
+      '<span>' + esc(principle.name) + ': <b>' + (principle.score == null ? "—" : principle.score) + '</b></span>'
+    ).join("");
+    return '<tr><td><strong>' + esc(candidate.player.displayName) + '</strong><small>' + esc(candidate.player.position) + ' · ' + esc(candidate.player.club) + '</small>' + (flags ? '<small>' + flags + '</small>' : '') + '</td>' +
+      '<td>' + (fit.roleScore ?? "—") + '<small>Core role</small></td><td><strong>' + (fit.dofEvaluationScore ?? "—") + '</strong><small>' + fit.confidence + ' confidence</small></td>' +
+      '<td>' + (fit.philosophyScore ?? "—") + '<small>' + Math.round(fit.philosophyCoverage * 100) + '% evidence</small><details class="scouting-fit-details"><summary>Principles</summary><div>' + principleDetails + '</div></details></td>' +
+      '<td>' + (candidate.age ?? "—") + '</td><td>' + esc(candidate.valueText) + '</td><td>' + esc(candidate.wageText) + '</td></tr>';
+  }).join("");
+  return '<section class="content-card dof-category"><div class="dof-category-heading"><div><h3>' + esc(title) + '</h3><p>' + esc(description) + '</p></div><span>' + rows.length + ' match(es)</span></div>' +
+    (body ? '<div class="player-table-wrap"><table class="player-data-table dof-results-table"><thead><tr><th>Candidate</th><th>Role fit</th><th>DoF evaluation</th><th>Philosophy fit</th><th>Age</th><th>Value</th><th>Wage</th></tr></thead><tbody>' + body + '</tbody></table></div>' : '<p class="form-help">No candidates currently meet this category. Adjust the role, filters or financial limits.</p>') +
+    (rows.length > 8 ? '<p class="form-help">Showing the top 8 of ' + rows.length + ' matches.</p>' : '') + '</section>';
+}
+
+export async function loadPlanningWorkspace(save: SaveWithDatasets | undefined, render: () => void): Promise<void> {
+  if (!save || !datasetId) return;
+  if (planningDatasetId === datasetId && planningRecords.length) return;
+  planningLoading = true; planningMessage = "Loading the selected season for Director of Football recommendations…"; render();
+  try {
+    planningRecords = await getDatasetPlayers(datasetId);
+    planningDatasetId = datasetId;
+    planningMessage = "";
+  } catch (error) {
+    planningMessage = error instanceof Error ? error.message : "Could not load the selected season.";
+  } finally {
+    planningLoading = false; render();
+  }
+}
+
+export function renderPlanningWorkspace(save: SaveWithDatasets | undefined): string {
+  if (!save) return '<section class="empty-workspace content-card"><h2>Select a career first.</h2><p>Director of Football recommendations use the active career and its selected season.</p></section>';
+  if (!save.datasets.length) return '<section class="empty-workspace content-card"><h2>Import a season to begin.</h2><p>Import FM24 player data before building recommendations.</p></section>';
+  const analysis = analysisSettings();
+  const config = dofSettings();
+  const roles = FM24_ROLES as unknown as Array<{ id: string; name: string; dutyName: string; strata: string; type: string }>;
+  const strata = FM24_STRATA as unknown as Record<string, { label: string }>;
+  const roleOptions = Object.keys(strata).map((key) => '<optgroup label="' + esc(strata[key].label) + '">' +
+    roles.filter((role) => role.strata === key).map((role) => '<option value="' + esc(role.id) + '"' + (analysis.roleId === role.id ? " selected" : "") + '>' + esc(role.name) + ' · ' + esc(role.dutyName) + '</option>').join("") + '</optgroup>').join("");
+  const philosophyOptions = Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([key, template]) =>
+    '<option value="' + key + '"' + (analysis.philosophyTemplate === key ? " selected" : "") + '>' + esc(template.name) + '</option>').join("");
+  const selectedRole = roles.find((role) => role.id === analysis.roleId);
+  const weights = selectedRole && analysis.philosophyTemplate
+    ? analysis.customPhilosophyWeightsByRoleType?.[selectedRole.type] ?? philosophyWeightsForRole(selectedRole as never, analysis.philosophyTemplate)
+    : [];
+  const philosophyControls = selectedRole && analysis.philosophyTemplate
+    ? '<div class="scouting-philosophy-editor"><div class="scouting-philosophy-heading"><div><strong>Philosophy weights</strong><p>Custom weights apply to this role family and are saved with the career.</p></div><button type="button" class="text-button" data-reset-philosophy>Reset to template</button></div><div class="scouting-philosophy-sliders">' +
+      FM24_PHILOSOPHY_PRINCIPLES.map((principle, index) => '<label><span>' + esc(principle.name) + '</span><input type="range" min="0" max="3" step="0.5" value="' + (weights[index] ?? 0) + '" data-philosophy-weight="' + index + '"><output>' + (weights[index] ?? 0) + '</output></label>').join("") +
+      '</div></div>' : "";
+  if (planningLoading || planningDatasetId !== datasetId) return '<section class="content-card"><h2>Director of Football recommendations</h2><p>' + esc(planningMessage || "Loading selected season…") + '</p></section>';
+  if (planningMessage) return '<section class="content-card"><h2>Director of Football recommendations</h2><p>' + esc(planningMessage) + '</p></section>';
+  if (!save.save.club.trim()) return '<section class="content-card"><h2>Set your club first</h2><p>Choose your current club in Data & Saves. V2 uses that club to identify your current squad and compare candidates.</p></section>';
+  if (!analysis.roleId || !analysis.philosophyTemplate) return '<section class="content-card"><h2>Configure the recruitment role</h2><p>Select an FM24 role/duty and a philosophy template below to calculate recommendations.</p>' +
+    '<div class="scouting-fit-controls"><label>Role and duty<select data-planning-role><option value="">Choose a role…</option>' + roleOptions + '</select></label><label>Philosophy<select data-planning-philosophy><option value="">Choose a profile…</option>' + philosophyOptions + '</select></label></div></section>';
+  if (scoringStatus !== "complete") return '<section class="content-card"><h2>Director of Football recommendations</h2><p>' + esc(scoringMessage || "Calculating player fit…") + '</p>' +
+    '<div class="scouting-fit-controls"><label>Role and duty<select data-planning-role>' + roleOptions + '</select></label><label>Philosophy<select data-planning-philosophy>' + philosophyOptions + '</select></label></div></section>';
+  const currentPlayers = currentClubPlayers(save, analysis.roleId);
+  const starterOptions = currentPlayers.map((player) => '<option value="' + esc(player.uid) + '"' + (player.uid === config.starterUid ? " selected" : "") + '>' + esc(player.displayName) + ' · ' + (fitByUid.get(player.uid)?.dofEvaluationScore ?? "—") + '</option>').join("");
+  const selected = dofCandidates(save);
+  const starter = selected.starter;
+  const thresholdOptions = [50, 60, 70].map((value) => '<option value="' + value + '"' + (config.philosophyThreshold === value ? " selected" : "") + '>' + value + ' or higher</option>').join("");
+  const categoryHtml =
+    dofTable("Best role fits", config.rankingMode === "balanced" ? "Balanced Tactical Fit ranking. Both role and philosophy evidence are required." : "V1-style role-led ranking. Philosophy Fit is an independent signal and tie-breaker, not silently averaged into Role Fit.", selected.categories.best, config.rankingMode) +
+    dofTable("Upgrades", "At least 10 points above the selected starter, aged 22–29, with medium or high role-score confidence.", selected.categories.upgrades, config.rankingMode) +
+    dofTable("Value options", selected.valueCap == null ? "Set a transfer budget to calculate the V1-style value ceiling." : "At least 3 points above the starter, within the value ceiling (" + formatMillions(selected.valueCap) + "), ranked by score improvement per estimated transfer value.", selected.categories.value, config.rankingMode) +
+    dofTable("Squad depth", "Within 10 points of the starter, aged 23–31, high confidence. League-level equivalence is not inferred.", selected.categories.depth, config.rankingMode) +
+    dofTable("Young targets", "Players aged 21 or under with at least 300 minutes. Ranked by overall role evaluation, not an age-adjusted score.", selected.categories.young, config.rankingMode);
+  return '<section class="content-card planning-dof-workspace"><div class="card-kicker">ROLE-LED RECRUITMENT</div><h2>Director of Football recommendations</h2>' +
+    '<p>Role performance and Philosophy Fit stay separate. By default, candidates rank on DoF Role Evaluation; Philosophy Score breaks ties and the threshold below can exclude measured low-fit players. Missing philosophy evidence is not treated as poor fit.</p>' +
+    '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-planning-role>' + roleOptions + '</select></label><label>Club philosophy<select data-planning-philosophy>' + philosophyOptions + '</select></label><label>Ranking mode<select data-planning-ranking-mode><option value="role-led"' + (config.rankingMode === "role-led" ? " selected" : "") + '>Role-led (V1 default)</option><option value="balanced"' + (config.rankingMode === "balanced" ? " selected" : "") + '>Balanced Tactical Fit</option></select></label></div>' +
+    philosophyControls +
+    '<div class="scouting-fit-controls dof-limits"><label>Transfer budget (millions, save currency)<input type="number" min="0" step="0.5" data-planning-budget value="' + (config.budgetMillions ?? "") + '" placeholder="No budget cap"></label>' +
+    '<label>Maximum weekly wage (thousands, save currency)<input type="number" min="0" step="1" data-planning-wage value="' + (config.wageThousands ?? "") + '" placeholder="No wage cap"></label>' +
+    '<label>Philosophy minimum<select data-planning-threshold><option value="50"' + (config.philosophyThreshold === 50 ? " selected" : "") + '>50 · exclude measured scores below</option><option value="60"' + (config.philosophyThreshold === 60 ? " selected" : "") + '>60 · stricter</option><option value="70"' + (config.philosophyThreshold === 70 ? " selected" : "") + '>70 · strong fit only</option><option value="none"' + (config.philosophyThreshold == null ? " selected" : "") + '>No philosophy filter</option></select></label>' +
+    '<label>Compare against<select data-planning-starter><option value="">Best role-qualified player at ' + esc(save.save.club) + '</option>' + starterOptions + '</select></label></div>' +
+    '<p class="scouting-score-note">' + (starter ? 'Baseline: ' + esc(starter.player.displayName) + ' · DoF evaluation ' + starter.fit.dofEvaluationScore + ' · core role ' + starter.fit.roleScore + ' · philosophy ' + (starter.fit.philosophyScore ?? "not measured") : 'No role-qualified current player found; upgrade and value thresholds are disabled.') +
+    ' · ' + selected.eligible.length.toLocaleString() + ' eligible external candidates. Values and wages are taken from the imported FM24 export.</p>' +
+    '<div class="dof-category-grid">' + categoryHtml + '</div>' +
+    '<p class="player-data-footnote">Limitations: league strength, likely transfer acceptance, medical risk and tactical execution are not inferred from this export. Transfer value is an estimate, not a negotiated fee. Players outside their listed role position are marked for retraining review. The young-target list is not age-adjusted.</p></section>';
+}
+
 export async function handleScoutingWorkspaceClick(target: HTMLElement, render: () => void): Promise<boolean> {
   if (target.hasAttribute("data-add-filter")) {
     const field = fields().find((entry) => entry !== "uid") ?? "name";
