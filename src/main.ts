@@ -6,7 +6,11 @@ import {
   listSaves,
   persistSeasonImport,
   recoverInterruptedImports,
+  searchPlayersInDataset,
+  getPlayerHistory,
   type SaveWithDatasets,
+  type PlayerSeasonRecord,
+  type PlayerSeasonHistoryEntry,
 } from "./data/storage/local-database";
 import { createSaveBackup, restoreSaveBackup } from "./data/storage/save-backup";
 
@@ -61,6 +65,14 @@ let saveMessageIsError = false;
 let isPersisting = false;
 let isBackingUp = false;
 let isRestoring = false;
+let squadDatasetId = "";
+let playerSearchQuery = "";
+let playerSearchResults: PlayerSeasonRecord[] = [];
+let selectedPlayerUid: string | null = null;
+let playerHistory: PlayerSeasonHistoryEntry[] = [];
+let playerSearchMessage = "";
+let isSearchingPlayers = false;
+let isLoadingPlayerHistory = false;
 
 function escapeHtml(value: string): string {
   const replacements: Record<string, string> = {
@@ -143,7 +155,138 @@ function overview(): string {
     <div class="principle-strip"><span class="principle-mark">i</span><p><strong>No demo numbers.</strong> Analysis appears only after real data has been imported, validated and stored.</p></div>`;
 }
 
-function saveLibraryView(): string {
+
+function resetPlayerWorkspace(): void {
+  squadDatasetId = "";
+  playerSearchQuery = "";
+  playerSearchResults = [];
+  selectedPlayerUid = null;
+  playerHistory = [];
+  playerSearchMessage = "";
+  isSearchingPlayers = false;
+  isLoadingPlayerHistory = false;
+}
+
+function displayRawValue(value: string | undefined): string {
+  if (value === undefined || value.trim() === "" || value.trim() === "-") return "—";
+  return value;
+}
+
+function playerProfileView(): string {
+  const selected = activeSave();
+  if (!selected || !selectedPlayerUid) return "";
+  const present = playerHistory.filter((entry) => entry.player);
+  const latestPlayer = [...present].reverse()[0]?.player;
+  if (!latestPlayer) return '<section class="content-card"><p>This player has no season records in the active career.</p><button class="secondary-button" data-player-back>Back to player search</button></section>';
+
+  const previous = playerHistory.length > 1 ? playerHistory[playerHistory.length - 2] : undefined;
+  const current = playerHistory[playerHistory.length - 1];
+  const previousLabel = previous?.dataset.seasonLabel ?? "Earlier season";
+  const currentLabel = current?.dataset.seasonLabel ?? "Latest season";
+  const sourcePlayers = [previous?.player, current?.player].filter((player): player is PlayerSeasonRecord => Boolean(player));
+  const fields = [...new Set(sourcePlayers.flatMap((player) => Object.keys(player.rawValues)))].sort((a, b) => a.localeCompare(b));
+  const profilePlayer = current?.player ?? latestPlayer;
+  const historyRows = [...playerHistory].reverse().map((entry) => `
+    <div class="player-history-item">
+      <div><strong>${escapeHtml(entry.dataset.seasonLabel)}</strong><small>${entry.player ? `${entry.player.club ? escapeHtml(entry.player.club) + " · " : ""}${escapeHtml(entry.player.position || "Position not supplied")}` : "Player not present in this export"}</small></div>
+      <span class="player-presence ${entry.player ? "present" : "absent"}">${entry.player ? "Present" : "Not present"}</span>
+    </div>`).join("");
+
+  return `
+    <section class="content-card player-profile-card">
+      <div class="player-profile-toolbar"><button class="text-button" data-player-back>← Back to player search</button><span class="card-kicker">PLAYER HISTORY · FM UID ${escapeHtml(selectedPlayerUid)}</span></div>
+      <div class="player-profile-heading">
+        <div class="player-avatar" aria-hidden="true">${escapeHtml((profilePlayer.displayName || "P").trim().charAt(0).toUpperCase())}</div>
+        <div><div class="card-kicker">CAREER PLAYER RECORD</div><h2>${escapeHtml(profilePlayer.displayName)}</h2><p>${escapeHtml(profilePlayer.position || "Position not supplied")} ${profilePlayer.club ? "· " + escapeHtml(profilePlayer.club) : ""}</p></div>
+      </div>
+      <div class="player-history-section"><div class="player-section-heading"><strong>Season presence</strong><span>${present.length} of ${playerHistory.length} imported seasons</span></div><div class="player-history-list">${historyRows}</div></div>
+      <div class="player-history-section">
+        <div class="player-section-heading"><strong>Season-over-season source comparison</strong><span>Original imported values · no calculated scores</span></div>
+        ${playerHistory.length > 1 ? `
+          <p class="player-comparison-note">Comparing the two most recently imported season snapshots. A dash means the value was blank or unavailable; zero remains zero. "Not present" means no player row existed in that export.</p>
+          <div class="player-table-wrap"><table class="player-data-table"><thead><tr><th>Source field</th><th>${escapeHtml(previousLabel)}</th><th>${escapeHtml(currentLabel)}</th></tr></thead><tbody>
+            ${fields.map((field) => `<tr><th>${escapeHtml(field)}</th><td>${previous?.player ? escapeHtml(displayRawValue(previous.player.rawValues[field])) : '<span class="not-present-value">Not present</span>'}</td><td>${current?.player ? escapeHtml(displayRawValue(current.player.rawValues[field])) : '<span class="not-present-value">Not present</span>'}</td></tr>`).join("")}
+          </tbody></table></div>`
+          : `
+          <p class="player-comparison-note">Only one season has been imported for this career. The original source values are shown below; comparison will become available when another season is added.</p>
+          <div class="player-table-wrap"><table class="player-data-table single-season-table"><thead><tr><th>Source field</th><th>${escapeHtml(currentLabel)}</th></tr></thead><tbody>
+            ${fields.map((field) => `<tr><th>${escapeHtml(field)}</th><td>${escapeHtml(displayRawValue(current?.player?.rawValues[field]))}</td></tr>`).join("")}
+          </tbody></table></div>`}
+      </div>
+      <p class="player-data-footnote">These are the original exported fields. Moneyball Companion has not yet applied role scoring, league adjustments or performance interpretation to this view.</p>
+    </section>`;
+}
+
+function squadView(): string {
+  const selected = activeSave();
+  if (!selected) {
+    return `<section class="empty-workspace content-card"><span class="empty-icon">◎</span><div class="card-kicker">SQUAD WORKSPACE</div><h2>Select or create a career first.</h2><p>Player search and season history use the real datasets stored in your selected career.</p><button class="secondary-button" data-section="Data & Saves">Go to Data &amp; Saves →</button></section>`;
+  }
+  if (!selected.datasets.length) {
+    return `<section class="empty-workspace content-card"><span class="empty-icon">◎</span><div class="card-kicker">SQUAD WORKSPACE</div><h2>No season data in this career yet.</h2><p>Import a validated FM24 export before searching players.</p><button class="secondary-button" data-section="Data & Saves">Import season data →</button></section>`;
+  }
+  if (!selected.datasets.some((dataset) => dataset.id === squadDatasetId)) squadDatasetId = selected.datasets[0].id;
+  if (selectedPlayerUid) {
+    return isLoadingPlayerHistory
+      ? '<section class="content-card"><div class="processing-line"><span class="processing-spinner"></span><div><strong>Loading player history</strong><p>Reading this player across the active career.</p></div></div></section>'
+      : playerProfileView();
+  }
+  const options = selected.datasets.map((dataset) => `<option value="${dataset.id}" ${dataset.id === squadDatasetId ? "selected" : ""}>${escapeHtml(dataset.seasonLabel)} · ${dataset.playerCount.toLocaleString()} players</option>`).join("");
+  const resultRows = playerSearchResults.map((player) => `
+    <tr><td><button class="player-name-button" data-player-uid="${escapeHtml(player.uid)}">${escapeHtml(player.displayName)}</button></td><td>${escapeHtml(player.position || "—")}</td><td>${escapeHtml(player.club || "—")}</td><td class="uid-cell">${escapeHtml(player.uid)}</td></tr>`).join("");
+  return `
+    <section class="content-card squad-search-card">
+      <div class="card-kicker">CAREER PLAYER DATABASE</div><h2>Find a player and inspect their season history</h2>
+      <p>Search the selected season by the beginning of a player's name. Open a result to see every imported season, including seasons where that player was absent.</p>
+      <div class="squad-search-controls">
+        <div class="form-field"><label for="squad-dataset">Season dataset</label><select id="squad-dataset" data-squad-dataset>${options}</select></div>
+        <form class="player-search-form" data-player-search><div class="form-field"><label for="player-search-query">Player name</label><input id="player-search-query" name="query" type="search" maxlength="100" value="${escapeHtml(playerSearchQuery)}" placeholder="Start typing a player name"></div><button class="primary-button" type="submit" ${isSearchingPlayers ? "disabled" : ""}>${isSearchingPlayers ? "Searching…" : "Search players"}</button></form>
+      </div>
+      <div class="player-search-meta"><span>Indexed search · first 100 matches · ${escapeHtml(selected.datasets.find((dataset) => dataset.id === squadDatasetId)?.seasonLabel ?? "")}</span><span>${playerSearchResults.length ? playerSearchResults.length + " result(s)" : ""}</span></div>
+      ${playerSearchMessage ? `<p class="player-search-message" role="status">${escapeHtml(playerSearchMessage)}</p>` : ""}
+      ${playerSearchResults.length ? `
+        <div class="player-table-wrap"><table class="player-data-table player-results-table"><thead><tr><th>Player</th><th>Position</th><th>Club</th><th>FM UID</th></tr></thead><tbody>${resultRows}</tbody></table></div>`
+        : `<div class="player-search-empty">${isSearchingPlayers ? "Searching the selected season…" : "Search for a player to open their career history. The search reads the selected season only."}</div>`}
+    </section>
+    <p class="player-data-footnote">Player identity is matched only by FM UID within this career. Names are used for finding players, never for merging them.</p>`;
+}
+
+async function runPlayerSearch(): Promise<void> {
+  const selected = activeSave();
+  if (!selected || !squadDatasetId) return;
+  isSearchingPlayers = true;
+  playerSearchMessage = "";
+  render();
+  try {
+    playerSearchResults = await searchPlayersInDataset(squadDatasetId, playerSearchQuery, 100);
+    playerSearchMessage = playerSearchResults.length
+      ? `Showing up to 100 matches for "${playerSearchQuery || "all players"}".`
+      : "No players matched this name prefix in the selected season. Try another spelling or select a different season.";
+  } catch (error) {
+    playerSearchResults = [];
+    playerSearchMessage = formatStorageError(error);
+  } finally {
+    isSearchingPlayers = false;
+    render();
+  }
+}
+
+async function openPlayerHistory(uid: string): Promise<void> {
+  if (!activeSaveId) return;
+  selectedPlayerUid = uid;
+  isLoadingPlayerHistory = true;
+  playerHistory = [];
+  render();
+  try {
+    playerHistory = await getPlayerHistory(activeSaveId, uid);
+  } catch (error) {
+    playerSearchMessage = formatStorageError(error);
+  } finally {
+    isLoadingPlayerHistory = false;
+    render();
+  }
+}
+\nfunction saveLibraryView(): string {
   if (!saveLibrary.length) {
     return '<div class="empty-save-state">No saves yet. Create a save above to start organising your Football Manager seasons.</div>';
   }
@@ -282,6 +425,7 @@ function dataSavesView(): string {
 
 function sectionView(section: Section): string {
   if (section === "Data & Saves") return dataSavesView();
+  if (section === "Squad") return squadView();
   return `
     <section class="empty-workspace content-card">
       <span class="empty-icon">◎</span><div class="card-kicker">MODULE FOUNDATION</div>
@@ -357,15 +501,27 @@ async function refreshSaveLibrary(): Promise<void> {
 }
 
 app.addEventListener("click", (event: MouseEvent) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back]");
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
     activeSection = next;
     render();
     return;
   }
+  if (target?.hasAttribute("data-player-back")) {
+    selectedPlayerUid = null;
+    playerHistory = [];
+    render();
+    return;
+  }
+  const playerUid = target?.dataset.playerUid;
+  if (playerUid) {
+    void openPlayerHistory(playerUid);
+    return;
+  }
   const saveId = target?.dataset.selectSave;
   if (saveId) {
+    resetPlayerWorkspace();
     activeSaveId = saveId;
     persistActiveSaveId(activeSaveId);
     saveMessage = "";
@@ -375,6 +531,15 @@ app.addEventListener("click", (event: MouseEvent) => {
 
 app.addEventListener("change", (event: Event) => {
   const target = event.target;
+  if (target instanceof HTMLSelectElement && target.matches("[data-squad-dataset]")) {
+    squadDatasetId = target.value;
+    playerSearchResults = [];
+    playerSearchMessage = "";
+    selectedPlayerUid = null;
+    playerHistory = [];
+    render();
+    return;
+  }
   if (!(target instanceof HTMLInputElement) || !target.matches("[data-fm24-file]")) return;
   const file = target.files?.[0];
   if (file) validateFileInWorker(file);
@@ -383,6 +548,14 @@ app.addEventListener("change", (event: Event) => {
 app.addEventListener("submit", async (event: SubmitEvent) => {
   const form = event.target;
   if (!(form instanceof HTMLFormElement)) return;
+
+  if (form.matches("[data-player-search]")) {
+    event.preventDefault();
+    const data = new FormData(form);
+    playerSearchQuery = String(data.get("query") ?? "").trim();
+    void runPlayerSearch();
+    return;
+  }
 
   if (form.matches("[data-export-backup]")) {
     event.preventDefault();
@@ -434,6 +607,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       const parsed: unknown = JSON.parse(await file.text());
       const restored = await restoreSaveBackup(parsed);
       saveLibrary = await listSaves();
+      resetPlayerWorkspace();
       activeSaveId = restored.id;
       persistActiveSaveId(activeSaveId);
       saveMessage = '"' + restored.name + '" restored successfully. Your original career remains unchanged.';
@@ -454,6 +628,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
     try {
       const save = await createLocalSave(String(data.get("name") ?? ""), String(data.get("club") ?? ""));
       saveLibrary = await listSaves();
+      resetPlayerWorkspace();
       activeSaveId = save.id;
       persistActiveSaveId(activeSaveId);
       saveMessage = `Save "${save.name}" created on this device.`;
@@ -487,7 +662,9 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
         rows: importState.validation.validRows,
       });
       saveLibrary = await listSaves();
+      if (activeSaveId !== saveId) resetPlayerWorkspace();
       activeSaveId = saveId;
+      squadDatasetId = dataset.id;
       persistActiveSaveId(activeSaveId);
       importState = { status: "idle" };
       saveMessage = `Season "${dataset.seasonLabel}" saved successfully: ${dataset.playerCount.toLocaleString()} player records stored locally.`;
