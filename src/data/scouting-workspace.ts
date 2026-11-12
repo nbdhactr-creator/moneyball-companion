@@ -1,12 +1,10 @@
 import {
   emptyScoutingWorkspaceState, getScoutingWorkspaceState, updateScoutingWorkspaceState, searchScoutingPlayers,
-  type SaveWithDatasets, type ScoutingWorkspaceState, type ScoutingFilterCondition, type PlayerSeasonRecord,
+  type SaveWithDatasets, type ScoutingWorkspaceState, type ScoutingAnalysisSettings, type ScoutingFilterCondition, type PlayerSeasonRecord,
   type PlayerScoutingState, type ShortlistStatus, type SavedPlayerSearch,
 } from "./storage/local-database";
-import {
-  FM24_ROLES, FM24_STRATA, FM24_PHILOSOPHY_TEMPLATES,
-  type Fm24PhilosophyTemplate,
-} from "../analytics/fm24-scoring";
+import { FM24_ROLES, FM24_STRATA } from "../analytics/fm24-role-catalog";
+import { FM24_PHILOSOPHY_TEMPLATES } from "../analytics/fm24-scoring";
 
 let saveId = "";
 let state: ScoutingWorkspaceState = emptyScoutingWorkspaceState();
@@ -219,8 +217,8 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-scouting-role><option value="">Choose a role…</option>' + roleOptions + '</select></label>' +
     '<label>Club philosophy<select data-scouting-philosophy><option value="">Choose a philosophy…</option>' + philosophyOptions + '</select></label>' +
     '<label>Role weight<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label></div>' +
-    '<p class="scouting-score-note">' + esc(scoringMessage || "Choose a role and philosophy to calculate player fit. Scores use the full selected season as the comparison pool.") + '</p>' +
-    '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>'
+    '<p class="scouting-score-note" data-scoring-status="' + scoringStatus + '">' + esc(scoringMessage || "Choose a role and philosophy to calculate player fit. Scores use the full selected season as the comparison pool.") + '</p>' +
+    '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>' +
     '<label class="scouting-query">Search players<input type="search" data-scouting-query value="' + esc(query) + '" placeholder="Name, club, position or source value"></label>' +
     '<label>Sort by<select data-scouting-sort>' + fieldList.map((field) => '<option value="' + esc(field) + '"' + (sortField === field ? " selected" : "") + '>' + esc(label(field)) + '</option>').join("") + '</select></label>' +
     '<label>Order<select data-scouting-direction><option value="asc"' + (sortDirection === "asc" ? " selected" : "") + '>Ascending</option><option value="desc"' + (sortDirection === "desc" ? " selected" : "") + '>Descending</option></select></label></div>' +
@@ -233,7 +231,7 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
     '<details class="scouting-columns-panel"><summary>Visible columns</summary><div class="scouting-columns-grid">' + columnOptions + '</div></details>' +
     '<div class="player-search-meta"><span>' + total.toLocaleString() + ' matching player(s) · showing ' + results.length + ' · max 200</span></div>' +
     (message ? '<p class="player-search-message" role="status">' + esc(message) + '</p>' : '') +
-    (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
+    (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Role fit</th><th>Philosophy</th><th>Tactical fit</th><th>Evidence</th><th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
       '<div class="player-search-empty">' + (loading ? 'Searching the selected season…' : 'No players match the current search. Check conditions or reset filters.') + '</div>') +
     '<p class="player-data-footnote">Scouting metadata is stored with this career. Imported player rows remain unchanged. Numeric comparisons exclude blank and dash values.</p></section>';
 }
@@ -264,7 +262,7 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
     datasetId = saved.datasetId; query = saved.query; logic = saved.logic; filters = structuredClone(saved.filters);
     state.columnsByDataset[datasetId] = saved.columns;
     sortField = saved.sortField; sortDirection = saved.sortDirection;
-    await runSearch(render); return true;
+    await runSearch(render); await runScoring(render); return true;
   }
   if (target.hasAttribute("data-delete-search")) {
     const id = document.querySelector<HTMLSelectElement>("[data-scouting-saved-select]")?.value;
@@ -291,7 +289,7 @@ export async function handleScoutingWorkspaceChange(target: HTMLElement, render:
     await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-philosophy]")) {
-    state.analysis = { ...analysisSettings(), philosophyTemplate: target.value as ScoutingWorkspaceState["analysis"] extends infer A ? NonNullable<A>["philosophyTemplate"] : never };
+    state.analysis = { ...analysisSettings(), philosophyTemplate: target.value as ScoutingAnalysisSettings["philosophyTemplate"] };
     await updateScoutingWorkspaceState(saveId, state); await runScoring(render); return true;
   }
   if (target instanceof HTMLSelectElement && target.matches("[data-scouting-role-weight]")) {
