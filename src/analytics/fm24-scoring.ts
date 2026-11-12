@@ -441,10 +441,10 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
   };
   const getPercentile = (player: NormalizedFm24Player, metric: string, strata: string) =>
     metricEvidence(player, metric, strata).percentile;
-  const scoreDofEvaluation = (player: NormalizedFm24Player, roleOrId: Fm24Role | string): Fm24DofEvaluation => {
+  const scoreDofEvaluation = (player: NormalizedFm24Player, roleOrId: Fm24Role | string, suppliedCoreScore?: number | null): Fm24DofEvaluation => {
     const role = typeof roleOrId === "string" ? ROLE_CATALOG.find((item) => item.id === roleOrId) : roleOrId;
     if (!role) throw new Error("Unknown FM24 role/duty identifier.");
-    const coreRoleScore = scoreRole(player, role).score;
+    const coreRoleScore = suppliedCoreScore === undefined ? scoreRole(player, role).score : suppliedCoreScore;
     if (coreRoleScore == null || !["DC", "DLR", "WB", "DM"].includes(role.strata)) {
       return { score: coreRoleScore, coreRoleScore, aerialScore: null, aerialAdjustmentApplied: false };
     }
