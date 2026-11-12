@@ -276,3 +276,16 @@ test("searches players by indexed name prefix without scanning other seasons", a
   assert.equal((await searchPlayersInDataset(first.id, "jam")).length, 1);
   assert.equal((await searchPlayersInDataset(first.id, "missing")).length, 0);
 });
+
+test("scopes identical FM UIDs to separate careers", async () => {
+  await resetDatabase();
+  const firstSave = await createSave("First Career");
+  const secondSave = await createSave("Second Career");
+  await persistSeasonImport(importInput(firstSave.id, { rows: [row("8200", "First Career Player")] }));
+  await persistSeasonImport(importInput(secondSave.id, { rows: [row("8200", "Different Career Player")] }));
+
+  assert.equal(await countPlayerIdentities(firstSave.id), 1);
+  assert.equal(await countPlayerIdentities(secondSave.id), 1);
+  assert.equal((await getPlayerHistory(firstSave.id, "8200"))[0].player.displayName, "First Career Player");
+  assert.equal((await getPlayerHistory(secondSave.id, "8200"))[0].player.displayName, "Different Career Player");
+});
