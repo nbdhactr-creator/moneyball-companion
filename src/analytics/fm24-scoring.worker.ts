@@ -15,6 +15,7 @@ interface ScoreRequest {
 }
 interface ScoreResult {
   uid: string;
+  positionEligible: boolean;
   roleScore: number | null;
   roleCoverage: number;
   confidence: "low" | "medium" | "high";
@@ -59,6 +60,7 @@ workerScope.onmessage = async (event: MessageEvent<ScoreRequest>) => {
         : null;
       return {
         uid: player.uid ?? "",
+        positionEligible: roleResult.families.length > 0,
         roleScore: roleResult.score,
         roleCoverage: roleResult.coverage,
         confidence: roleResult.confidence,
