@@ -414,10 +414,8 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     const available = principles.filter((principle) => principle.weight > 0 && principle.score != null);
     const availableWeight = available.reduce((sum, principle) => sum + principle.weight, 0);
-    const highestWeight = Math.max(...weights);
-    const coreAvailable = highestWeight > 0 && principles.some((principle) => principle.weight === highestWeight && principle.score != null);
     const coverage = totalWeight ? availableWeight / totalWeight : 0;
-    const score = totalWeight && coreAvailable && coverage >= minCoverage
+    const score = totalWeight && coverage >= minCoverage
       ? Math.round(available.reduce((sum, principle) => sum + principle.score! * principle.weight, 0) / availableWeight) : null;
     return { score, coverage, availableWeight, totalWeight, principles, profile: customWeights ? "custom" : "v1-baseline" };
   };
