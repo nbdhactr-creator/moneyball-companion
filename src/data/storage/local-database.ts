@@ -16,7 +16,6 @@ export interface SeasonDatasetRecord {
   id: string;
   saveId: string;
   seasonLabel: string;
-  seasonKey: string;
   fileName: string;
   fileSize: number;
   format: string;
@@ -222,7 +221,7 @@ export async function persistSeasonImport(input: {
   rows: Fm24RawPlayerRow[];
 }): Promise<SeasonDatasetRecord> {
   const seasonLabel = input.seasonLabel.trim();
-  const seasonKey = seasonLabel.toLocaleLowerCase();
+  const seasonKey = seasonLabel.toLowerCase();
   if (!seasonLabel) throw new Error("Enter a season label, for example 2026/27.");
   if (!input.rows.length) throw new Error("There are no valid player rows to save.");
   const db = await openLocalDatabase();
