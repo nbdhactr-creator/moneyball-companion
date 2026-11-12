@@ -308,21 +308,51 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
 }
 
 export async function handleScoutingWorkspaceClick(target: HTMLElement, render: () => void): Promise<boolean> {
-  if (target.hasAttribute("data-add-filter")) {
-    const field = fields().find((entry) => entry !== "uid") ?? "name";
-    filters.push({ id: crypto.randomUUID(), field, operator: "contains", value: "" }); render(); return true;
+  if (target.hasAttribute("data-add-filter-group-new")) {
+    filterGroups.push({ id: crypto.randomUUID(), logic: "and", filters: [] }); render(); return true;
   }
-  if (target.dataset.removeFilter) { filters = filters.filter((entry) => entry.id !== target.dataset.removeFilter); render(); return true; }
-  if (target.hasAttribute("data-scouting-reset")) { query = ""; filters = []; await runSearch(render); return true; }
+  if (target.dataset.addFilterGroup) { addFilter(target.dataset.addFilterGroup); render(); return true; }
+  if (target.dataset.removeFilter) {
+    filterGroups = filterGroups.map((group) => ({ ...group, filters: group.filters.filter((entry) => entry.id !== target.dataset.removeFilter) }));
+    render(); return true;
+  }
+  if (target.dataset.removeFilterGroup) {
+    filterGroups = filterGroups.filter((group) => group.id !== target.dataset.removeFilterGroup);
+    if (!filterGroups.length) filterGroups = [{ id: crypto.randomUUID(), logic: "and", filters: [] }];
+    render(); return true;
+  }
+  if (target.hasAttribute("data-scouting-reset")) {
+    query = ""; filterGroups = [{ id: crypto.randomUUID(), logic: "and", filters: [] }]; groupLogic = "and"; page = 1;
+    await runSearch(render); return true;
+  }
   if (target.hasAttribute("data-scouting-search")) {
     query = document.querySelector<HTMLInputElement>("[data-scouting-query]")?.value.trim() ?? "";
-    await runSearch(render); return true;
+    page = 1; await runSearch(render); return true;
+  }
+  if (target.hasAttribute("data-page-prev")) { page = Math.max(1, page - 1); await runSearch(render); return true; }
+  if (target.hasAttribute("data-page-next")) { page += 1; await runSearch(render); return true; }
+  if (target.hasAttribute("data-select-page")) {
+    const pageUids = results.map((player) => player.uid);
+    const allSelected = pageUids.length > 0 && pageUids.every((uid) => selectedUids.has(uid));
+    pageUids.forEach((uid) => allSelected ? selectedUids.delete(uid) : selectedUids.add(uid));
+    render(); return true;
+  }
+  if (target.hasAttribute("data-clear-selection")) { selectedUids.clear(); render(); return true; }
+  if (target.hasAttribute("data-bulk-shortlist")) { await bulkSetStatus("shortlist", render); return true; }
+  if (target.hasAttribute("data-bulk-remove-shortlist")) { await bulkSetStatus("watching", render); return true; }
+  if (target.dataset.scoutingView) {
+    viewMode = target.dataset.scoutingView === "shortlist" ? "shortlist" : "discover";
+    page = 1; selectedUids.clear(); await runSearch(render); return true;
   }
   if (target.hasAttribute("data-save-search")) {
     const name = document.querySelector<HTMLInputElement>("[data-scouting-search-name]")?.value.trim() ?? "";
     if (!name) { message = "Enter a name before saving this search."; render(); return true; }
     const selectedColumns = [...document.querySelectorAll<HTMLInputElement>("[data-scouting-column]:checked")].map((input) => input.value);
-    const saved: SavedPlayerSearch = { id: crypto.randomUUID(), name, datasetId, query, logic, filters: structuredClone(filters), columns: selectedColumns, sortField, sortDirection, updatedAt: new Date().toISOString() };
+    const saved: SavedPlayerSearch = {
+      id: crypto.randomUUID(), name, datasetId, query, logic: groupLogic, filters: flatFilters(),
+      groups: structuredClone(filterGroups), groupLogic, columns: selectedColumns, sortField, sortDirection,
+      updatedAt: new Date().toISOString(),
+    };
     state.savedSearches = [...state.savedSearches.filter((entry) => entry.name.toLocaleLowerCase() !== name.toLocaleLowerCase()), saved];
     await updateScoutingWorkspaceState(saveId, state); message = 'Saved search "' + name + '".'; render(); return true;
   }
@@ -330,9 +360,11 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
     const id = document.querySelector<HTMLSelectElement>("[data-scouting-saved-select]")?.value;
     const saved = state.savedSearches.find((entry) => entry.id === id);
     if (!saved) { message = "Choose a saved search first."; render(); return true; }
-    datasetId = saved.datasetId; query = saved.query; logic = saved.logic; filters = structuredClone(saved.filters);
+    datasetId = saved.datasetId; query = saved.query;
+    groupLogic = saved.groupLogic ?? "and"; filterGroups = groupsForSavedSearch(saved);
     state.columnsByDataset[datasetId] = saved.columns;
     sortField = saved.sortField; sortDirection = saved.sortDirection;
+    page = 1; viewMode = "discover"; selectedUids.clear();
     await runSearch(render); await runScoring(render); return true;
   }
   if (target.hasAttribute("data-delete-search")) {
@@ -349,7 +381,9 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
     const tags = (row.querySelector<HTMLInputElement>("[data-player-tags]")?.value ?? "").split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 20);
     const reviewDate = row.querySelector<HTMLInputElement>("[data-player-review]")?.value ?? "";
     state.players[target.dataset.savePlayerState] = { status: status ?? "unreviewed", note, tags, reviewDate, updatedAt: new Date().toISOString() };
-    await updateScoutingWorkspaceState(saveId, state); message = "Scouting decision saved to this career."; render(); return true;
+    await updateScoutingWorkspaceState(saveId, state); message = "Scouting decision saved to this career.";
+    if (viewMode === "shortlist") await runSearch(render); else render();
+    return true;
   }
   return false;
 }
