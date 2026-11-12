@@ -222,8 +222,8 @@ async function validateBackup(input: unknown): Promise<BackupPayload> {
     playerRecords,
     manifest: {
       datasetCount: manifest.datasetCount,
-      playerRecordCount: manifest.playerRecordCount,
       importJobCount: manifest.importJobCount,
+      playerRecordCount: manifest.playerRecordCount,
     },
   };
   const unsignedV2 = {
@@ -237,8 +237,8 @@ async function validateBackup(input: unknown): Promise<BackupPayload> {
     playerIdentities,
     manifest: {
       datasetCount: manifest.datasetCount,
-      playerRecordCount: manifest.playerRecordCount,
       importJobCount: manifest.importJobCount,
+      playerRecordCount: manifest.playerRecordCount,
       identityCount: playerIdentities.length,
     },
   };
