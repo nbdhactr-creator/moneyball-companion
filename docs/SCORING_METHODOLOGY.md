@@ -19,7 +19,7 @@ The recovered V1 role score is not a simple average of raw statistics or FM attr
 
 1. Each role/duty has a configured set of performance metrics and weights.
 2. Each metric is converted to a percentile within the role's FM position stratum (goalkeeper, centre-back, full-back, wing-back, defensive midfield, central midfield, wide midfield, attacking midfield, wide attack or striker).
-3. The reference pool requires at least 900 minutes per player by default and at least 10 eligible players for a metric percentile to be calculated.
+3. The reference pool requires at least 900 minutes per player by default and at least 10 eligible players for a metric percentile to be calculated. V1 scales the pool threshold and confidence thresholds when an import represents a partial season; V2 now estimates season progress from the 26th-highest minute total among the top 50 players and applies the same 0.25/0.5/0.75/1.0 progress bands.
 4. Negative-direction metrics are inverted. Tied values use a mid-rank percentile.
 5. Metric attempt floors are applied where configured (for example, a rate with too few attempts is not treated as reliable).
 6. Correlated metrics are grouped into evidence families. The family contributes its strongest configured weight, not the sum of every overlapping metric. Available metrics inside a family are averaged using their configured weights.
@@ -64,6 +64,7 @@ The DoF role evaluation also has a separate, limited aerial adjustment for centr
 
 - Every role metric reports its raw/normalised value, percentile, configured weight and availability reason.
 - Role results report family-by-family evidence, weighted coverage and minute-based confidence.
+- The V1 partial-season progress estimate is retained: the 26th-highest minute total among the top 50 players is compared with 4,400 minutes; pool and confidence thresholds scale to the estimated 25%, 50%, 75% or full-season band.
 - Each philosophy principle reports its metric coverage and component percentiles.
 - A principle with multiple metrics needs at least 60% of its own metrics measured before it contributes. This is a V2 evidence-quality improvement over V1, which allowed a principle to contribute from any one available metric.
 - Missing values stay missing. A genuine zero stays zero.
