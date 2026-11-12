@@ -662,7 +662,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
         rows: importState.validation.validRows,
       });
       saveLibrary = await listSaves();
-      if (activeSaveId !== saveId) resetPlayerWorkspace();
+      resetPlayerWorkspace();
       activeSaveId = saveId;
       squadDatasetId = dataset.id;
       persistActiveSaveId(activeSaveId);
