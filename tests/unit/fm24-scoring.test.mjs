@@ -160,3 +160,23 @@ test("derived metrics stay missing when required source components are absent", 
   assert.equal(stats["Press success"], null, "missing completed pressures must not be assumed to be zero");
   assert.equal(stats["Dist/90 km"], null, "unitless distance must not be assumed to be kilometres");
 });
+
+test("V1 philosophy templates reproduce source transformations for a centre-back", () => {
+  const role = "cd-DC-D";
+  assert.deepEqual(philosophyWeightsForRole(role, "possession"), [2, 1, 1, 1, 3, 1]);
+  assert.deepEqual(philosophyWeightsForRole(role, "counter"), [1, 1, 1, 2, 3, 2]);
+  assert.deepEqual(philosophyWeightsForRole(role, "direct"), [0, 0, 2, 1, 3, 2]);
+  assert.deepEqual(philosophyWeightsForRole(role, "balanced"), [2, 2, 2, 2, 2, 2]);
+  assert.deepEqual(philosophyWeightsForRole(role, "lowblock"), [0, 0, 2, 0, 3, 1]);
+  assert.deepEqual(philosophyWeightsForRole(role, "positional"), [3, 2, 2, 1, 3, 0]);
+  assert.deepEqual(philosophyWeightsForRole(role, "press"), [1, 1, 1, 2, 3, 3]);
+  assert.deepEqual(philosophyWeightsForRole(role, "physical"), [1, 1, 1, 2, 3, 3]);
+});
+
+test("V1 philosophy goalkeeper exceptions are preserved", () => {
+  const role = "gk-GK-D";
+  const base = [1, 0, 0, 0, 1, 0];
+  for (const template of ["lowblock", "wing", "positional", "press", "physical"]) {
+    assert.deepEqual(philosophyWeightsForRole(role, template), base);
+  }
+});
