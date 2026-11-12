@@ -235,6 +235,23 @@ async function bulkSetStatus(status: ShortlistStatus, render: () => void): Promi
   await runSearch(render);
 }
 
+async function bulkRemoveFromShortlist(render: () => void): Promise<void> {
+  const removable = [...selectedUids].filter((uid) => playerState(uid).status === "shortlist");
+  const selectedCount = selectedUids.size;
+  if (!selectedCount) { message = "Select at least one player first."; render(); return; }
+  const now = new Date().toISOString();
+  for (const uid of removable) {
+    const existing = playerState(uid);
+    state.players[uid] = { ...existing, status: "watching", updatedAt: now };
+  }
+  selectedUids.clear();
+  await updateScoutingWorkspaceState(saveId, state);
+  message = removable.length
+    ? removable.length + " player(s) moved to Watching. Other selected statuses, notes and tags were left unchanged."
+    : "None of the selected players were on the shortlist. No statuses were changed.";
+  await runSearch(render);
+}
+
 export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): string {
   if (!save) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Select a career first.</h2><p>Scouting searches and decisions are stored inside the active career.</p></section>';
   if (!save.datasets.length) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Import a season to begin.</h2><p>Search and filters use only your imported player records.</p></section>';
@@ -566,7 +583,7 @@ export async function handleScoutingWorkspaceClick(target: HTMLElement, render: 
   }
   if (target.hasAttribute("data-clear-selection")) { selectedUids.clear(); render(); return true; }
   if (target.hasAttribute("data-bulk-shortlist")) { await bulkSetStatus("shortlist", render); return true; }
-  if (target.hasAttribute("data-bulk-remove-shortlist")) { await bulkSetStatus("watching", render); return true; }
+  if (target.hasAttribute("data-bulk-remove-shortlist")) { await bulkRemoveFromShortlist(render); return true; }
   if (target.dataset.scoutingView) {
     viewMode = target.dataset.scoutingView === "shortlist" ? "shortlist" : "discover";
     page = 1; selectedUids.clear(); await runSearch(render); return true;
