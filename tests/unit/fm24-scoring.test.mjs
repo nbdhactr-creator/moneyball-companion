@@ -238,3 +238,21 @@ test("optional sample shrinkage pulls low-minute DoF scores toward the median", 
   assert.equal(dof.sampleAdjusted, true);
   assert.ok(Math.abs(dof.displayScore - 50) < Math.abs(dof.score - 50));
 });
+
+test("custom philosophy weights remain specific to the V1 role-type and duty key", () => {
+  const players = Array.from({ length: 14 }, (_, index) => defender(index));
+  const scorer = createFm24Scorer(players, {
+    philosophyWeightsByRoleDuty: {
+      "cd|D": [3, 0, 0, 0, 0, 0],
+      "cd|C": [0, 0, 3, 0, 0, 0],
+    },
+  });
+  const player = scorer.players[5];
+  const defend = scorer.roles.find((entry) => entry.id === "cd-DC-D");
+  const cover = scorer.roles.find((entry) => entry.id === "cd-DC-C");
+  assert.ok(defend && cover);
+  assert.equal(scorer.scorePhilosophy(player, defend).principles[0].weight, 3);
+  assert.equal(scorer.scorePhilosophy(player, defend).principles[2].weight, 0);
+  assert.equal(scorer.scorePhilosophy(player, cover).principles[0].weight, 0);
+  assert.equal(scorer.scorePhilosophy(player, cover).principles[2].weight, 3);
+});
