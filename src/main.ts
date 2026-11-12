@@ -531,7 +531,7 @@ async function refreshSaveLibrary(): Promise<void> {
     if (activeSaveId && !saveLibrary.some((entry) => entry.save.id === activeSaveId)) activeSaveId = null;
     if (!activeSaveId && saveLibrary.length) activeSaveId = saveLibrary[0].save.id;
     persistActiveSaveId(activeSaveId);
-    await loadScoutingWorkspace(activeSaveId ?? "", activeSave()?.datasets[0]?.id ?? "");
+    await loadScoutingWorkspace(activeSaveId ?? "", activeSave()?.datasets[0]?.id ?? "", render);
   } catch (error) {
     saveMessage = formatStorageError(error);
     saveMessageIsError = true;
@@ -566,7 +566,7 @@ app.addEventListener("click", (event: MouseEvent) => {
     resetPlayerWorkspace();
     activeSaveId = saveId;
     persistActiveSaveId(activeSaveId);
-    void loadScoutingWorkspace(saveId, saveLibrary.find((entry) => entry.save.id === saveId)?.datasets[0]?.id ?? "").then(render);
+    void loadScoutingWorkspace(saveId, saveLibrary.find((entry) => entry.save.id === saveId)?.datasets[0]?.id ?? "", render).then(render);
     saveMessage = "";
     render();
   }
@@ -674,7 +674,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       resetPlayerWorkspace();
       activeSaveId = restored.id;
       persistActiveSaveId(activeSaveId);
-      await loadScoutingWorkspace(restored.id, saveLibrary.find((entry) => entry.save.id === restored.id)?.datasets[0]?.id ?? "");
+      await loadScoutingWorkspace(restored.id, saveLibrary.find((entry) => entry.save.id === restored.id)?.datasets[0]?.id ?? "", render);
       saveMessage = '"' + restored.name + '" restored successfully. Your original career remains unchanged.';
       saveMessageIsError = false;
     } catch (error) {
@@ -696,7 +696,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       resetPlayerWorkspace();
       activeSaveId = save.id;
       persistActiveSaveId(activeSaveId);
-      await loadScoutingWorkspace(save.id);
+      await loadScoutingWorkspace(save.id, "", render);
       saveMessage = `Save "${save.name}" created on this device.`;
       saveMessageIsError = false;
       form.reset();
@@ -731,7 +731,7 @@ app.addEventListener("submit", async (event: SubmitEvent) => {
       resetPlayerWorkspace();
       activeSaveId = saveId;
       squadDatasetId = dataset.id;
-      await loadScoutingWorkspace(saveId, dataset.id);
+      await loadScoutingWorkspace(saveId, dataset.id, render);
       persistActiveSaveId(activeSaveId);
       importState = { status: "idle" };
       saveMessage = `Season "${dataset.seasonLabel}" saved successfully: ${dataset.playerCount.toLocaleString()} player records stored locally.`;
