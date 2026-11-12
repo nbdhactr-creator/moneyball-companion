@@ -16,7 +16,7 @@ export interface Fm24RawPlayerRow {
 }
 
 export interface Fm24ParseResult {
-  format: "fm24-pipe-table-v1" | "unknown";
+  format: "fm24-pipe-table-v1" | "fm24-html-table-v1" | "unknown";
   headers: string[];
   rows: Fm24RawPlayerRow[];
   issues: Fm24ImportIssue[];
@@ -86,12 +86,195 @@ function isSeparatorRow(cells: string[]): boolean {
   return cells.length > 0 && cells.every((cell) => cell.length > 0 && /^-+$/.test(cell));
 }
 
+
+const HTML_ENTITIES: Record<string, string> = {
+  amp: "&", apos: "'", gt: ">", lt: "<", nbsp: " ", quot: '"',
+  pound: "£", euro: "€", ndash: "–", mdash: "—", hellip: "…",
+};
+
+function decodeHtmlText(value: string): string {
+  return value.replace(/&(#x[0-9a-f]+|#\d+|[a-z][a-z0-9]+);/gi, (entity, name: string) => {
+    if (name.startsWith("#x") || name.startsWith("#X")) {
+      const codePoint = Number.parseInt(name.slice(2), 16);
+      return Number.isFinite(codePoint) && codePoint > 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint) : entity;
+    }
+    if (name.startsWith("#")) {
+      const codePoint = Number.parseInt(name.slice(1), 10);
+      return Number.isFinite(codePoint) && codePoint > 0 && codePoint <= 0x10ffff
+        ? String.fromCodePoint(codePoint) : entity;
+    }
+    return HTML_ENTITIES[name] ?? entity;
+  });
+}
+
+/**
+ * Extracts the first HTML table whose header row contains a UID column.
+ * A small tokenizer is used so this also works inside the import Web Worker,
+ * where browser DOMParser is not available. Markup is treated only as data.
+ */
+function parseFm24HtmlExport(source: string): Fm24ParseResult {
+  const tables: Array<Array<{ cells: string[]; line: number }>> = [];
+  let activeTableRows: Array<{ cells: string[]; line: number }> | null = null;
+  let tableDepth = 0;
+  let currentRow: { cells: string[]; line: number } | null = null;
+  let currentCell = "";
+  let inCell = false;
+  let ignoredTagDepth = 0;
+  let currentLine = 1;
+  const tokens = /<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][^>]*>|[^<]+/gi;
+  let match: RegExpExecArray | null;
+
+  while ((match = tokens.exec(source)) !== null) {
+    const token = match[0];
+    const tokenLine = currentLine;
+    currentLine += (token.match(/\n/g) ?? []).length;
+    if (token.startsWith("<!--") || token.startsWith("<!")) continue;
+    if (!token.startsWith("<")) {
+      if (inCell && ignoredTagDepth === 0) currentCell += decodeHtmlText(token);
+      continue;
+    }
+
+    const tagMatch = token.match(/^<\s*(\/?)\s*([a-z0-9:-]+)/i);
+    if (!tagMatch) continue;
+    const closing = tagMatch[1] === "/";
+    const tag = tagMatch[2].toLowerCase();
+    const line = tokenLine;
+
+    if (tag === "script" || tag === "style") {
+      if (closing) ignoredTagDepth = Math.max(0, ignoredTagDepth - 1);
+      else if (!/\/\s*>$/.test(token)) ignoredTagDepth += 1;
+      continue;
+    }
+    if (ignoredTagDepth > 0) continue;
+
+    if (tag === "table") {
+      if (closing) {
+        tableDepth = Math.max(0, tableDepth - 1);
+        if (tableDepth === 0 && activeTableRows) {
+          if (currentRow) activeTableRows.push(currentRow);
+          currentRow = null;
+          tables.push(activeTableRows);
+          activeTableRows = null;
+        }
+      } else {
+        if (tableDepth === 0) activeTableRows = [];
+        tableDepth += 1;
+      }
+      continue;
+    }
+    if (tag === "tr" && tableDepth > 0) {
+      if (closing) {
+        if (currentRow && activeTableRows) activeTableRows.push(currentRow);
+        currentRow = null;
+        inCell = false;
+      } else {
+        if (currentRow && activeTableRows) activeTableRows.push(currentRow);
+        currentRow = { cells: [], line };
+      }
+      continue;
+    }
+    if ((tag === "td" || tag === "th") && tableDepth > 0) {
+      if (closing) {
+        if (currentRow && inCell) currentRow.cells.push(currentCell.replace(/\s+/g, " ").trim());
+        currentCell = "";
+        inCell = false;
+      } else {
+        if (!currentRow) currentRow = { cells: [], line };
+        currentCell = "";
+        inCell = true;
+      }
+      continue;
+    }
+    if (tag === "br" && !closing && inCell) currentCell += " ";
+  }
+
+  if (currentRow && activeTableRows) {
+    if (inCell) currentRow.cells.push(currentCell.replace(/\s+/g, " ").trim());
+    activeTableRows.push(currentRow);
+  }
+  if (activeTableRows) tables.push(activeTableRows);
+
+  const tableRows = tables.find((candidate) => candidate.some((row) =>
+    row.cells.some((cell) => cell.replace(/\s+/g, " ").trim().toLowerCase() === "uid"))) ?? [];
+  const headerIndex = tableRows.findIndex((row) =>
+    row.cells.some((cell) => cell.replace(/\s+/g, " ").trim().toLowerCase() === "uid"));
+  if (headerIndex < 0) {
+    return {
+      format: "unknown",
+      headers: [],
+      rows: [],
+      issues: [{
+        code: "header-not-found",
+        severity: "error",
+        message: "Could not find an HTML table header containing a UID column.",
+      }],
+    };
+  }
+
+  const headers = tableRows[headerIndex].cells.map((cell) => cell.trim());
+  const issues: Fm24ImportIssue[] = [];
+  const headerCounts = new Map<string, number>();
+  for (const header of headers) {
+    const key = header.toLowerCase();
+    headerCounts.set(key, (headerCounts.get(key) ?? 0) + 1);
+  }
+  for (const [header, count] of headerCounts) {
+    if (!header) {
+      issues.push({
+        code: "empty-header",
+        severity: "error",
+        line: tableRows[headerIndex].line,
+        message: "The HTML export contains an unnamed column. The file cannot be imported safely.",
+      });
+    } else if (count > 1) {
+      issues.push({
+        code: "duplicate-header",
+        severity: "error",
+        line: tableRows[headerIndex].line,
+        message: `The HTML export contains the duplicate column name "${header}".`,
+      });
+    }
+  }
+
+  const rows: Fm24RawPlayerRow[] = [];
+  for (const sourceRow of tableRows.slice(headerIndex + 1)) {
+    if (sourceRow.cells.length === 0 || sourceRow.cells.every((cell) => !cell)) continue;
+    if (sourceRow.cells.length !== headers.length) {
+      issues.push({
+        code: "malformed-row",
+        severity: "error",
+        line: sourceRow.line,
+        message: `Expected ${headers.length} columns but found ${sourceRow.cells.length}; this row was excluded.`,
+      });
+      continue;
+    }
+    const values: Record<string, string> = {};
+    headers.forEach((header, index) => { values[header] = sourceRow.cells[index] ?? ""; });
+    rows.push({ sourceLine: sourceRow.line, values });
+  }
+
+  if (rows.length === 0) {
+    issues.push({
+      code: "no-player-rows",
+      severity: "error",
+      message: "The HTML table header was found, but no player rows were found.",
+    });
+  }
+
+  return { format: "fm24-html-table-v1", headers, rows, issues };
+}
+
 /**
  * Parses the FM24 pipe-table export observed in test-for-git.csv.
  * Values intentionally remain strings; type conversion belongs to a later,
  * field-aware normalisation layer.
  */
 export function parseFm24Export(source: string): Fm24ParseResult {
+  if (/<(?:!doctype\s+html|html\b|table\b|head\b|body\b)/i.test(source)) {
+    return parseFm24HtmlExport(source);
+  }
+
   const lines = source.replace(/^\uFEFF/, "").split(/\r?\n/);
   const issues: Fm24ImportIssue[] = [];
   let headerLineIndex = -1;

@@ -1,6 +1,6 @@
 # Local Save and Season Data Foundation
 
-Status: implementation in progress on `feature/local-save-season-persistence`.
+Status: local persistence foundation merged; heartbeat recovery and active-save restoration are follow-up hardening changes.
 
 ## User workflow
 
@@ -37,7 +37,7 @@ Raw source values remain strings. This phase does not claim that every FM field 
 - Dataset metadata is written only after every batch succeeds.
 - The dataset and import job are marked committed together in a final IndexedDB transaction.
 - If a batch fails, staged records are deleted in bounded cleanup batches where possible. Uncommitted rows are not shown in the save library.
-- On the next app launch, any import job left in `staging` is treated as interrupted; its staged rows are cleaned up and the job is marked failed.
+- On app launch, only staging jobs whose heartbeat (or legacy `createdAt` fallback) is older than five minutes are treated as abandoned; their staged rows are cleaned up and the job is marked failed. Active imports refresh their heartbeat between batches.
 - Duplicate file fingerprints and duplicate season labels are blocked.
 - Existing datasets are never overwritten by this workflow.
 - Quota errors are reported without claiming that an import succeeded.

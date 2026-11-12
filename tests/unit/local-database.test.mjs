@@ -144,7 +144,8 @@ test("cleans up staged rows left by an interrupted browser session", async () =>
       saveId: save.id,
       datasetId: "unfinished-dataset",
       status: "staging",
-      createdAt: new Date().toISOString(),
+      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      heartbeatAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
     });
     transaction.objectStore("playerRecords").add({
       id: "unfinished-dataset:3001",
@@ -187,5 +188,43 @@ test("cleans up staged rows left by an interrupted browser session", async () =>
     assert.equal(jobs[0].status, "failed");
   } finally {
     recoveredDb.close();
+  }
+});
+
+test("does not recover an active staging import with a recent heartbeat", async () => {
+  await resetDatabase();
+  const save = await createSave("Active Import Test");
+  const db = await openLocalDatabase();
+  try {
+    const transaction = db.transaction("importJobs", "readwrite");
+    transaction.objectStore("importJobs").add({
+      id: "active-job",
+      saveId: save.id,
+      datasetId: "active-dataset",
+      status: "staging",
+      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      heartbeatAt: new Date().toISOString(),
+    });
+    await new Promise((resolve, reject) => {
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+    });
+  } finally {
+    db.close();
+  }
+
+  assert.equal(await recoverInterruptedImports(), 0);
+  const checkDb = await openLocalDatabase();
+  try {
+    const transaction = checkDb.transaction("importJobs", "readonly");
+    const jobs = await new Promise((resolve, reject) => {
+      const request = transaction.objectStore("importJobs").getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    assert.equal(jobs[0].status, "staging");
+  } finally {
+    checkDb.close();
   }
 });

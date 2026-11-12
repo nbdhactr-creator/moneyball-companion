@@ -32,6 +32,7 @@ interface ImportJobRecord {
   datasetId: string;
   status: "staging" | "committed" | "failed";
   createdAt: string;
+  heartbeatAt?: string;
   error?: string;
 }
 
@@ -195,7 +196,11 @@ export async function recoverInterruptedImports(): Promise<number> {
     const jobs = await requestResult(read.objectStore("importJobs").getAll() as IDBRequest<ImportJobRecord[]>);
     await readDone;
 
-    for (const job of jobs.filter((entry) => entry.status === "staging")) {
+    const recoveryCutoff = Date.now() - 5 * 60 * 1000;
+    const abandonedJobs = jobs.filter((entry) => entry.status === "staging" &&
+      new Date(entry.heartbeatAt ?? entry.createdAt).getTime() < recoveryCutoff);
+
+    for (const job of abandonedJobs) {
       await removeStagedRows(db, job.id);
       const transaction = db.transaction("importJobs", "readwrite");
       transaction.objectStore("importJobs").put({
@@ -246,13 +251,17 @@ export async function persistSeasonImport(input: {
     if (duplicate) throw new Error(`This exact file is already saved as season "${duplicate.seasonLabel}". Duplicate imports are blocked.`);
     if (sameSeason) throw new Error(`Season "${seasonLabel}" already exists in this save. Existing data is protected; explicit season replacement will be added separately.`);
 
-    const job: ImportJobRecord = { id: jobId, saveId: input.saveId, datasetId, status: "staging", createdAt: now };
+    const job: ImportJobRecord = { id: jobId, saveId: input.saveId, datasetId, status: "staging", createdAt: now, heartbeatAt: now };
     const jobTransaction = db.transaction("importJobs", "readwrite");
     jobTransaction.objectStore("importJobs").add(job);
     await transactionDone(jobTransaction);
     jobCreated = true;
 
     for (let offset = 0; offset < input.rows.length; offset += IMPORT_BATCH_SIZE) {
+      const heartbeat = db.transaction("importJobs", "readwrite");
+      heartbeat.objectStore("importJobs").put({ ...job, heartbeatAt: new Date().toISOString() } satisfies ImportJobRecord);
+      await transactionDone(heartbeat);
+
       const transaction = db.transaction("playerRecords", "readwrite");
       const store = transaction.objectStore("playerRecords");
       for (const row of input.rows.slice(offset, offset + IMPORT_BATCH_SIZE)) {

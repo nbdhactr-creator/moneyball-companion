@@ -104,6 +104,51 @@ test("rejects duplicate column names", () => {
   assert.ok(validation.issues.some((issue) => issue.code === "duplicate-header"));
 });
 
+
+test("parses an HTML table, nested cell markup and common entities", () => {
+  const html = `<!doctype html>
+<html>
+<body>
+<table>
+<tr><th>UID</th><th>Name</th><th>Age</th><th>Wage</th></tr>
+<tr><td>123</td><td><span>O'Brien</span> &amp; Son</td><td>20</td><td>&pound;4,700&nbsp;p/w</td></tr>
+</table>
+</body>
+</html>`;
+  const parsed = parseFm24Export(html);
+  const validation = validateFm24Import(parsed);
+
+  assert.equal(parsed.format, "fm24-html-table-v1");
+  assert.deepEqual(parsed.headers, ["UID", "Name", "Age", "Wage"]);
+  assert.equal(parsed.rows.length, 1);
+  assert.equal(parsed.rows[0].values["Name"], "O'Brien & Son");
+  assert.equal(parsed.rows[0].values["Wage"], "£4,700 p/w");
+  assert.equal(validation.canImport, true);
+  assert.equal(validation.summary.validRows, 1);
+});
+
+test("applies the same duplicate UID safeguards to HTML imports", () => {
+  const html = `<html><table>
+<tr><th>UID</th><th>Name</th></tr>
+<tr><td>123</td><td>First</td></tr>
+<tr><td>123</td><td>Second</td></tr>
+<tr><td>456</td><td>Third</td></tr>
+</table></html>`;
+  const validation = validateFm24Import(parseFm24Export(html));
+
+  assert.equal(validation.canImport, false);
+  assert.equal(validation.summary.duplicateUids, 2);
+  assert.deepEqual(validation.validRows.map((row) => row.values["UID"]), ["456"]);
+});
+
+test("rejects HTML documents without a UID table header", () => {
+  const parsed = parseFm24Export("<html><table><tr><th>Name</th></tr><tr><td>Player</td></tr></table></html>");
+
+  assert.equal(parsed.format, "unknown");
+  assert.equal(parsed.rows.length, 0);
+  assert.equal(parsed.issues[0].code, "header-not-found");
+});
+
 test("returns a clear error for an unsupported file", () => {
   const parsed = parseFm24Export("Name,Age,Club\nPlayer,20,Club");
 
