@@ -1,6 +1,6 @@
 # Local Save and Season Data Foundation
 
-Status: local import, multi-season persistence, versioned career backup/restore, career-scoped player identities and the first season-history workflow are implemented. The player identity/history milestone is in the current development branch; merge/deployment status is tracked in the project handover.
+Status: local import, multi-season persistence, versioned career backup/restore, career-scoped player identities and the first season-history workflow are implemented, merged into main and deployed to GitHub Pages. User verification of the new Squad workflow remains pending.
 
 ## User workflow
 
