@@ -65,7 +65,7 @@ export function buildFormationSlots(id:string,previous:SquadTacticSlot[]=[]):Squ
 function tactic(){return state.squadTactics??createDefaultTactic()}
 function clubRows(){return club?players.filter(p=>p.club.trim().toLowerCase()===club.trim().toLowerCase()):[]}
 async function load(save:SaveWithDatasets,did:string,render:()=>void){
- const id=++token;loading=true;message="";saveId=save.save.id;datasetId=did;club=save.save.club;state=emptyScoutingWorkspaceState();players=[];render();
+ const id=++token;roleFitRequestId+=1;roleFitWorker?.terminate();roleFitWorker=null;activeRoleFitKey="";roleFitByUid=new Map();roleFitStatus="idle";roleFitMessage="";loading=true;message="";saveId=save.save.id;datasetId=did;club=save.save.club;state=emptyScoutingWorkspaceState();players=[];render();
  try{const [s,p]=await Promise.all([getScoutingWorkspaceState(save.save.id),did?getDatasetPlayers(did):Promise.resolve([])]);
  if(id!==token)return;state={...emptyScoutingWorkspaceState(),...s};state.squadTactics??=createDefaultTactic();players=p;club=save.save.club;saveId=save.save.id;datasetId=did;
  }catch(e){if(id===token)message=e instanceof Error?e.message:"Could not load Squad data."}
