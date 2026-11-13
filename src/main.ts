@@ -573,8 +573,9 @@ app.addEventListener("pointercancel", (event: PointerEvent) => {
 });
 
 app.addEventListener("click", (event: MouseEvent) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field], [data-squad-tab], [data-tactic-slot]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-view], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field], [data-squad-tab], [data-tactic-slot]");
   if (target?.dataset.squadTab || target?.dataset.tacticSlot) { void handleSquadWorkspaceClick(target, render); return; }
+  if (target?.dataset.playerView === "rows" || target?.dataset.playerView === "cards") { playerSearchViewMode = target.dataset.playerView; render(); return; }
   if (target?.dataset.squadSortField) {
     const field = target.dataset.squadSortField;
     if (squadSortField === field) {
