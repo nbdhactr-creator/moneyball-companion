@@ -1,5 +1,6 @@
 import { emptyScoutingWorkspaceState, getDatasetPlayers, getScoutingWorkspaceState, updateScoutingWorkspaceState, type SaveWithDatasets, type ScoutingWorkspaceState, type PlayerSeasonRecord, type SquadTacticConfig, type SquadTacticSlot } from "./storage/local-database.ts";
 import { FM24_ROLES, FM24_STRATA } from "../analytics/fm24-role-catalog.ts";
+import { rankPlayersForRole, topRoleFit, type RoleFitValue } from "./player-search.ts";
 import { FM24_PHILOSOPHY_TEMPLATES, FM24_PHILOSOPHY_PRINCIPLES, philosophyWeightsForRole } from "../analytics/fm24-scoring.ts";
 
 type Tab = "overview"|"players"|"tactics"|"philosophy"|"depth";
@@ -31,6 +32,13 @@ let tab:Tab="overview", saveId="", datasetId="", state:ScoutingWorkspaceState=em
 let loading=false, message="", club="", selectedSlot="", playerSearchQuery="";
 let activePitchDrag:{slotId:string;pointerId:number;pitch:HTMLElement;button:HTMLElement;x:number;y:number;moved:boolean}|null=null;
 let token=0;
+let roleFitByUid = new Map<string, RoleFitValue>();
+const roleFitCache = new Map<string, Map<string, RoleFitValue>>();
+let roleFitWorker: Worker | null = null;
+let roleFitRequestId = 0;
+let activeRoleFitKey = "";
+let roleFitStatus: "idle" | "loading" | "complete" | "error" = "idle";
+let roleFitMessage = "";
 const esc=(s:string)=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]??c));
 const defaultRole=(pos:string)=>{const a=roles.filter(r=>r.slots.includes(pos));return (a.find(r=>r.duty==="D")??a[0])?.id??""};
 export function createDefaultTactic(id="433"):SquadTacticConfig{
@@ -74,25 +82,35 @@ function philosophy(){
  const side=guidance.map(([name,description],i)=>'<div class="squad-philosophy-guide"><strong>'+(i+1)+". "+esc(name)+'</strong><p>'+esc(description)+'</p></div>').join("");
  return '<div class="squad-grid-two squad-philosophy-layout"><article class="content-card"><div class="card-kicker">CLUB IDENTITY</div><h2>Define what good football looks like.</h2><p>Choose a starting template, then tune its six principles for a role and duty. These settings are shared with Scouting and Planning.</p><div class="squad-control-grid"><label>Philosophy template<select data-squad-template><option value="">Choose template…</option>'+templates+'</select></label><label>Role and duty lens<select data-squad-role><option value="">Choose role…</option>'+roleOpts+'</select></label></div><div class="squad-section-title"><strong>Principle weights</strong><span>0–3 · 0.5 steps</span></div>'+rows+'<p class="squad-note">Weights are saved per role type and duty. The original role catalogue remains unchanged.</p></article><aside class="content-card squad-philosophy-help"><div class="card-kicker">HOW THE PHILOSOPHY SCORE WORKS</div><h3>What changing a slider actually does</h3><p>A weight controls how strongly that principle influences a player&#39;s Philosophy Fit score for the selected role and duty.</p><ul><li><b>0</b> — exclude the principle from the score.</li><li><b>1</b> — give it a light influence.</li><li><b>2</b> — give it twice the influence of weight 1.</li><li><b>3</b> — maximum influence; three times weight 1.</li></ul><p>The score is a weighted average of the available principle percentiles. Raising one weight makes that principle count more relative to the others; it does not change the player&#39;s raw statistics or role score.</p><div class="squad-formula">Philosophy Fit = Σ (principle percentile × weight) ÷ Σ available weights</div><p>If a principle&#39;s evidence is missing, it cannot contribute. Missing evidence reduces coverage; the overall score is withheld when weighted evidence coverage is below 60%. A zero-weight principle is excluded from both the score and its denominator. If all six weights are zero, no Philosophy Fit score can be calculated.</p><div class="squad-section-title"><strong>What each slider measures</strong><span>Season-export proxies</span></div>'+side+'<p class="squad-note">These are season-output indicators, not direct measurements of tactical execution, pressing structure, off-ball movement or match-engine behaviour.</p></aside></div>';
 }
+function ensureRoleFit(roleId:string,render:()=>void):void{
+ const key=datasetId+"|"+roleId;if(!datasetId||!roleId){roleFitStatus="idle";roleFitByUid=new Map();return}
+ const cached=roleFitCache.get(key);if(cached){activeRoleFitKey=key;roleFitByUid=cached;roleFitStatus="complete";roleFitMessage="Role fit loaded from this session's cache.";return}
+ if(activeRoleFitKey===key&&roleFitWorker)return;
+ roleFitWorker?.terminate();roleFitWorker=null;const requestId=++roleFitRequestId;activeRoleFitKey=key;roleFitByUid=new Map();roleFitStatus="loading";roleFitMessage="Calculating Core Role Fit across the season…";
+ const worker=new Worker(new URL("../analytics/squad-role-fit.worker.ts",import.meta.url),{type:"module"});roleFitWorker=worker;
+ worker.onmessage=(event:MessageEvent<{requestId:number;phase:string;scores?:Array<{uid:string;score:number|null;coverage:number;confidence:"low"|"medium"|"high";listedForRole:boolean;positionEligible:boolean}>;playerCount?:number;message?:string}>)=>{
+  const response=event.data;if(response.requestId!==requestId||requestId!==roleFitRequestId)return;
+  if(response.phase==="complete"){const fits=new Map<string,RoleFitValue>((response.scores??[]).map(s=>[s.uid,{score:s.score,coverage:s.coverage,confidence:s.confidence,listedForRole:s.listedForRole,positionEligible:s.positionEligible}]));roleFitCache.set(key,fits);roleFitByUid=fits;roleFitStatus="complete";roleFitMessage="Core Role Fit calculated for "+(response.playerCount??0).toLocaleString()+" players. Insufficient evidence remains unscored.";worker.terminate();if(roleFitWorker===worker)roleFitWorker=null;render()}
+  else if(response.phase==="error"){roleFitStatus="error";roleFitMessage=response.message??"Role fit calculation failed.";worker.terminate();if(roleFitWorker===worker)roleFitWorker=null;render()}
+ };
+ worker.onerror=()=>{if(requestId!==roleFitRequestId)return;roleFitStatus="error";roleFitMessage="The role-fit worker stopped unexpectedly. Imported data is unchanged.";worker.terminate();if(roleFitWorker===worker)roleFitWorker=null;render()};
+ worker.postMessage({requestId,datasetId,roleId});
+}
 function playerPickerOptions(slot:SquadTacticSlot,rows:PlayerSeasonRecord[],query:string):string{
- const q=query.trim().toLocaleLowerCase(),selected=rows.find(p=>p.uid===slot.playerUid);
- const matches=q.length>=2?rows.filter(p=>[p.displayName,p.position,p.uid].some(v=>v.toLocaleLowerCase().includes(q))).sort((a,b)=>a.displayName.localeCompare(b.displayName)).slice(0,20):[];
- const options:string[]=['<option value="">Unassigned</option>'];
- if(selected)options.push('<option value="'+esc(selected.uid)+'" selected>'+esc(selected.displayName)+' · '+esc(selected.position||"Position unavailable")+' · current</option>');
- for(const p of matches){if(p.uid===selected?.uid)continue;options.push('<option value="'+esc(p.uid)+'">'+esc(p.displayName)+' · '+esc(p.position||"Position unavailable")+'</option>')}
- if(q.length<2)options.push('<option value="" disabled>Type at least 2 characters to search the squad</option>');
- else if(!matches.length)options.push('<option value="" disabled>No matching players found</option>');
- return options.join("");
+ const q=query.trim(),ranked=rankPlayersForRole(rows,q,"",roleFitByUid),top=topRoleFit(rows,roleFitByUid),fit=top?roleFitByUid.get(top.uid):undefined;
+ const best=top&&fit?'<div class="squad-best-role-fit"><div><span class="card-kicker">BEST AVAILABLE ROLE FIT</span><strong>'+esc(top.displayName)+'</strong><small>'+esc(top.position||"Position unavailable")+' · '+fit.score!.toFixed(1)+'/100 · '+Math.round(fit.coverage*100)+'% evidence · '+esc(fit.confidence)+' confidence</small></div><button type="button" data-squad-assign-player="'+esc(top.uid)+'" aria-pressed="'+(slot.playerUid===top.uid)+'">'+(slot.playerUid===top.uid?"Assigned":"Assign best fit")+'</button></div>':'<div class="squad-best-role-empty">'+(roleFitStatus==="loading"?"Calculating best role fit…":roleFitStatus==="error"?"Role fit unavailable: "+esc(roleFitMessage):"No player currently has a score supported by sufficient role evidence.")+'</div>';
+ const results=q.length>=2?ranked.slice(0,20).map(p=>{const f=roleFitByUid.get(p.uid),valid=f?.listedForRole===true&&f.score!=null,status=valid?f!.score!.toFixed(1)+"/100 · "+Math.round(f!.coverage*100)+"% evidence · "+f!.confidence+" confidence":f?.listedForRole?"Insufficient evidence":"Not listed for this role";return '<button type="button" class="squad-player-result'+(slot.playerUid===p.uid?' is-assigned':'')+'" data-squad-assign-player="'+esc(p.uid)+'" aria-pressed="'+(slot.playerUid===p.uid)+'"><span><strong>'+esc(p.displayName)+'</strong><small>'+esc(p.position||"Position unavailable")+' · '+esc(p.uid)+'</small></span><span class="squad-player-result-fit">'+esc(status)+'</span></button>'}).join(""):"";
+ return best+'<div class="squad-player-results" data-squad-player-results><div class="squad-player-results-heading"><strong>Squad candidates</strong><span>'+(q.length>=2?ranked.length+" matching player(s)":"Search by name, position or UID")+'</span></div>'+(q.length>=2?(results||'<p class="squad-player-empty">No matching players found.</p>'):'<p class="squad-player-empty">Type at least 2 characters. Candidates are ranked by Core Role Fit where evidence is sufficient.</p>')+'</div>';
 }
 function positionOptionMarkup(position:string):string{
  return Object.entries(strata).map(([,group])=>'<optgroup label="'+esc(group.label)+'">'+group.slots.map(pos=>'<option value="'+esc(pos)+'"'+(position===pos?" selected":"")+'>'+esc(pos)+'</option>').join("")+'</optgroup>').join("");
 }
 function tactics(){
- const t=tactic(),rows=clubRows(),slot=t.slots.find(s=>s.id===selectedSlot)??t.slots[0];if(slot)selectedSlot=slot.id;
+ const t=tactic(),rows=clubRows(),slot=t.slots.find(s=>s.id===selectedSlot)??t.slots[0];if(slot){selectedSlot=slot.id;ensureRoleFit(slot.roleId,()=>{});}
  const pitch=t.slots.map(s=>{const p=rows.find(x=>x.uid===s.playerUid),r=roles.find(x=>x.id===s.roleId);return '<button class="squad-pitch-slot'+(s.id===selectedSlot?' is-selected':'')+'" type="button" aria-label="Edit '+esc(s.label)+' position" title="Select or drag to reposition" style="left:'+s.x+'%;top:'+s.y+'%" data-tactic-slot="'+esc(s.id)+'"><b>'+esc(p?.displayName??s.label)+'</b><small>'+esc(r?.name??"Choose role")+' · '+esc(r?.dutyName??"—")+'</small></button>'}).join("");
  const roleChoices=slot?roles.filter(r=>r.slots.includes(slot.position)):[];
  const roleOptions=roleChoices.map(r=>'<option value="'+r.id+'"'+(slot?.roleId===r.id?" selected":"")+'>'+esc(r.name)+' · '+esc(r.dutyName)+'</option>').join("");
- const picker=slot?'<div class="squad-player-picker" data-squad-player-picker><label>Find a player<input type="search" data-squad-player-search autocomplete="off" value="'+esc(playerSearchQuery)+'" placeholder="Search name, position or UID…" aria-label="Search squad players"></label><small data-squad-player-count>'+(playerSearchQuery.trim().length>=2?"Showing up to 20 matching players":"Type at least 2 characters. Only your active club is searched.")+'</small><label>Assigned player<select data-squad-slot-player>'+playerPickerOptions(slot,rows,playerSearchQuery)+'</select></label></div>':'';
+ const picker=slot?'<div class="squad-player-picker" data-squad-player-picker><label>Find a player<input type="search" data-squad-player-search autocomplete="off" value="'+esc(playerSearchQuery)+'" placeholder="Search name, position or UID…" aria-label="Search squad players"></label><div data-squad-player-count role="status">Only your active club is searched.</div>'+playerPickerOptions(slot,rows,playerSearchQuery)+(slot.playerUid?'<button type="button" class="squad-clear-assignment" data-squad-clear-player>Clear assigned player</button>':'')+'</div>':'';
  const sel=(key:string,label:string,values:string[],value:string)=>'<label>'+label+'<select data-squad-instruction="'+key+'">'+values.map(v=>'<option'+(v===value?" selected":"")+'>'+v+'</option>').join("")+'</select></label>';
  return '<div class="squad-tactics-layout"><article class="content-card"><div class="squad-tactics-toolbar"><div><div class="card-kicker">TACTICAL BOARD · FM24</div><p class="squad-note">Select a shirt to edit it. Drag it to change its pitch position.</p></div><label>Formation<select data-squad-formation>'+formations.map(f=>'<option value="'+f.id+'"'+(f.id===t.formationId?" selected":"")+'>'+f.name+'</option>').join("")+'</select></label></div><div class="squad-pitch"><div class="squad-pitch-half"></div><div class="squad-pitch-circle"></div><div class="squad-pitch-box squad-pitch-box-top"></div><div class="squad-pitch-box squad-pitch-box-bottom"></div>'+pitch+'</div><div class="squad-tactic-summary"><span><b>'+t.slots.filter(s=>s.playerUid).length+'</b> / 11 assigned</span><span><b>'+t.slots.filter(s=>!s.playerUid).length+'</b> unfilled slots</span></div></article><aside class="content-card squad-tactic-editor"><div class="card-kicker">POSITION EDITOR</div><h3>'+esc(slot?.label??"Select a slot")+'</h3>'+(slot?picker+'<label>FM24 position<select data-squad-slot-position>'+positionOptionMarkup(slot.position)+'</select></label><label>Role and duty<select data-squad-slot-role>'+roleOptions+'</select></label><label>Horizontal pitch position · '+slot.x+'%<input type="range" min="5" max="95" step="1" value="'+slot.x+'" data-squad-slot-x></label><label>Vertical pitch position · '+slot.y+'%<input type="range" min="5" max="95" step="1" value="'+slot.y+'" data-squad-slot-y></label><p class="squad-note">Player search is limited to the current club. The exported position string is not a full positional-competence matrix, so assignment remains a manager decision.</p>':'')+
  '<div class="squad-section-title"><strong>Team instructions</strong><span>Saved per career</span></div>'+sel("mentality","Mentality",["Very Defensive","Defensive","Cautious","Balanced","Positive","Attacking","Very Attacking"],t.mentality)+
@@ -124,18 +142,10 @@ export function renderSquadWorkspace(save:SaveWithDatasets|undefined,did:string,
 }
 export function listFm24FormationIds():string[]{return formations.map(f=>f.id)}
 export function handleSquadWorkspaceInput(target:HTMLInputElement):boolean{
- if(!target.matches("[data-squad-player-search]"))return false;
- playerSearchQuery=target.value;
- const wrapper=target.closest<HTMLElement>("[data-squad-player-picker]");
- const select=wrapper?.querySelector<HTMLSelectElement>("[data-squad-slot-player]");
- const count=wrapper?.querySelector<HTMLElement>("[data-squad-player-count]");
- const slot=tactic().slots.find(s=>s.id===selectedSlot);
- if(!wrapper||!select||!count||!slot)return true;
- select.innerHTML=playerPickerOptions(slot,clubRows(),playerSearchQuery);
- const q=playerSearchQuery.trim();
- const total=q.length>=2?clubRows().filter(p=>[p.displayName,p.position,p.uid].some(v=>v.toLocaleLowerCase().includes(q.toLocaleLowerCase()))).length:0;
- count.textContent=q.length<2?"Type at least 2 characters. Only your active club is searched.":total?("Found "+total+" player(s); showing up to 20. Refine your search if needed."):"No players match that search.";
- return true;
+ if(!target.matches("[data-squad-player-search]"))return false;playerSearchQuery=target.value;
+ const wrapper=target.closest<HTMLElement>("[data-squad-player-picker]"),results=wrapper?.querySelector<HTMLElement>("[data-squad-player-results]"),count=wrapper?.querySelector<HTMLElement>("[data-squad-player-count]"),slot=tactic().slots.find(s=>s.id===selectedSlot);
+ if(!wrapper||!results||!count||!slot)return true;results.outerHTML=playerPickerOptions(slot,clubRows(),playerSearchQuery);
+ const q=playerSearchQuery.trim();count.textContent=q.length<2?"Only your active club is searched.":rankPlayersForRole(clubRows(),q,"",roleFitByUid).length+" matching player(s); showing up to 20.";return true;
 }
 export function handleSquadWorkspacePointerDown(event:PointerEvent):boolean{
  const button=(event.target as HTMLElement).closest<HTMLElement>("[data-tactic-slot]");
@@ -173,6 +183,8 @@ export async function handleSquadWorkspacePointerUp(event:PointerEvent,render:()
 export async function handleSquadWorkspaceClick(target:HTMLElement,render:()=>void):Promise<boolean>{
  if(target.dataset.squadTab){tab=target.dataset.squadTab as Tab;render();return true}
  if(target.dataset.tacticSlot){selectedSlot=target.dataset.tacticSlot;playerSearchQuery="";render();return true}
+ if(target.dataset.squadAssignPlayer){const uid=target.dataset.squadAssignPlayer,t=tactic();state.squadTactics={...t,slots:t.slots.map(s=>({...s,playerUid:s.id===selectedSlot?uid:s.playerUid===uid?"":s.playerUid})),updatedAt:new Date().toISOString()};await persist(render);return true}
+ if(target.hasAttribute("data-squad-clear-player")){const t=tactic();state.squadTactics={...t,slots:t.slots.map(s=>s.id===selectedSlot?{...s,playerUid:""}:s),updatedAt:new Date().toISOString()};await persist(render);return true}
  return false;
 }
 export async function handleSquadWorkspaceChange(target:HTMLElement,render:()=>void):Promise<boolean>{
@@ -194,7 +206,7 @@ export async function handleSquadWorkspaceChange(target:HTMLElement,render:()=>v
   state.squadTactics={...t,slots:t.slots.map(s=>s.id===selectedSlot?{...s,position,roleId:defaultRole(position)}:s),updatedAt:new Date().toISOString()};await persist(render);return true;
  }
  if(target instanceof HTMLSelectElement&&target.matches("[data-squad-slot-role]")){
-  state.squadTactics={...t,slots:t.slots.map(s=>s.id===selectedSlot?{...s,roleId:target.value}:s),updatedAt:new Date().toISOString()};await persist(render);return true;
+  state.squadTactics={...t,slots:t.slots.map(s=>s.id===selectedSlot?{...s,roleId:target.value}:s),updatedAt:new Date().toISOString()};await persist(render);ensureRoleFit(target.value,render);return true;
  }
  if(target instanceof HTMLSelectElement&&target.dataset.squadInstruction){
   const path=target.dataset.squadInstruction.split(".");const g=path[0]??"";const k=path[1]??"";
