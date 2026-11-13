@@ -20,3 +20,30 @@
 .squad-philosophy-guide strong{font-size:12px}
 .squad-philosophy-guide p{margin:4px 0 0}
 @media(max-width:1000px){.squad-philosophy-layout{grid-template-columns:1fr}.squad-philosophy-help{position:static}}
+
+
+/* Role-led player assignment */
+.squad-player-picker{gap:9px}
+.squad-player-picker input{min-height:40px}
+.squad-player-picker [data-squad-player-count]{font-size:10px;color:var(--muted);line-height:1.4}
+.squad-best-role-fit,.squad-best-role-empty{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid #dce9e3;border-radius:9px;background:#f5faf7}
+.squad-best-role-fit>div{display:grid;gap:4px;min-width:0}
+.squad-best-role-fit .card-kicker{font-size:9px;color:#648579}
+.squad-best-role-fit strong{font-size:13px;color:#234f42}
+.squad-best-role-fit small{font-size:10px;color:#6c8178;line-height:1.45}
+.squad-best-role-fit button,.squad-clear-assignment{flex:0 0 auto;border:1px solid #b8d1c6;border-radius:7px;background:#fff;color:#286b60;padding:8px 10px;font:inherit;font-size:10px;font-weight:700;cursor:pointer}
+.squad-player-results{display:grid;gap:6px;margin-top:10px}
+.squad-player-results-heading{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:2px 0}
+.squad-player-results-heading strong{font-size:11px;color:var(--ink)}
+.squad-player-results-heading span{font-size:9px;color:var(--muted);text-align:right}
+.squad-player-result{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);text-align:left;cursor:pointer}
+.squad-player-result:hover,.squad-player-result.is-assigned{border-color:#9fc4b5;background:#f6faf8}
+.squad-player-result:focus-visible,.squad-best-role-fit button:focus-visible,.squad-clear-assignment:focus-visible{outline:2px solid #659b88;outline-offset:2px}
+.squad-player-result>span:first-child{display:grid;gap:3px;min-width:0}
+.squad-player-result strong{font-size:11px}
+.squad-player-result small{font-size:9px;color:var(--muted);overflow-wrap:anywhere}
+.squad-player-result-fit{flex:0 0 auto;max-width:48%;font-size:9px;color:#55776a;text-align:right;line-height:1.4}
+.squad-player-empty{margin:0;padding:10px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:10px;line-height:1.5}
+.squad-clear-assignment{justify-self:start;margin-top:4px;color:#8b5149;border-color:#ead7d2}
+.squad-best-role-empty{font-size:10px;color:var(--muted);line-height:1.5}
+@media(max-width:560px){.squad-best-role-fit{align-items:flex-start;flex-direction:column}.squad-player-result{align-items:flex-start;flex-direction:column}.squad-player-result-fit{max-width:100%;text-align:left}}
