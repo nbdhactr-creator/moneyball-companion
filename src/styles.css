@@ -149,3 +149,52 @@
 .player-comparison-controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:11px 0 12px;padding:12px;border:1px solid #edf0ef;border-radius:7px;background:#fafcfb}
 .player-comparison-controls .form-field select:disabled{background:#f3f5f4;color:#a2abad}
 @media(max-width:520px){.player-comparison-controls{grid-template-columns:1fr}}
+
+
+/* Player search and dossier refinement */
+.player-search-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:15px 0 9px}
+.player-search-toolbar .player-search-meta{flex:1;margin:0}
+.player-view-toggle{display:inline-flex;gap:3px;padding:3px;border:1px solid #e3e9e6;border-radius:8px;background:#f6f8f7}
+.player-view-toggle button{border:0;border-radius:6px;padding:7px 10px;background:transparent;color:#718087;font:inherit;font-size:10px;font-weight:700;cursor:pointer}
+.player-view-toggle button.active{background:#fff;color:#286b60;box-shadow:0 1px 3px #172b241c}
+.player-results-table tbody tr.player-result-row{cursor:pointer}
+.player-results-table tbody tr.player-result-row:hover{background:#f1f7f4}
+.player-results-table tbody tr.player-result-row:focus-within{outline:2px solid #79a99a;outline-offset:-2px}
+.player-results-table .player-name-button{padding:3px 0}
+.player-results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.player-result-card{display:flex;flex-direction:column;align-items:flex-start;gap:7px;min-width:0;padding:14px;border:1px solid #e7eeea;border-radius:10px;background:#fff;color:#34434a;text-align:left;cursor:pointer;font:inherit;transition:border-color .15s,background .15s}
+.player-result-card:hover{border-color:#a8c9bd;background:#fbfdfc}
+.player-result-card:focus-visible{outline:3px solid #8ab5a7;outline-offset:2px}
+.player-result-card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%}
+.player-result-card .player-avatar{width:36px;height:36px;flex-basis:36px;font-size:15px}
+.player-result-card strong{font-size:13px;color:#263a34}
+.player-result-card>span:not(.player-result-card-top){font-size:11px;color:#52645d}
+.player-result-card small{font-size:10px;color:#899690;overflow-wrap:anywhere}
+.player-result-open{font-size:10px;color:#367b69;font-weight:700}
+.player-profile-card{padding:22px;border:1px solid #e7eeea;border-radius:12px;background:#fff}
+.player-profile-hero{display:flex;align-items:center;gap:16px;padding:22px 0 18px}
+.player-profile-hero .player-avatar{width:62px;height:62px;flex-basis:62px;font-size:25px}
+.player-profile-identity{min-width:0;flex:1}
+.player-profile-identity h2{margin:5px 0 3px;font-size:24px;letter-spacing:-.5px;color:#263a34}
+.player-profile-identity p{margin:0 0 5px;color:#65766f;font-size:12px}
+.player-profile-identity>span{font-size:10px;color:#9aa59f}
+.player-profile-season-count{display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding:9px 12px;border-left:1px solid #edf1ef}
+.player-profile-season-count strong{font-size:19px;color:#286b60;font-variant-numeric:tabular-nums}
+.player-profile-season-count span{font-size:9px;color:#899690}
+.profile-facts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:0 0 20px}
+.profile-facts-grid>div{display:flex;flex-direction:column;gap:5px;min-width:0;padding:11px 12px;border:1px solid #edf1ef;border-radius:8px;background:#fafcfb}
+.profile-facts-grid span{font-size:9px;color:#899690;text-transform:uppercase;letter-spacing:.35px}
+.profile-facts-grid strong{font-size:12px;color:#354a42;overflow-wrap:anywhere}
+.profile-stat-groups{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.profile-stat-group{min-width:0;padding:12px;border:1px solid #e9efec;border-radius:9px;background:#fbfcfb}
+.profile-stat-group h4{margin:0 0 8px;color:#426156;font-size:11px}
+.profile-stat-group>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.profile-source-stat{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #edf1ef}
+.profile-source-stat span{font-size:10px;color:#7b8983;overflow-wrap:anywhere}
+.profile-source-stat strong{font-size:10px;color:#344b42;font-variant-numeric:tabular-nums}
+.player-history-item.is-current{background:#f1f7f4}
+.profile-raw-data{margin-top:18px;padding:13px;border:1px solid #e7eeea;border-radius:9px;background:#fbfcfb}
+.profile-raw-data summary{cursor:pointer;color:#426156;font-size:11px;font-weight:750}
+.profile-raw-data>p{font-size:10px;color:#899690}
+@media(max-width:650px){.player-search-toolbar{align-items:flex-start;flex-direction:column}.player-search-toolbar .player-search-meta{width:100%}.player-profile-hero{align-items:flex-start;flex-wrap:wrap}.player-profile-season-count{margin-left:auto}.player-profile-identity{flex-basis:calc(100% - 80px)}.player-profile-identity h2{font-size:20px}.profile-stat-groups{grid-template-columns:1fr}.profile-stat-group>div{grid-template-columns:1fr 1fr}}
+@media(prefers-reduced-motion:reduce){.player-result-card{transition:none}}
