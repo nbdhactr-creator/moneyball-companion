@@ -196,7 +196,7 @@ function playerProfileView(): string {
   const current = playerHistory.find((entry) => entry.dataset.id === historyCompareCurrentId) ?? playerHistory[playerHistory.length - 1];
   const previousLabel = previous?.dataset.seasonLabel ?? "Earlier season";
   const currentLabel = current?.dataset.seasonLabel ?? "Latest season";
-  const sourcePlayers = [previous?.player, current?.player].filter((player): player is PlayerSeasonRecord => Boolean(player));
+  const sourcePlayers = [...playerHistory.map((entry) => entry.player), previous?.player, current?.player].filter((player): player is PlayerSeasonRecord => Boolean(player));
   const fields = [...new Set(sourcePlayers.flatMap((player) => Object.keys(player.rawValues)))].sort((a, b) => a.localeCompare(b));
   const profilePlayer = current?.player ?? latestPlayer;
   const valueFor = (candidates: string[]): string => {
