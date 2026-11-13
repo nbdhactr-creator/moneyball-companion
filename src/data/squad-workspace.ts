@@ -48,6 +48,13 @@ export function createDefaultTactic(id="433"):SquadTacticConfig{
  transition:{win:"Counter",lose:"Counter-Press",goalkeeper:"Distribute Quickly"},
  outOfPossession:{line:"Higher",defensiveLine:"Higher",pressing:"Much More Often",approach:"Prevent Short GK Distribution"},updatedAt:new Date(0).toISOString()};
 }
+export function assignPlayerToTacticSlot(slots:SquadTacticSlot[],slotId:string,playerUid:string):SquadTacticSlot[]{
+ if(!playerUid.trim())return slots.map(s=>s.id===slotId?{...s,playerUid:""}:{...s});
+ return slots.map(s=>({...s,playerUid:s.id===slotId?playerUid:s.playerUid===playerUid?"":s.playerUid}));
+}
+export function clearTacticSlotPlayer(slots:SquadTacticSlot[],slotId:string):SquadTacticSlot[]{
+ return slots.map(s=>s.id===slotId?{...s,playerUid:""}:{...s});
+}
 export function clampTacticCoordinate(value:number):number {
  return Number.isFinite(value) ? Math.round(Math.max(5,Math.min(95,value))) : 50;
 }
@@ -183,8 +190,8 @@ export async function handleSquadWorkspacePointerUp(event:PointerEvent,render:()
 export async function handleSquadWorkspaceClick(target:HTMLElement,render:()=>void):Promise<boolean>{
  if(target.dataset.squadTab){tab=target.dataset.squadTab as Tab;render();return true}
  if(target.dataset.tacticSlot){selectedSlot=target.dataset.tacticSlot;playerSearchQuery="";render();return true}
- if(target.dataset.squadAssignPlayer){const uid=target.dataset.squadAssignPlayer,t=tactic();state.squadTactics={...t,slots:t.slots.map(s=>({...s,playerUid:s.id===selectedSlot?uid:s.playerUid===uid?"":s.playerUid})),updatedAt:new Date().toISOString()};await persist(render);return true}
- if(target.hasAttribute("data-squad-clear-player")){const t=tactic();state.squadTactics={...t,slots:t.slots.map(s=>s.id===selectedSlot?{...s,playerUid:""}:s),updatedAt:new Date().toISOString()};await persist(render);return true}
+ if(target.dataset.squadAssignPlayer){const uid=target.dataset.squadAssignPlayer,t=tactic();state.squadTactics={...t,slots:assignPlayerToTacticSlot(t.slots,selectedSlot,uid),updatedAt:new Date().toISOString()};await persist(render);return true}
+ if(target.hasAttribute("data-squad-clear-player")){const t=tactic();state.squadTactics={...t,slots:clearTacticSlotPlayer(t.slots,selectedSlot),updatedAt:new Date().toISOString()};await persist(render);return true}
  return false;
 }
 export async function handleSquadWorkspaceChange(target:HTMLElement,render:()=>void):Promise<boolean>{
