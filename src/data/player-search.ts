@@ -26,9 +26,9 @@ export function rankPlayersForRole<T extends SearchablePlayer>(
   }).sort((a, b) => {
     const left = fits.get(a.uid);
     const right = fits.get(b.uid);
-    const leftScore = left?.listedForRole && left.score != null ? left.score : -1;
-    const rightScore = right?.listedForRole && right.score != null ? right.score : -1;
-    return rightScore - leftScore || a.displayName.localeCompare(b.displayName);
+    const leftScore = left?.listedForRole && left.positionEligible && left.score != null ? left.score : -1;
+    const rightScore = right?.listedForRole && right.positionEligible && right.score != null ? right.score : -1;
+    return rightScore - leftScore || a.displayName.localeCompare(b.displayName) || a.uid.localeCompare(b.uid);
   });
 }
 export function topRoleFit<T extends SearchablePlayer>(
@@ -37,10 +37,10 @@ export function topRoleFit<T extends SearchablePlayer>(
 ): T | null {
   return [...players].filter((player) => {
     const fit = fits.get(player.uid);
-    return fit?.listedForRole === true && fit.score != null;
+    return fit?.listedForRole === true && fit.positionEligible === true && fit.score != null;
   }).sort((a, b) => {
     const scoreA = fits.get(a.uid)!.score!;
     const scoreB = fits.get(b.uid)!.score!;
-    return scoreB - scoreA || a.displayName.localeCompare(b.displayName);
+    return scoreB - scoreA || a.displayName.localeCompare(b.displayName) || a.uid.localeCompare(b.uid);
   })[0] ?? null;
 }
