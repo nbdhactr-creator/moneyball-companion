@@ -73,6 +73,7 @@ let squadDatasetId = "";
 let squadSortField = "name";
 let squadSortDirection: "asc" | "desc" = "asc";
 let playerSearchQuery = "";
+let playerSearchViewMode: "rows" | "cards" = "rows";
 let playerSearchResults: PlayerSeasonRecord[] = [];
 let selectedPlayerUid: string | null = null;
 let playerHistory: PlayerSeasonHistoryEntry[] = [];
@@ -190,91 +191,89 @@ function playerProfileView(): string {
   if (!selectedPlayerUid) return "";
   const present = playerHistory.filter((entry) => entry.player);
   const latestPlayer = [...present].reverse()[0]?.player;
-  if (!latestPlayer) return `<section class="content-card"><p>${escapeHtml(playerSearchMessage || "This player has no season records in the active career.")}</p><button class="secondary-button" data-player-back>Back to player search</button></section>`;
-
+  if (!latestPlayer) return '<section class="content-card"><p>' + escapeHtml(playerSearchMessage || "This player has no season records in the active career.") + '</p><button class="secondary-button" data-player-back>Back to player search</button></section>';
   const previous = playerHistory.find((entry) => entry.dataset.id === historyComparePreviousId);
   const current = playerHistory.find((entry) => entry.dataset.id === historyCompareCurrentId) ?? playerHistory[playerHistory.length - 1];
-  const previousOptions = playerHistory.filter((entry) => entry.dataset.id !== historyCompareCurrentId)
-    .map((entry) => `<option value="${entry.dataset.id}" ${entry.dataset.id === historyComparePreviousId ? "selected" : ""}>${escapeHtml(entry.dataset.seasonLabel)}</option>`).join("");
-  const currentOptions = playerHistory.map((entry) =>
-    `<option value="${entry.dataset.id}" ${entry.dataset.id === historyCompareCurrentId ? "selected" : ""}>${escapeHtml(entry.dataset.seasonLabel)}</option>`).join("");
   const previousLabel = previous?.dataset.seasonLabel ?? "Earlier season";
   const currentLabel = current?.dataset.seasonLabel ?? "Latest season";
-  const sourcePlayers = [previous?.player, current?.player].filter((player): player is PlayerSeasonRecord => Boolean(player));
+  const sourcePlayers = [...playerHistory.map((entry) => entry.player), previous?.player, current?.player].filter((player): player is PlayerSeasonRecord => Boolean(player));
   const fields = [...new Set(sourcePlayers.flatMap((player) => Object.keys(player.rawValues)))].sort((a, b) => a.localeCompare(b));
   const profilePlayer = current?.player ?? latestPlayer;
-  const historyRows = [...playerHistory].reverse().map((entry) => `
-    <div class="player-history-item">
-      <div><strong>${escapeHtml(entry.dataset.seasonLabel)}</strong><small>${entry.player ? `${entry.player.club ? escapeHtml(entry.player.club) + " · " : ""}${escapeHtml(entry.player.position || "Position not supplied")}` : "Player not present in this export"}</small></div>
-      <span class="player-presence ${entry.player ? "present" : "absent"}">${entry.player ? "Present" : "Not present"}</span>
-    </div>`).join("");
-
-  return `
-    <section class="content-card player-profile-card">
-      <div class="player-profile-toolbar"><button class="text-button" data-player-back>← Back to player search</button><span class="card-kicker">PLAYER HISTORY · FM UID ${escapeHtml(selectedPlayerUid)}</span></div>
-      <div class="player-profile-heading">
-        <div class="player-avatar" aria-hidden="true">${escapeHtml((profilePlayer.displayName || "P").trim().charAt(0).toUpperCase())}</div>
-        <div><div class="card-kicker">CAREER PLAYER RECORD</div><h2>${escapeHtml(profilePlayer.displayName)}</h2><p>${escapeHtml(profilePlayer.position || "Position not supplied")} ${profilePlayer.club ? "· " + escapeHtml(profilePlayer.club) : ""}</p></div>
-      </div>
-      <div class="player-history-section"><div class="player-section-heading"><strong>Season presence</strong><span>${present.length} of ${playerHistory.length} imported seasons</span></div><div class="player-history-list">${historyRows}</div></div>
-      <div class="player-history-section">
-        <div class="player-section-heading"><strong>Season-over-season source comparison</strong><span>Original imported values · no calculated scores</span></div>
-        <div class="player-comparison-controls">
-          <div class="form-field"><label for="history-previous">Earlier season</label><select id="history-previous" data-history-previous ${playerHistory.length < 2 ? "disabled" : ""}><option value="">Choose earlier season</option>${previousOptions}</select></div>
-          <div class="form-field"><label for="history-current">Later season</label><select id="history-current" data-history-current>${currentOptions}</select></div>
-        </div>
-        ${previous && current ? `
-          <p class="player-comparison-note">Compare any two imported snapshots. A dash means the value was blank or unavailable; zero remains zero. "Not present" means no player row existed in that export.</p>
-          <div class="player-table-wrap"><table class="player-data-table"><thead><tr><th>Source field</th><th>${escapeHtml(previousLabel)}</th><th>${escapeHtml(currentLabel)}</th></tr></thead><tbody>
-            ${fields.map((field) => `<tr><th>${escapeHtml(field)}</th><td>${previous?.player ? escapeHtml(displayRawValue(previous.player.rawValues[field])) : '<span class="not-present-value">Not present</span>'}</td><td>${current?.player ? escapeHtml(displayRawValue(current.player.rawValues[field])) : '<span class="not-present-value">Not present</span>'}</td></tr>`).join("")}
-          </tbody></table></div>`
-          : `
-          <p class="player-comparison-note">${playerHistory.length < 2 ? "Only one season has been imported for this career. The original source values are shown below; comparison will become available when another season is added." : "Choose an earlier season above to compare it with the selected later season."}</p>
-          <div class="player-table-wrap"><table class="player-data-table single-season-table"><thead><tr><th>Source field</th><th>${escapeHtml(currentLabel)}</th></tr></thead><tbody>
-            ${fields.map((field) => `<tr><th>${escapeHtml(field)}</th><td>${escapeHtml(displayRawValue(current?.player?.rawValues[field]))}</td></tr>`).join("")}
-          </tbody></table></div>`}
-      </div>
-      <p class="player-data-footnote">These are the original exported fields. Moneyball Companion has not yet applied role scoring, league adjustments or performance interpretation to this view.</p>
-    </section>`;
+  const valueFor = (candidates: string[]): string => {
+    const key = Object.keys(profilePlayer.rawValues).find((field) => candidates.includes(field.trim().toLocaleLowerCase()));
+    return key ? displayRawValue(profilePlayer.rawValues[key]) : "—";
+  };
+  const facts = [
+    ["Age", ["age", "age (years)"]], ["Nationality", ["nationality", "nation"]],
+    ["Division", ["division", "league"]], ["Height", ["height"]],
+    ["Preferred foot", ["preferred foot", "foot"]], ["Value", ["transfer value", "value"]],
+    ["Wage", ["wage", "salary"]], ["Contract expiry", ["contract expiry", "contract end"]],
+  ].map(([label, candidates]) => ({ label: String(label), value: valueFor(candidates as string[]) })).filter((fact) => fact.value !== "—");
+  const statGroups = [
+    { title: "Attacking", fields: ["apps", "starts", "minutes", "goals", "assists", "xg", "xa", "shots", "key passes"] },
+    { title: "Possession", fields: ["pass completion", "passes completed", "passes attempted", "progressive passes", "dribbles", "crosses"] },
+    { title: "Defending", fields: ["tackles", "interceptions", "clearances", "blocks", "aerials won"] },
+    { title: "Goalkeeping", fields: ["clean sheets", "save percentage", "saves", "goals conceded"] },
+  ];
+  const statSections = statGroups.map((group) => {
+    const rows = fields.filter((field) => group.fields.some((candidate) => field.toLocaleLowerCase().includes(candidate)))
+      .map((field) => '<div class="profile-source-stat"><span>' + escapeHtml(field) + '</span><strong>' + escapeHtml(displayRawValue(profilePlayer.rawValues[field])) + '</strong></div>').join("");
+    return rows ? '<section class="profile-stat-group"><h4>' + group.title + '</h4><div>' + rows + '</div></section>' : "";
+  }).join("");
+  const historyRows = [...playerHistory].reverse().map((entry) =>
+    '<div class="player-history-item ' + (entry.dataset.id === current?.dataset.id ? "is-current" : "") + '"><div><strong>' +
+    escapeHtml(entry.dataset.seasonLabel) + '</strong><small>' +
+    (entry.player ? (entry.player.club ? escapeHtml(entry.player.club) + " · " : "") + escapeHtml(entry.player.position || "Position not supplied") : "Player not present in this export") +
+    '</small></div><span class="player-presence ' + (entry.player ? "present" : "absent") + '">' +
+    (entry.player ? "Present" : "Not present") + '</span></div>').join("");
+  const previousOptions = playerHistory.filter((entry) => entry.dataset.id !== historyCompareCurrentId)
+    .map((entry) => '<option value="' + entry.dataset.id + '"' + (entry.dataset.id === historyComparePreviousId ? " selected" : "") + '>' + escapeHtml(entry.dataset.seasonLabel) + '</option>').join("");
+  const currentOptions = playerHistory.map((entry) =>
+    '<option value="' + entry.dataset.id + '"' + (entry.dataset.id === historyCompareCurrentId ? " selected" : "") + '>' + escapeHtml(entry.dataset.seasonLabel) + '</option>').join("");
+  const comparison = previous && current
+    ? '<p class="player-comparison-note">Compare two imported snapshots. A dash means blank or unavailable; zero remains zero. “Not present” means no player row existed in that export.</p><div class="player-table-wrap"><table class="player-data-table"><thead><tr><th>Source field</th><th>' + escapeHtml(previousLabel) + '</th><th>' + escapeHtml(currentLabel) + '</th></tr></thead><tbody>' +
+      fields.map((field) => '<tr><th>' + escapeHtml(field) + '</th><td>' + (previous.player ? escapeHtml(displayRawValue(previous.player.rawValues[field])) : '<span class="not-present-value">Not present</span>') + '</td><td>' + (current.player ? escapeHtml(displayRawValue(current.player.rawValues[field])) : '<span class="not-present-value">Not present</span>') + '</td></tr>').join("") +
+      '</tbody></table></div>'
+    : '<p class="player-comparison-note">' + (playerHistory.length < 2 ? "Only one season has been imported for this career. Comparison will become available when another season is added." : "Choose an earlier season above to compare it with the selected season.") + '</p><div class="player-table-wrap"><table class="player-data-table single-season-table"><thead><tr><th>Source field</th><th>' + escapeHtml(currentLabel) + '</th></tr></thead><tbody>' +
+      fields.map((field) => '<tr><th>' + escapeHtml(field) + '</th><td>' + escapeHtml(displayRawValue(current?.player?.rawValues[field])) + '</td></tr>').join("") +
+      '</tbody></table></div>';
+  return '<section class="player-profile-card">' +
+    '<div class="player-profile-toolbar"><button class="text-button" data-player-back>← Back to player search</button><span class="card-kicker">PLAYER DOSSIER · FM UID ' + escapeHtml(selectedPlayerUid) + '</span></div>' +
+    '<header class="player-profile-hero"><div class="player-avatar" aria-hidden="true">' + escapeHtml((profilePlayer.displayName || "P").trim().charAt(0).toUpperCase()) + '</div><div class="player-profile-identity"><div class="card-kicker">CAREER PLAYER RECORD</div><h2>' + escapeHtml(profilePlayer.displayName) + '</h2><p>' + escapeHtml(profilePlayer.position || "Position not supplied") + (profilePlayer.club ? " · " + escapeHtml(profilePlayer.club) : "") + '</p><span>Selected season: ' + escapeHtml(currentLabel) + '</span></div><div class="player-profile-season-count"><strong>' + present.length + '/' + playerHistory.length + '</strong><span>seasons present</span></div></header>' +
+    (facts.length ? '<section class="profile-facts-grid" aria-label="Player information">' + facts.map((fact) => '<div><span>' + escapeHtml(fact.label) + '</span><strong>' + escapeHtml(fact.value) + '</strong></div>').join("") + '</section>' : "") +
+    (statSections ? '<section class="player-history-section"><div class="player-section-heading"><strong>Season performance snapshot</strong><span>Original exported statistics · ' + escapeHtml(currentLabel) + '</span></div><div class="profile-stat-groups">' + statSections + '</div></section>' : "") +
+    '<div class="player-history-section"><div class="player-section-heading"><strong>Career timeline</strong><span>' + present.length + ' of ' + playerHistory.length + ' imported seasons</span></div><div class="player-history-list">' + historyRows + '</div></div>' +
+    '<div class="player-history-section"><div class="player-section-heading"><strong>Season comparison</strong><span>Original imported values · no calculated scores</span></div><div class="player-comparison-controls"><div class="form-field"><label for="history-previous">Earlier season</label><select id="history-previous" data-history-previous ' + (playerHistory.length < 2 ? "disabled" : "") + '><option value="">Choose earlier season</option>' + previousOptions + '</select></div><div class="form-field"><label for="history-current">Selected season</label><select id="history-current" data-history-current>' + currentOptions + '</select></div></div>' + comparison + '</div>' +
+    '<details class="profile-raw-data"><summary>All source fields (' + fields.length + ')</summary><p>Unmodified values from the selected export. Missing values remain unavailable; zero is preserved.</p><div class="player-table-wrap"><table class="player-data-table"><thead><tr><th>Source field</th><th>' + escapeHtml(currentLabel) + '</th></tr></thead><tbody>' + fields.map((field) => '<tr><th>' + escapeHtml(field) + '</th><td>' + escapeHtml(displayRawValue(profilePlayer.rawValues[field])) + '</td></tr>').join("") + '</tbody></table></div></details>' +
+    '<p class="player-data-footnote">This dossier presents source data and career history. No role score, percentile, league adjustment or performance judgement is fabricated when the required analysis is unavailable.</p></section>';
 }
 
 function squadPlayersView(): string {
   const selected = activeSave();
-  if (!selected) {
-    return `<section class="empty-workspace content-card"><span class="empty-icon">◎</span><div class="card-kicker">SQUAD WORKSPACE</div><h2>Select or create a career first.</h2><p>Player search and season history use the real datasets stored in your selected career.</p><button class="secondary-button" data-section="Data & Saves">Go to Data &amp; Saves →</button></section>`;
-  }
-  if (!selected.datasets.length) {
-    return `<section class="empty-workspace content-card"><span class="empty-icon">◎</span><div class="card-kicker">SQUAD WORKSPACE</div><h2>No season data in this career yet.</h2><p>Import a validated FM24 export before searching players.</p><button class="secondary-button" data-section="Data & Saves">Import season data →</button></section>`;
-  }
+  if (!selected) return '<section class="empty-workspace content-card"><span class="empty-icon">◎</span><div class="card-kicker">SQUAD WORKSPACE</div><h2>Select or create a career first.</h2><p>Player search and season history use the real datasets stored in your selected career.</p><button class="secondary-button" data-section="Data & Saves">Go to Data &amp; Saves →</button></section>';
+  if (!selected.datasets.length) return '<section class="empty-workspace content-card"><span class="empty-icon">◎</span><div class="card-kicker">SQUAD WORKSPACE</div><h2>No season data in this career yet.</h2><p>Import an FM24 export before searching players.</p><button class="secondary-button" data-section="Data & Saves">Import season data →</button></section>';
   if (!selected.datasets.some((dataset) => dataset.id === squadDatasetId)) squadDatasetId = selected.datasets[0].id;
-  if (selectedPlayerUid) {
-    return isLoadingPlayerHistory
-      ? '<section class="content-card"><div class="processing-line"><span class="processing-spinner"></span><div><strong>Loading player history</strong><p>Reading this player across the active career.</p></div></div></section>'
-      : playerProfileView();
-  }
-  const options = selected.datasets.map((dataset) => `<option value="${dataset.id}" ${dataset.id === squadDatasetId ? "selected" : ""}>${escapeHtml(dataset.seasonLabel)} · ${dataset.playerCount.toLocaleString()} players</option>`).join("");
+  if (selectedPlayerUid) return isLoadingPlayerHistory ? '<section class="content-card"><div class="processing-line"><span class="processing-spinner"></span><div><strong>Loading player history</strong><p>Reading this player across the active career.</p></div></div></section>' : playerProfileView();
+  const options = selected.datasets.map((dataset) => '<option value="' + dataset.id + '"' + (dataset.id === squadDatasetId ? " selected" : "") + '>' + escapeHtml(dataset.seasonLabel) + ' · ' + dataset.playerCount.toLocaleString() + ' players</option>').join("");
   const squadSortHeader = (field: string, title: string) => {
     const active = squadSortField === field;
     const indicator = active ? (squadSortDirection === "asc" ? "↑" : "↓") : "↕";
-    return `<th aria-sort="${active ? (squadSortDirection === "asc" ? "ascending" : "descending") : "none"}"><button type="button" class="table-sort-button${active ? " is-active" : ""}" data-squad-sort-field="${field}" aria-label="Sort by ${title}">${title}<span aria-hidden="true">${indicator}</span></button></th>`;
+    return '<th aria-sort="' + (active ? (squadSortDirection === "asc" ? "ascending" : "descending") : "none") + '"><button type="button" class="table-sort-button' + (active ? " is-active" : "") + '" data-squad-sort-field="' + field + '" aria-label="Sort by ' + title + '">' + title + '<span aria-hidden="true">' + indicator + '</span></button></th>';
   };
-  const resultRows = playerSearchResults.map((player) => `
-    <tr><td><button class="player-name-button" data-player-uid="${escapeHtml(player.uid)}">${escapeHtml(player.displayName)}</button></td><td>${escapeHtml(player.position || "—")}</td><td>${escapeHtml(player.club || "—")}</td><td class="uid-cell">${escapeHtml(player.uid)}</td></tr>`).join("");
-  return `
-    <section class="content-card squad-search-card">
-      <div class="card-kicker">CAREER PLAYER DATABASE</div><h2>Find a player and inspect their season history</h2>
-      <p>Search the selected season by the beginning of a player's name. Open a result to see every imported season, including seasons where that player was absent.</p>
-      <div class="squad-search-controls">
-        <div class="form-field"><label for="squad-dataset">Season dataset</label><select id="squad-dataset" data-squad-dataset>${options}</select></div>
-        <form class="player-search-form" data-player-search><div class="form-field"><label for="player-search-query">Player name</label><input id="player-search-query" name="query" type="search" maxlength="100" value="${escapeHtml(playerSearchQuery)}" placeholder="Start typing a player name"></div><button class="primary-button" type="submit" ${isSearchingPlayers ? "disabled" : ""}>${isSearchingPlayers ? "Searching…" : "Search players"}</button></form>
-      </div>
-      <div class="player-search-meta"><span>Indexed search · first 100 matches · ${escapeHtml(selected.datasets.find((dataset) => dataset.id === squadDatasetId)?.seasonLabel ?? "")}</span><span>${playerSearchResults.length ? playerSearchResults.length + " result(s)" : ""}</span></div>
-      ${playerSearchMessage ? `<p class="player-search-message" role="status">${escapeHtml(playerSearchMessage)}</p>` : ""}
-      ${playerSearchResults.length ? `
-        <div class="player-table-wrap"><table class="player-data-table player-results-table"><thead><tr>${squadSortHeader("name", "Player")}${squadSortHeader("position", "Position")}${squadSortHeader("club", "Club")}${squadSortHeader("uid", "FM UID")}</tr></thead><tbody>${resultRows}</tbody></table></div>`
-        : `<div class="player-search-empty">${isSearchingPlayers ? "Searching the selected season…" : "Search for a player to open their career history. The search reads the selected season only."}</div>`}
-    </section>
-    <p class="player-data-footnote">Player identity is matched only by FM UID within this career. Names are used for finding players, never for merging them.</p>`;
+  const resultRows = playerSearchResults.map((player) =>
+    '<tr class="player-result-row" data-player-uid="' + escapeHtml(player.uid) + '"><td><button class="player-name-button" type="button">' + escapeHtml(player.displayName) + '</button></td><td>' + escapeHtml(player.position || "—") + '</td><td>' + escapeHtml(player.club || "—") + '</td><td class="uid-cell">' + escapeHtml(player.uid) + '</td></tr>').join("");
+  const resultCards = playerSearchResults.map((player) =>
+    '<button class="player-result-card" type="button" data-player-uid="' + escapeHtml(player.uid) + '"><span class="player-result-card-top"><span class="player-avatar" aria-hidden="true">' +
+    escapeHtml((player.displayName || "P").trim().charAt(0).toUpperCase()) + '</span><span class="player-result-open">Open profile ↗</span></span><strong>' +
+    escapeHtml(player.displayName) + '</strong><span>' + escapeHtml(player.position || "Position not supplied") + '</span><small>' +
+    escapeHtml(player.club || "Club not supplied") + ' · UID ' + escapeHtml(player.uid) + '</small></button>').join("");
+  return '<section class="content-card squad-search-card"><div class="card-kicker">CAREER PLAYER DATABASE</div><h2>Find a player and inspect their dossier</h2><p>Search the selected season, then open any result to see the player’s imported data and history across this career.</p>' +
+    '<div class="squad-search-controls"><div class="form-field"><label for="squad-dataset">Season dataset</label><select id="squad-dataset" data-squad-dataset>' + options + '</select></div><form class="player-search-form" data-player-search><div class="form-field"><label for="player-search-query">Player name</label><input id="player-search-query" name="query" type="search" maxlength="100" value="' + escapeHtml(playerSearchQuery) + '" placeholder="Start typing a player name"></div><button class="primary-button" type="submit" ' + (isSearchingPlayers ? "disabled" : "") + '>' + (isSearchingPlayers ? "Searching…" : "Search players") + '</button></form></div>' +
+    '<div class="player-search-toolbar"><div class="player-search-meta"><span>Indexed search · first 100 matches · ' + escapeHtml(selected.datasets.find((dataset) => dataset.id === squadDatasetId)?.seasonLabel ?? "") + '</span><span>' + (playerSearchResults.length ? playerSearchResults.length + " result(s)" : "") + '</span></div><div class="player-view-toggle" role="group" aria-label="Player results layout"><button type="button" data-player-view="rows" class="' + (playerSearchViewMode === "rows" ? "active" : "") + '" aria-pressed="' + (playerSearchViewMode === "rows") + '">Rows</button><button type="button" data-player-view="cards" class="' + (playerSearchViewMode === "cards" ? "active" : "") + '" aria-pressed="' + (playerSearchViewMode === "cards") + '">Cards</button></div></div>' +
+    (playerSearchMessage ? '<p class="player-search-message" role="status">' + escapeHtml(playerSearchMessage) + '</p>' : "") +
+    (playerSearchResults.length ? (playerSearchViewMode === "rows" ? '<div class="player-table-wrap"><table class="player-data-table player-results-table"><thead><tr>' + squadSortHeader("name", "Player") + squadSortHeader("position", "Position") + squadSortHeader("club", "Club") + squadSortHeader("uid", "FM UID") + '</tr></thead><tbody>' + resultRows + '</tbody></table></div>' : '<div class="player-results-grid">' + resultCards + '</div>') :
+      '<div class="player-search-empty">' + (isSearchingPlayers ? "Searching the selected season…" : "Search for a player to open their career dossier. The search reads the selected season only.") + '</div>') +
+    '</section><p class="player-data-footnote">Player identity is matched only by FM UID within this career. Names are used for finding players, never for merging them. Select a row or card to open the profile.</p>';
 }
 
 async function runPlayerSearch(): Promise<void> {
@@ -574,8 +573,9 @@ app.addEventListener("pointercancel", (event: PointerEvent) => {
 });
 
 app.addEventListener("click", (event: MouseEvent) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field], [data-squad-tab], [data-tactic-slot]");
-  if (target?.dataset.squadTab || target?.dataset.tacticSlot) { void handleSquadWorkspaceClick(target, render); return; }
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-view], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field], [data-squad-tab], [data-tactic-slot], [data-squad-assign-player], [data-squad-clear-player]");
+  if (target?.dataset.squadTab || target?.dataset.tacticSlot || target?.dataset.squadAssignPlayer || target?.hasAttribute("data-squad-clear-player")) { void handleSquadWorkspaceClick(target, render); return; }
+  if (target?.dataset.playerView === "rows" || target?.dataset.playerView === "cards") { playerSearchViewMode = target.dataset.playerView; render(); return; }
   if (target?.dataset.squadSortField) {
     const field = target.dataset.squadSortField;
     if (squadSortField === field) {
