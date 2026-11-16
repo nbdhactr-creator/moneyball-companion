@@ -34,6 +34,12 @@ jobs:
         run: npm test
       - name: Build application
         run: npm run build
+      - name: Test beta in Chromium
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install chromium
+          npm run dev -- --host 127.0.0.1 > /tmp/moneyball-vite.log 2>&1 &
+          node tests/browser/beta-smoke.mjs
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
