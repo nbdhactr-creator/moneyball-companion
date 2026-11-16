@@ -62,7 +62,7 @@ function passesFinancialAndPhilosophyFilters(
     if (options.requireKnownValue && candidate.transferValue == null) return false;
     if (candidate.transferValue != null && candidate.transferValue > options.budget) return false;
   }
-  if (options.wageCap != null && candidate.wage != null && candidate.wage > options.wageCap) return false;
+  if (options.wageCap != null && (candidate.wage == null || candidate.wage > options.wageCap)) return false;
   if (options.philosophyThreshold != null && candidate.philosophyScore != null &&
       candidate.philosophyScore < options.philosophyThreshold) return false;
   return true;
@@ -79,8 +79,9 @@ export function buildFm24DofRecommendations(
     candidate.positionEligible && candidate.listedForRole &&
     candidate.minutes >= 450 && candidate.dofEvaluationScore != null
   );
-  const starter = ownPlayers.find((candidate) => candidate.uid === options.starterUid) ??
-    ownPlayers.slice().sort(roleSort)[0] ?? null;
+  const starter = options.starterUid
+    ? ownPlayers.find((candidate) => candidate.uid === options.starterUid) ?? null
+    : ownPlayers.slice().sort(roleSort)[0] ?? null;
   const external = players.filter((candidate) =>
     candidate.club.trim().toLocaleLowerCase() !== currentClub &&
     candidate.positionEligible && candidate.dofEvaluationScore != null &&
