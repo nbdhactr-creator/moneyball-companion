@@ -12,7 +12,7 @@ const roleLabel=id=>roles.find(x=>x[0]===id)?.[1]||"No role selected";
 const A=(url,label,cls="button")=>'<a class="'+cls+'" href="'+E(url)+'">'+E(label)+'</a>';
 const h=(k,label)=>'<p class="eyebrow">'+E(k)+'</p><h1>'+E(label)+'</h1>';
 const score=v=>v==null?"Not scored":E(v)+" / 100";
-const field=(name,label,list,q)=>'<label>'+E(label)+'<select name="'+name+'">'+list.map(([v,t])=>'<option value="'+E(v)+'"'+(String(v)===(q[name]??"")?' selected':'')+'>'+E(t)+'</option>').join("")+'</select></label>';
+const field=(name,label,list,q)=>'<label>'+E(label)+'<select aria-label="'+E(label)+'" name="'+name+'">'+list.map(([v,t])=>'<option value="'+E(v)+'"'+(String(v)===(q[name]??"")?' selected':'')+'>'+E(t)+'</option>').join("")+'</select></label>';
 const input=(k,label,q,type="number")=>'<label>'+E(label)+'<input name="'+k+'" type="'+type+'" '+(type==="number"?'min="0" step="any"':'')+' value="'+E(q[k]??"")+'"></label>';
 const path=(view,q={})=>view+".html"+(Object.keys(q).length?"?"+new URLSearchParams(q):"");
 const stages=["","Watching","Scouted","Bid","Signed","Rejected"];
