@@ -58,6 +58,26 @@ try{
    await page.setViewportSize({width,height:900});
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,"No horizontal overflow at "+width);
  }
+
+ await page.getByRole("navigation",{name:"Main navigation"}).getByRole("link",{name:"Squad",exact:true}).click();
+ await page.getByRole("heading",{name:"Where does your squad need help?"}).waitFor();
+ await page.getByLabel("Tactic slot").selectOption({label:await page.locator('[name="slot"] option').evaluateAll(options=>options.find(o=>o.textContent.includes("Central Defender")).textContent)});
+ await page.getByRole("button",{name:"Open slot"}).click();
+ await page.getByRole("link",{name:"Use as planning baseline"}).first().click();
+ await page.getByRole("heading",{name:"Would this signing improve your squad?"}).waitFor();
+ assert.ok(await page.getByLabel("Current club baseline").inputValue());
+ await page.getByLabel("Find a target by name or club").fill("Test Player");
+ await page.getByLabel("Weekly wage cap (thousands)").fill("9");
+ await page.getByRole("button",{name:"Update scenario"}).click();
+ await page.locator('a[href*="target="]').first().click();
+ await page.getByText(/Weekly wage: over cap/).waitFor();
+ await page.getByRole("link",{name:"Find candidates"}).click();
+ await page.locator("#results h2").waitFor();
+ assert.ok(await page.getByLabel("Role and duty").inputValue());
+ await page.locator(".player-link").first().click();
+ await page.getByRole("link",{name:"Plan this signing"}).click();
+ await page.getByRole("heading",{name:"Would this signing improve your squad?"}).waitFor();
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
  assert.deepEqual(errors,[]);
  console.log("Beta real IndexedDB browser journey passed at 320–1440px.");
 }finally{await browser.close();}

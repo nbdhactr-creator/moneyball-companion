@@ -1,5 +1,6 @@
 
 import "./beta.css";
+import {renderTeam} from "./beta-team";
 import {listSaves,getScoutingWorkspaceState} from "./data/storage/local-database";
 import {FM24_ROLES} from "./analytics/fm24-role-catalog";
 import {FM24_PHILOSOPHY_TEMPLATES} from "./analytics/fm24-scoring";
@@ -35,7 +36,7 @@ function request(view,q){
     worker.onerror=()=>{for(const p of promiseCache.values())p.reject(Error("The season worker stopped. Try a smaller season or reopen this page."));promiseCache.clear();worker?.terminate();worker=undefined;};
   }
   const id=++requestId;
-  return new Promise((resolve,reject)=>{promiseCache.set(id,{resolve,reject});worker.postMessage({id,view,q,career:career.save.id,season:season.id,tracked:Object.entries(notes()).filter(([,x])=>x.tracked).map(([uid])=>uid)});});
+  return new Promise((resolve,reject)=>{promiseCache.set(id,{resolve,reject});worker.postMessage({id,view,q,career:career.save.id,season:season.id,club:career.save.club,tracked:Object.entries(notes()).filter(([,x])=>x.tracked).map(([uid])=>uid)});});
 }
 function home(q){
   const slots=team.squadTactics?.slots??[];
@@ -86,7 +87,7 @@ function report(q,d){
   if(tab==="role-fit")body='<h2>What evidence supports this role?</h2><p>Change the role or philosophy for this report without changing your search or saved tactic.</p><form class="card grid" data-form="lens">'+field("lens","Assess as",[["","Choose a role"],...roles],{lens:q.lens??q.role??""})+field("philosophy","Philosophy",[["","None"],...Object.entries(FM24_PHILOSOPHY_TEMPLATES).map(([k,v])=>[k,v.name])],{philosophy:d.template})+'<div class="actions"><button>Update assessment</button></div></form><div class="grid"><section class="card"><h2>Role Fit · '+score(fit?.score)+'</h2><p>'+E(assessment(x))+'</p><p>Weighted season performance for the selected role. Percentile ranks compare eligible positional peers; they are not success rates.</p>'+(fit?.families??[]).map(y=>'<details class="metric"><summary>'+family(y)+' · '+score(y.score)+'</summary><p>Configured weight: '+E(y.configuredWeight)+'</p>'+(y.metrics??[]).map(m=>'<p>'+E(m.metric)+' · Original/derived value: '+val(m.rawValue)+' · '+(m.percentile==null?'Not comparable'+(m.reason?' ('+E(m.reason)+')':''):E(Math.round(m.percentile))+' percentile')+'</p>').join("")+'</details>').join("")+'</section><section class="card"><h2>Philosophy Fit · '+score(ph?.score)+'</h2><p>Alignment with the selected playing principles, not a prediction of tactical success.</p>'+(ph?'<p>'+Math.round(ph.coverage*100)+'% weighted evidence coverage.</p>':'<p>Select a role and philosophy to assess.</p>')+(ph?.principles??[]).map(y=>'<details class="metric"><summary>'+E(y.name)+' · '+score(y.score)+'</summary><p>'+E(y.description??"")+'</p>'+(y.metrics??[]).map(m=>'<p>'+E(m.metric)+' · '+(m.percentile==null?'Not comparable':E(Math.round(m.percentile))+' percentile')+'</p>').join("")+'</details>').join("")+'</section></div>';
   if(tab==="stats")body='<h2>What did the player actually record?</h2><p>Original export values, not calculated scores. Missing stays missing; zero stays zero.</p><details class="card" open><summary>All imported fields ('+Object.keys(f).length+')</summary>'+input("statSearch","Find a stat",{},"search")+'<div class="grid raw">'+Object.entries(f).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>'<div data-stat="'+E(k.toLocaleLowerCase())+'">'+fact(k,val(v))+'</div>').join("")+'</div><p id="no-stat" hidden>No matching field.</p></details><section class="card"><h2>Season history</h2>'+d.history.map(z=>'<p><strong>'+E(z.label)+'</strong> · '+(z.present?val(z.club)+" · Minutes: "+val(z.minutes):"Not present in this export")+'</p>').join("")+'</section>';
   if(tab==="notes")body='<h2>What have I decided?</h2><p>Record what you want to check next. Beta notes are separate from your current app and aren’t included in its backups.</p><form data-form="note" class="card">'+field("stage","Recruitment stage",stages.map(s=>[s,s||"Not set"]),{stage:saved.stage})+'<label>Scout notes<textarea name="note" rows="4" maxlength="2000">'+E(saved.note)+'</textarea></label><button>Save stage and note</button></form>';
-  return back+'<div class="profile-head">'+h("Player report / "+season.seasonLabel,p.displayName)+'<p>'+val(p.club)+' · '+val(f.Division)+' · '+val(p.position)+'</p><div class="actions">'+A(path("compare",q),"Compare players")+'<button data-action="print">Print report</button><button class="primary" data-action="track" aria-pressed="'+Boolean(saved.tracked)+'">'+(saved.tracked?"Remove from shortlist":"Add to shortlist")+'</button></div></div>'+
+  return back+'<div class="profile-head">'+h("Player report / "+season.seasonLabel,p.displayName)+'<p>'+val(p.club)+' · '+val(f.Division)+' · '+val(p.position)+'</p><div class="actions">'+A(path("compare",q),"Compare players")+(q.slot?A(path("planning",context({slot:q.slot,target:p.uid})),"Plan this signing"):"")+'<button data-action="print">Print report</button><button class="primary" data-action="track" aria-pressed="'+Boolean(saved.tracked)+'">'+(saved.tracked?"Remove from shortlist":"Add to shortlist")+'</button></div></div>'+
    '<div class="card evidence"><strong>'+E(roleLabel(q.lens??q.role))+'</strong><p>Minutes: '+val(f.Mins)+' · Confidence: '+(fit?.families.length?E(fit.confidence):"Not assessed")+' · Evidence coverage: '+(fit?.families.length?Math.round(fit.coverage*100)+"%":"Not assessed")+'</p><details><summary>What do confidence and coverage mean?</summary><p>Confidence is based on minutes'+(d.medium!=null?' (medium from '+d.medium+', high from '+d.high+')':'')+'. Coverage is the share of role weights supported by available evidence. The reference pool uses eligible positional peers in this season'+(d.pool!=null?' with a minimum of '+d.pool+' minutes; eligibility also varies by metric':'')+'. Neither measure predicts how a player will perform after a transfer.</p></details></div><nav class="tabs" aria-label="Player report sections">'+tabs.map(([id,label])=>link(id,label)).join("")+'</nav><p role="status" id="feedback"></p>'+body;
 }
 function comparison(q,d){
@@ -104,14 +105,18 @@ async function render(scroll=false){
     if(!career?.datasets.length){desk.innerHTML=h("Beta","No imported season in this browser")+'<p>Open the beta in the same browser and device as your existing Moneyball career. A save on another device isn’t synced automatically.</p>'+A("../","Open current app");return;}
     season=career.datasets.find(x=>x.id===q.season)??career.datasets[0];
     const params=context(q);
-    document.querySelector(".mast nav a").href=path("scouting",context({}));
+    for(const link of document.querySelectorAll("[data-beta-nav]")){
+      const v=link.dataset.betaNav;
+      link.href=path(v,context({}));
+      if(v===view)link.setAttribute("aria-current","page");else link.removeAttribute("aria-current");
+    }
     if(view==="index"){
       if(lastContext!==career.save.id){team=await getScoutingWorkspaceState(career.save.id);if(id!==navId)return;lastContext=career.save.id;}
       desk.innerHTML=home(params);
     }else{
       desk.innerHTML='<p role="status">Reading '+E(season.seasonLabel)+' and preparing the selected role…</p>';
       const data=await request(view,params);if(id!==navId)return;
-      desk.innerHTML=view==="scouting"?results(params,data):view==="compare"?comparison(params,data):report(params,data);
+      desk.innerHTML=view==="scouting"?results(params,data):view==="compare"?comparison(params,data):["squad","planning"].includes(view)?renderTeam(view,{...params,seasonLabel:season.seasonLabel},data,{E,A,h,path,score,val,roleLabel,field,input}):report(params,data);
     }
     if(scroll){await frame();if(id!==navId)return;const y=view==="scouting"?Number(q.backY):0;const result=location.hash==="#results"?document.getElementById("results"):null;if(result)result.scrollIntoView();else window.scrollTo(0,Number.isFinite(y)?y:0);if(!y&&!result)desk.focus({preventScroll:true});}
   }catch(error){if(id===navId)desk.innerHTML=h("Beta","Couldn’t open this view")+'<p role="alert">'+E(error.message)+'</p>'+A("index.html","Back to beta home");}
@@ -133,9 +138,11 @@ desk.addEventListener("submit",e=>{
   const form=e.target, type=form.dataset.form;if(!type)return;e.preventDefault();
   const f=Object.fromEntries(new FormData(form)),q=context(query());
   if(type==="context"){navigate(path("index",f));return;}
+  if(type==="team"){navigate(path(locationView(),context({slot:f.slot})));return;}
+  if(type==="plan"){navigate(path("planning",{...q,...f}));return;}
   if(type==="search"){
     if(f.ageMin&&f.ageMax&&Number(f.ageMin)>Number(f.ageMax)){const el=form.elements.ageMax;el.setCustomValidity("Maximum age must be at least the minimum age.");el.reportValidity();el.setCustomValidity("");return;}
-    navigate(path("scouting",context(Object.fromEntries(Object.entries(f).filter(([,v])=>String(v).trim()))))+"#results");return;
+    navigate(path("scouting",context({...Object.fromEntries(Object.entries(f).filter(([,v])=>String(v).trim())),...(q.slot&&f.role===q.role?{slot:q.slot}:{})}))+"#results");return;
   }
   if(type==="lens"){navigate(path("player",{...q,...f,tab:"role-fit"}));return;}
   if(type==="compare"){delete q.other;navigate(path("compare",{...q,...f}));return;}
