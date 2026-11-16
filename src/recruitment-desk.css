@@ -1,0 +1,55 @@
+/* Shared shell and first-run experience. Workspace-specific layouts remain intact. */
+:root { --ink:#202d27; --muted:#52625a; --line:#dce4dd; --paper:#fff; --accent:#185b45; --accent-soft:#e7f0e9; background:#f5f7f3; }
+.desk-shell { grid-template-columns:220px minmax(0,1fr); }
+.desk-shell .sidebar { background:#fafbf8; padding:24px 14px 18px; }
+.desk-shell .brand { padding:0 9px 29px; }
+.desk-shell .brand-mark { border-radius:5px; background:#185b45; }
+.desk-shell .brand-copy small { letter-spacing:1.2px; color:#52625a; }
+.desk-shell .nav-item { min-height:44px; padding:9px 12px; border-left:3px solid transparent; border-radius:3px; color:#46574e; }
+.desk-shell .nav-item.active { border-left-color:var(--accent); color:#164a39; }
+.desk-shell .topbar { min-height:58px; height:auto; gap:12px; background:#fafbf8; padding-block:8px; }
+.desk-top-label { color:var(--muted); font-size:13px; font-weight:650; }
+.desk-shell .save-chip { min-width:0; max-width:min(55%, 320px); min-height:36px; color:var(--accent); font:inherit; font-size:12px; font-weight:650; cursor:pointer; border-radius:5px; }
+.desk-shell .save-chip span:last-child { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.desk-shell .status-dot { flex:none; }
+.desk-shell .page-content { width:min(1400px,100%); }
+.desk-shell .page-heading p { line-height:1.5; }
+.desk-shell .primary-button { min-height:42px; background:var(--accent); border-radius:5px; }
+.desk-shell .primary-button:hover:not(:disabled) { background:#114734; }
+.desk-shell .footer { color:var(--muted); }
+.desk-shell :focus-visible { outline:2px solid #0b6550; outline-offset:3px; }
+.desk-skip { position:absolute; left:12px; top:8px; z-index:20; transform:translateY(-160%); color:var(--accent); background:#fff; padding:10px; }
+.desk-skip:focus { transform:none; }
+.desk-intro { border-top:4px solid var(--accent); padding:22px 0 26px; max-width:920px; overflow-wrap:anywhere; }
+.desk-context { margin:0 0 7px; font-size:13px; font-weight:650; color:var(--accent); }
+.desk-intro h1 { margin:0; font-size:clamp(29px,4.4vw,52px); line-height:1.06; letter-spacing:-.04em; font-weight:740; }
+.desk-lead { color:var(--muted); margin:12px 0 0; max-width:58ch; font-size:15px; line-height:1.6; }
+.desk-actions { display:flex; align-items:center; flex-wrap:wrap; gap:14px; margin-top:18px; }
+.desk-text-button { border:0; background:none; color:var(--accent); font:inherit; font-weight:650; text-decoration:underline; text-underline-offset:3px; padding:2px; cursor:pointer; }
+.desk-setup,.desk-work { max-width:920px; border-top:1px solid var(--line); padding:20px 0; }
+.desk-setup h2,.desk-work h2 { margin:0 0 12px; font-size:17px; letter-spacing:-.015em; }
+.desk-setup ol { margin:0; padding-left:23px; display:grid; gap:12px; }
+.desk-setup li::marker { color:var(--accent); font-weight:750; font-variant-numeric:tabular-nums; }
+.desk-setup li span { display:block; margin-top:3px; }
+.desk-setup li span,.desk-setup p,.desk-roadmap { font-size:13px; line-height:1.5; color:var(--muted); }
+.desk-setup p { margin:15px 0 0; }
+.desk-work-row { width:100%; min-height:54px; display:grid; grid-template-columns:minmax(100px, .45fr) minmax(0, 1fr) auto; gap:14px; align-items:center; border:0; border-bottom:1px solid var(--line); background:transparent; color:var(--muted); padding:12px 8px; text-align:left; font:inherit; font-size:13px; cursor:pointer; }
+.desk-work-row:first-of-type { border-top:1px solid var(--line); }
+.desk-work-row:hover { background:var(--accent-soft); }
+.desk-work-row strong { color:var(--ink); font-size:14px; }
+.desk-arrow { color:var(--accent); font-size:17px; }
+.desk-roadmap { margin-top:16px; }
+.desk-roadmap summary { cursor:pointer; }
+.desk-roadmap button + button { margin-left:10px; }
+@media(max-width:900px) { .desk-shell { grid-template-columns:178px minmax(0,1fr); } }
+@media(max-width:640px) {
+  .desk-shell .sidebar { padding:12px 12px 5px; }
+  .desk-shell .brand { padding:0 4px 9px; }
+  .desk-shell .nav-list { flex-wrap:wrap; }
+  .desk-shell .nav-item { min-height:44px; border-left:0; border-bottom:2px solid transparent; padding:8px; }
+  .desk-shell .nav-item.active { border-bottom-color:var(--accent); }
+  .desk-shell .page-content { padding-top:20px; }
+  .desk-work-row { grid-template-columns:minmax(0,1fr) auto; gap:4px 12px; }
+  .desk-work-row span:nth-child(2) { grid-column:1; grid-row:2; }
+  .desk-work-row .desk-arrow { grid-column:2; grid-row:1 / 3; }
+}
