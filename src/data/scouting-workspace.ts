@@ -274,6 +274,34 @@ export async function refreshScoutingAnalysisSettings(onUpdate: () => void): Pro
   }
 }
 
+export function scoutingSeasonId(): string { return datasetId; }
+
+export async function scoutSquadRole(careerId: string, seasonId: string, roleId: string, render: () => void): Promise<void> {
+  if (!careerId || !seasonId || !roleId) return;
+  if (saveId !== careerId || datasetId !== seasonId) await loadScoutingWorkspace(careerId, seasonId);
+  if (saveId !== careerId || datasetId !== seasonId) return;
+  state.analysis = { ...analysisSettings(), roleId };
+  viewMode = "discover"; page = 1; query = ""; selectedUids.clear();
+  filterGroups = [{ id: "group-default", logic: "and", filters: [] }]; groupLogic = "and";
+  sortField = "roleScore"; sortDirection = "desc";
+  await updateScoutingWorkspaceState(saveId, state);
+  await runScoring(render);
+}
+
+export function scoutingProfileEvidence(uid: string, seasonId: string): string {
+  const fit = seasonId === datasetId ? fitByUid.get(uid) : undefined;
+  const role = (FM24_ROLES as unknown as Array<{id:string; name:string; dutyName:string}>).find(entry => entry.id === analysisSettings().roleId);
+  const summary = seasonId !== datasetId ? "Role fit is only shown for the active Scouting season." : !role ? "Choose a role in Scouting to calculate fit." :
+    !fit ? (scoringStatus === "complete" ? "No scoring record is available for this player." : "Role evidence is not ready.") :
+    !fit.positionEligible ? "Not scored: outside the eligible position group." :
+    fit.roleScore == null ? "Not scored: the required role evidence was insufficient." :
+    "Core Role Fit: " + fit.roleScore + " / 100 · " + fit.confidence + " confidence";
+  const families = fit?.roleFamilies ?? [];
+  return '<section class="desk-evidence"><h3>' + (role ? esc(role.name + " · " + role.dutyName) : "Role evidence") + '</h3><p><strong>' + esc(summary) + '</strong></p>' +
+    (fit?.positionEligible ? '<p>' + Math.round(fit.roleCoverage * 100) + '% weighted role evidence coverage. Compared with eligible positional peers from the selected season; the minimum for the reference pool is ' + scorePoolMinimumMinutes.toLocaleString() + ' minutes. Eligibility varies by metric.</p>' : '') +
+    (families.length ? '<details data-keep-open="profile-evidence"><summary>View role evidence</summary><ul>' + families.map(f => '<li>' + esc(f.family.replace(/_/g, " ")) + ': ' + (f.score == null ? 'Unavailable' : f.score) + '</li>').join("") + '</ul></details>' : '') + '</section>';
+}
+
 export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): string {
   if (!save) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Select a career first.</h2><p>Scouting searches and decisions are stored inside the active career.</p></section>';
   if (!save.datasets.length) return '<section class="empty-workspace content-card"><div class="card-kicker">SCOUTING WORKSPACE</div><h2>Import a season to begin.</h2><p>Search and filters use only your imported player records.</p></section>';
@@ -353,24 +381,25 @@ export function renderScoutingWorkspace(save: SaveWithDatasets | undefined): str
   }).join("");
   return '<section class="content-card scouting-workspace"><div class="card-kicker">CAREER-WIDE PLAYER DISCOVERY</div><h2>' + (viewMode === "shortlist" ? 'Shortlist workspace' : 'Search by role and philosophy fit') + '</h2>' +
     '<div class="scouting-view-tabs"><button type="button" data-scouting-view="discover" class="' + (viewMode === "discover" ? 'active' : '') + '">Discover players</button><button type="button" data-scouting-view="shortlist" class="' + (viewMode === "shortlist" ? 'active' : '') + '">Shortlist</button></div>' +
-    '<p>Core Role Fit measures role-specific performance. DoF Role Evaluation preserves V1’s small aerial adjustment for relevant defensive roles. Philosophy Fit measures alignment with your selected playing principles. Tactical Fit combines DoF Role Evaluation and Philosophy Fit only when both have sufficient evidence.</p>' +
-    '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-scouting-role><option value="">Choose a role…</option>' + roleOptions + '</select></label>' +
-    '<label>Club philosophy<select data-scouting-philosophy><option value="">Choose a philosophy…</option>' + philosophyOptions + '</select></label>' +
+    '<p>Choose a role, then open a player to review the evidence.</p>' +
+    '<div class="scouting-fit-controls"><label>FM24 role and duty<select data-scouting-role><option value="">Choose a role…</option>' + roleOptions + '</select></label></div>' +
+    '<details class="desk-disclosure" data-keep-open="scout-analysis"><summary>Scoring options</summary><div class="scouting-fit-controls"><label>Club philosophy<select data-scouting-philosophy><option value="">Choose a philosophy…</option>' + philosophyOptions + '</select></label>' +
     '<label>Tactical Fit blend<select data-scouting-role-weight><option value="0.6"' + (analysis.roleWeight === 0.6 ? ' selected' : '') + '>60% role · 40% philosophy</option><option value="0.7"' + (analysis.roleWeight === 0.7 ? ' selected' : '') + '>70% role · 30% philosophy</option><option value="0.8"' + (analysis.roleWeight === 0.8 ? ' selected' : '') + '>80% role · 20% philosophy</option></select></label><label class="scouting-shrink-control"><span>Small-sample adjustment</span><span><input type="checkbox" data-scouting-shrink' + (analysis.shrinkSmallSamples ? ' checked' : '') + '> Shrink low-minute DoF scores toward 50</span></label></div>' +
-    philosophyWeightControls +
+    philosophyWeightControls + '</details>' +
     '<p class="scouting-score-note" data-scoring-status="' + scoringStatus + '">' + esc(scoringMessage || "Choose a role and philosophy to calculate player fit. Tactical Fit uses DoF Role Evaluation plus Philosophy Fit; its blend is a configurable starting point, not a universal formula. Scores use the full selected season as the comparison pool.") + '</p>' +
     '<div class="scouting-toolbar"><label>Season dataset<select data-scouting-dataset>' + datasetOptions + '</select></label>' +
     (viewMode === "shortlist" ? '<label>Show <select data-shortlist-status>' + statusOptions.map((entry) => '<option value="' + entry[0] + '"' + (shortlistStatusFilter === entry[0] ? ' selected' : '') + '>' + entry[1] + '</option>').join("") + '</select></label>' : '') +
     '<label class="scouting-query">Search players<input type="search" data-scouting-query value="' + esc(query) + '" placeholder="Name, club, position or source value"></label>' +
     '</div>' +
-    '<div class="scouting-filter-panel"><div class="scouting-panel-heading"><strong>Filter groups</strong><label>Match groups <select data-scouting-group-logic><option value="and"' + (groupLogic === "and" ? " selected" : "") + '>All groups (AND)</option><option value="or"' + (groupLogic === "or" ? " selected" : "") + '>Any group (OR)</option></select></label></div>' +
+    '<div class="desk-search-action"><button type="button" class="primary-button" data-scouting-search' + (loading ? ' disabled' : '') + '>' + (loading ? 'Searching…' : 'Find players') + '</button></div>' +
+    '<details class="desk-disclosure" data-keep-open="scout-filters"><summary>More filters (' + flatFilters().length + ')</summary><div class="scouting-filter-panel"><div class="scouting-panel-heading"><strong>Filter groups</strong><label>Match groups <select data-scouting-group-logic><option value="and"' + (groupLogic === "and" ? " selected" : "") + '>All groups (AND)</option><option value="or"' + (groupLogic === "or" ? " selected" : "") + '>Any group (OR)</option></select></label></div>' +
     groupRows +
-    '<div class="scouting-actions"><button type="button" class="secondary-button compact-button" data-add-filter-group-new>Add group</button><button type="button" class="text-button" data-scouting-reset>Reset filters</button><button type="button" class="primary-button" data-scouting-search' + (loading ? ' disabled' : '') + '>' + (loading ? 'Searching…' : 'Apply search') + '</button></div></div>' +
-    '<div class="scouting-saved-searches"><label>Saved searches<select data-scouting-saved-select><option value="">Choose a saved search</option>' + savedOptions + '</select></label>' +
+    '<div class="scouting-actions"><button type="button" class="secondary-button compact-button" data-add-filter-group-new>Add group</button><button type="button" class="text-button" data-scouting-reset>Reset filters</button><button type="button" class="primary-button" data-scouting-search' + (loading ? ' disabled' : '') + '>' + (loading ? 'Searching…' : 'Apply search') + '</button></div></div></details>' +
+    '<details class="desk-disclosure" data-keep-open="scout-tools"><summary>Saved searches, columns and selection</summary><div class="scouting-saved-searches"><label>Saved searches<select data-scouting-saved-select><option value="">Choose a saved search</option>' + savedOptions + '</select></label>' +
     '<button type="button" class="secondary-button compact-button" data-apply-saved-search>Load</button><input data-scouting-search-name maxlength="60" placeholder="Name this search">' +
     '<button type="button" class="secondary-button compact-button" data-save-search>Save current search</button><button type="button" class="text-button" data-delete-search>Delete selected</button></div>' +
     '<details class="scouting-columns-panel"><summary>Visible columns</summary><div class="scouting-columns-grid">' + columnOptions + '</div></details>' +
-    '<div class="scouting-bulk-toolbar"><span>' + selectedUids.size + ' selected</span><button type="button" class="secondary-button compact-button" data-select-page>Select visible page</button><button type="button" class="secondary-button compact-button" data-bulk-shortlist' + (selectedUids.size ? '' : ' disabled') + '>Add to shortlist</button><button type="button" class="secondary-button compact-button" data-bulk-remove-shortlist' + (selectedUids.size ? '' : ' disabled') + '>Remove from shortlist</button><button type="button" class="text-button" data-clear-selection' + (selectedUids.size ? '' : ' disabled') + '>Clear selection</button></div>' +
+    '<div class="scouting-bulk-toolbar"><span>' + selectedUids.size + ' selected</span><button type="button" class="secondary-button compact-button" data-select-page>Select visible page</button><button type="button" class="secondary-button compact-button" data-bulk-shortlist' + (selectedUids.size ? '' : ' disabled') + '>Add to shortlist</button><button type="button" class="secondary-button compact-button" data-bulk-remove-shortlist' + (selectedUids.size ? '' : ' disabled') + '>Remove from shortlist</button><button type="button" class="text-button" data-clear-selection' + (selectedUids.size ? '' : ' disabled') + '>Clear selection</button></div></details>' +
     '<div class="player-search-meta"><span>' + total.toLocaleString() + ' matching player(s) · showing ' + (total ? ((page - 1) * pageSize + 1) + '–' + Math.min(page * pageSize, total) : 0) + ' · page ' + page + ' of ' + pageCount + '</span></div>' +
     (message ? '<p class="player-search-message" role="status">' + esc(message) + '</p>' : '') +
     (rows ? '<div class="player-table-wrap"><table class="player-data-table scouting-results-table"><thead><tr>' + header + '<th>Evidence</th><th>Scouting decision</th></tr></thead><tbody>' + rows + '</tbody></table></div>' :
@@ -600,7 +629,7 @@ export function renderPlanningWorkspace(save: SaveWithDatasets | undefined): str
     '<label>Maximum weekly wage (thousands, save currency)<input type="number" min="0" step="1" data-planning-wage value="' + (config.wageThousands ?? "") + '" placeholder="No wage cap"></label>' +
     '<label>Philosophy minimum<select data-planning-threshold><option value="50"' + (config.philosophyThreshold === 50 ? " selected" : "") + '>50 · exclude measured scores below</option><option value="60"' + (config.philosophyThreshold === 60 ? " selected" : "") + '>60 · stricter</option><option value="70"' + (config.philosophyThreshold === 70 ? " selected" : "") + '>70 · strong fit only</option><option value="none"' + (config.philosophyThreshold == null ? " selected" : "") + '>No philosophy filter</option></select></label>' +
     '<label>Compare against<select data-planning-starter><option value="">Best role-qualified player at ' + esc(save.save.club) + '</option>' + starterOptions + '</select></label></div>' +
-    '<p class="scouting-score-note">' + (starter ? 'Baseline: ' + esc(starter.player.displayName) + ' · DoF evaluation ' + starter.fit.dofEvaluationScore + ' · core role ' + starter.fit.roleScore + ' · philosophy ' + (starter.fit.philosophyScore ?? "not measured") : 'No role-qualified current player found; upgrade and value thresholds are disabled.') +
+    '<p class="scouting-score-note">' + (starter ? 'Baseline: ' + esc(starter.player.displayName) + ' · DoF evaluation ' + starter.fit.dofEvaluationScore + ' · core role ' + starter.fit.roleScore + ' · philosophy ' + (starter.fit.philosophyScore ?? "not measured") : config.starterUid ? 'The selected baseline cannot be scored for this role. Upgrade, value and depth comparisons are unavailable.' : 'No role-qualified current player found; upgrade, value and depth comparisons are unavailable.') +
     ' · ' + selected.eligible.length.toLocaleString() + ' eligible external candidates. Values and wages are taken from the imported FM24 export.</p>' +
     '<div class="dof-category-grid">' + categoryHtml + '</div>' +
     '<p class="player-data-footnote">Limitations: league strength, likely transfer acceptance, medical risk and tactical execution are not inferred from this export. Transfer value is an estimate, not a negotiated fee. Players outside their listed role position are marked for retraining review. The young-target list is not age-adjusted.</p></section>';

@@ -2,6 +2,7 @@ import "./styles.css";
 import "./scouting.css";
 import "./squad.css";
 import "./recruitment-desk.css";
+import "./workstation.css";
 import type { Fm24ParseResult, Fm24ValidationResult } from "./data/import/fm24-pipe-parser";
 import {
   createSave as createLocalSave,
@@ -16,7 +17,7 @@ import {
   type PlayerSeasonHistoryEntry,
 } from "./data/storage/local-database";
 import { createSaveBackup, restoreSaveBackup } from "./data/storage/save-backup";
-import { loadScoutingWorkspace, renderScoutingWorkspace, renderPlanningWorkspace, loadPlanningWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange, refreshScoutingAnalysisSettings } from "./data/scouting-workspace";
+import { loadScoutingWorkspace, renderScoutingWorkspace, renderPlanningWorkspace, loadPlanningWorkspace, handleScoutingWorkspaceClick, handleScoutingWorkspaceChange, refreshScoutingAnalysisSettings, scoutingSeasonId, scoutingProfileEvidence, scoutSquadRole } from "./data/scouting-workspace";
 import { renderSquadWorkspace, handleSquadWorkspaceClick, handleSquadWorkspaceChange, handleSquadWorkspaceInput, handleSquadWorkspacePointerDown, handleSquadWorkspacePointerMove, handleSquadWorkspacePointerUp } from "./data/squad-workspace";
 
 type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "Planning" | "Data & Saves";
@@ -78,6 +79,10 @@ let playerSearchQuery = "";
 let playerSearchViewMode: "rows" | "cards" = "rows";
 let playerSearchResults: PlayerSeasonRecord[] = [];
 let selectedPlayerUid: string | null = null;
+let scoutingReturnScroll = 0;
+let scoutLinkMessage = "";
+let scoutingTableScroll = 0;
+
 let playerHistory: PlayerSeasonHistoryEntry[] = [];
 let historyComparePreviousId = "";
 let historyCompareCurrentId = "";
@@ -103,6 +108,11 @@ const deskSections: Section[] = ["Overview", "Squad", "Scouting", "Planning", "D
 
 function render(): void {
   const selected = activeSave();
+  const seasonId = activeSection === "Squad" ? squadDatasetId : scoutingSeasonId();
+  const season = selected?.datasets.find((item) => item.id === seasonId) ?? selected?.datasets[0];
+  const oldTable = app!.querySelector(".desk-scout-results .player-table-wrap");
+  if (oldTable && oldTable.clientWidth) scoutingTableScroll = oldTable.scrollLeft;
+  const openPanels = new Set(Array.from(app!.querySelectorAll<HTMLDetailsElement>("details[data-keep-open][open]"), el => el.dataset.keepOpen));
   app!.innerHTML = `
     <div class="app-shell desk-shell">
       <a class="desk-skip" href="#desk-main">Skip to content</a>
@@ -113,17 +123,18 @@ function render(): void {
         </a>
         <nav class="nav-list" aria-label="Workspace">
           ${deskSections.map((section) => `
-            <button type="button" class="nav-item ${activeSection === section ? "active" : ""}" data-section="${section}" ${activeSection === section ? 'aria-current="page"' : ""}>${section}</button>`).join("")}
+            <button type="button" class="nav-item ${activeSection === section ? "active" : ""}" data-section="${section}" ${activeSection === section ? 'aria-current="page"' : ""}>${section === "Overview" ? "Home" : section}</button>`).join("")}
         </nav>
         <div class="sidebar-bottom"><div class="local-status"><span class="status-dot" aria-hidden="true"></span>Stored in this browser</div></div>
       </aside>
       <main class="main-panel" id="desk-main" tabindex="-1">
         <header class="topbar">
-          <span class="desk-top-label">Recruitment desk</span>
+          <span class="desk-top-label">${activeSection === "Overview" ? "Home" : activeSection}</span>
           <button type="button" class="save-chip" data-section="Data &amp; Saves" aria-label="Manage careers and season imports">
             <span class="status-dot ${selected ? "" : "muted"}" aria-hidden="true"></span>
-            <span>${selected ? escapeHtml(selected.save.name) : "Data &amp; Saves"}</span>
+            <span>${selected ? escapeHtml(selected.save.name) : "Choose a career"}</span>
           </button>
+          <span class="desk-season">${season ? escapeHtml(season.seasonLabel) : "No season imported"}</span>
         </header>
         <section class="page-content">
           ${activeSection === "Overview" ? overview() : `
@@ -133,6 +144,9 @@ function render(): void {
         <footer class="footer"><span>Moneyball Companion</span><span>Local data · FM24</span></footer>
       </main>
     </div>`;
+  app!.querySelectorAll<HTMLDetailsElement>("details[data-keep-open]").forEach(el => { el.open = openPanels.has(el.dataset.keepOpen); });
+  const newTable = app!.querySelector(".desk-scout-results .player-table-wrap");
+  if (newTable) newTable.scrollLeft = scoutingTableScroll;
 }
 
 function overview(): string {
@@ -143,7 +157,8 @@ function overview(): string {
     : !hasSeasons
       ? "Your career is ready. Import an FM24 player export to start scouting."
       : `${selected.datasets.length} imported ${selected.datasets.length === 1 ? "season" : "seasons"} · ${escapeHtml(selected.save.club || "Club not set")}`;
-  const title = selected ? escapeHtml(selected.save.name) : "Your FM24 recruitment desk";
+  const title = selected ? escapeHtml(selected.save.club || selected.save.name) : "Your recruitment desk";
+  const current = selected?.datasets.find(item => item.id === scoutingSeasonId()) ?? selected?.datasets[0];
   return `
     <header class="desk-intro">
       <p class="desk-context">${selected ? "Current career" : "Football Manager 2024"}</p>
@@ -166,6 +181,10 @@ function overview(): string {
         </ol>
         <p>Already have a Companion backup? Restore it in <button type="button" class="desk-text-button" data-section="Data &amp; Saves">Data &amp; Saves</button>.</p>
       </section>` : ""}
+    ${current ? `<section class="desk-home-grid" aria-label="Recruitment priorities">
+      <article class="content-card desk-home-feature"><h2>Start with your squad</h2><p>Choose a position on your tactic to review the starter and internal cover before looking outside the club.</p><button type="button" class="primary-button" data-section="Squad" data-open-tactic>Review squad positions</button></article>
+      <article class="content-card"><h2>Scouting season</h2><strong class="desk-home-number">${current.playerCount.toLocaleString()}</strong><p>Imported player records · ${escapeHtml(current.seasonLabel)}</p><button type="button" class="secondary-button" data-section="Scouting">Find players</button></article>
+    </section>` : ""}
     <section class="desk-work" aria-labelledby="desk-work-heading">
       <h2 id="desk-work-heading">Workspaces</h2>
       ${(["Squad", "Scouting", "Planning", "Data & Saves"] as const).map((section) => `
@@ -203,9 +222,12 @@ function displayRawValue(value: string | undefined): string {
 
 function playerProfileView(): string {
   if (!selectedPlayerUid) return "";
+  const fromScouting = activeSection === "Scouting";
+  const back = fromScouting ? "Back to results" : "Back to player search";
+  if (isLoadingPlayerHistory) return '<section class="content-card"><button class="secondary-button" data-player-back>' + back + '</button><p role="status">Loading player record…</p></section>';
   const present = playerHistory.filter((entry) => entry.player);
   const latestPlayer = [...present].reverse()[0]?.player;
-  if (!latestPlayer) return '<section class="content-card"><p>' + escapeHtml(playerSearchMessage || "This player has no season records in the active career.") + '</p><button class="secondary-button" data-player-back>Back to player search</button></section>';
+  if (!latestPlayer) return '<section class="content-card"><p>' + escapeHtml(playerSearchMessage || "This player has no season records in the active career.") + '</p><button class="secondary-button" data-player-back>' + back + '</button></section>';
   const previous = playerHistory.find((entry) => entry.dataset.id === historyComparePreviousId);
   const current = playerHistory.find((entry) => entry.dataset.id === historyCompareCurrentId) ?? playerHistory[playerHistory.length - 1];
   const previousLabel = previous?.dataset.seasonLabel ?? "Earlier season";
@@ -219,8 +241,8 @@ function playerProfileView(): string {
   };
   const facts = [
     ["Age", ["age", "age (years)"]], ["Nationality", ["nationality", "nation"]],
-    ["Division", ["division", "league"]], ["Height", ["height"]],
-    ["Preferred foot", ["preferred foot", "foot"]], ["Value", ["transfer value", "value"]],
+    ["Division", ["division", "league"]], ["Minutes", ["mins", "minutes"]], ["Height", ["height"]],
+    ["Preferred foot", ["preferred foot", "foot"]], ["Estimated value", ["transfer value", "value"]], ["Asking price", ["asking price"]],
     ["Wage", ["wage", "salary"]], ["Contract expiry", ["contract expiry", "contract end"]],
   ].map(([label, candidates]) => ({ label: String(label), value: valueFor(candidates as string[]) })).filter((fact) => fact.value !== "—");
   const statGroups = [
@@ -252,12 +274,13 @@ function playerProfileView(): string {
       fields.map((field) => '<tr><th>' + escapeHtml(field) + '</th><td>' + escapeHtml(displayRawValue(current?.player?.rawValues[field])) + '</td></tr>').join("") +
       '</tbody></table></div>';
   return '<section class="player-profile-card">' +
-    '<div class="player-profile-toolbar"><button class="text-button" data-player-back>← Back to player search</button><span class="card-kicker">PLAYER DOSSIER · FM UID ' + escapeHtml(selectedPlayerUid) + '</span></div>' +
+    '<div class="player-profile-toolbar"><button class="text-button" data-player-back>← ' + back + '</button><span class="card-kicker">PLAYER DOSSIER · FM UID ' + escapeHtml(selectedPlayerUid) + '</span></div>' +
     '<header class="player-profile-hero"><div class="player-avatar" aria-hidden="true">' + escapeHtml((profilePlayer.displayName || "P").trim().charAt(0).toUpperCase()) + '</div><div class="player-profile-identity"><div class="card-kicker">CAREER PLAYER RECORD</div><h2>' + escapeHtml(profilePlayer.displayName) + '</h2><p>' + escapeHtml(profilePlayer.position || "Position not supplied") + (profilePlayer.club ? " · " + escapeHtml(profilePlayer.club) : "") + '</p><span>Selected season: ' + escapeHtml(currentLabel) + '</span></div><div class="player-profile-season-count"><strong>' + present.length + '/' + playerHistory.length + '</strong><span>seasons present</span></div></header>' +
+    (fromScouting ? scoutingProfileEvidence(selectedPlayerUid, current?.dataset.id ?? "") : "") +
     (facts.length ? '<section class="profile-facts-grid" aria-label="Player information">' + facts.map((fact) => '<div><span>' + escapeHtml(fact.label) + '</span><strong>' + escapeHtml(fact.value) + '</strong></div>').join("") + '</section>' : "") +
-    (statSections ? '<section class="player-history-section"><div class="player-section-heading"><strong>Season performance snapshot</strong><span>Original exported statistics · ' + escapeHtml(currentLabel) + '</span></div><div class="profile-stat-groups">' + statSections + '</div></section>' : "") +
+    (statSections ? '<details class="player-history-section" data-keep-open="profile-stats"><summary>Season performance snapshot</summary><div class="player-section-heading"><span>Original exported statistics · ' + escapeHtml(currentLabel) + '</span></div><div class="profile-stat-groups">' + statSections + '</div></details>' : "") +
     '<div class="player-history-section"><div class="player-section-heading"><strong>Career timeline</strong><span>' + present.length + ' of ' + playerHistory.length + ' imported seasons</span></div><div class="player-history-list">' + historyRows + '</div></div>' +
-    '<div class="player-history-section"><div class="player-section-heading"><strong>Season comparison</strong><span>Original imported values · no calculated scores</span></div><div class="player-comparison-controls"><div class="form-field"><label for="history-previous">Earlier season</label><select id="history-previous" data-history-previous ' + (playerHistory.length < 2 ? "disabled" : "") + '><option value="">Choose earlier season</option>' + previousOptions + '</select></div><div class="form-field"><label for="history-current">Selected season</label><select id="history-current" data-history-current>' + currentOptions + '</select></div></div>' + comparison + '</div>' +
+    '<details class="player-history-section" data-keep-open="profile-compare"><summary>Season comparison</summary><div class="player-section-heading"><span>Original imported values · no calculated scores</span></div><div class="player-comparison-controls"><div class="form-field"><label for="history-previous">Earlier season</label><select id="history-previous" data-history-previous ' + (playerHistory.length < 2 ? "disabled" : "") + '><option value="">Choose earlier season</option>' + previousOptions + '</select></div><div class="form-field"><label for="history-current">Selected season</label><select id="history-current" data-history-current>' + currentOptions + '</select></div></div>' + comparison + '</details>' +
     '<details class="profile-raw-data"><summary>All source fields (' + fields.length + ')</summary><p>Unmodified values from the selected export. Missing values remain unavailable; zero is preserved.</p><div class="player-table-wrap"><table class="player-data-table"><thead><tr><th>Source field</th><th>' + escapeHtml(currentLabel) + '</th></tr></thead><tbody>' + fields.map((field) => '<tr><th>' + escapeHtml(field) + '</th><td>' + escapeHtml(displayRawValue(profilePlayer.rawValues[field])) + '</td></tr>').join("") + '</tbody></table></div></details>' +
     '<p class="player-data-footnote">This dossier presents source data and career history. No role score, percentile, league adjustment or performance judgement is fabricated when the required analysis is unavailable.</p></section>';
 }
@@ -332,7 +355,7 @@ async function openPlayerHistory(uid: string): Promise<void> {
     const history = await getPlayerHistory(saveId, uid);
     if (requestId !== playerHistoryRequestId || activeSaveId !== saveId) return;
     playerHistory = history;
-    historyCompareCurrentId = history[history.length - 1]?.dataset.id ?? "";
+    historyCompareCurrentId = (activeSection === "Scouting" ? history.find(entry => entry.dataset.id === scoutingSeasonId())?.dataset.id : undefined) ?? history[history.length - 1]?.dataset.id ?? "";
     historyComparePreviousId = history.length > 1 ? history[history.length - 2].dataset.id : "";
   } catch (error) {
     if (requestId !== playerHistoryRequestId || activeSaveId !== saveId) return;
@@ -474,6 +497,7 @@ function dataSavesView(): string {
         <p class="storage-footnote">Player source rows are stored in IndexedDB. The browser profile owns this data; clearing site data or changing browser/device can remove access. Keep a backup somewhere outside this browser.</p>
       </section>
     </div>
+    ${importStatusView()}
     <section class="content-card backup-card">
       <div class="card-kicker">PORTABLE DATA SAFETY</div><h2>Backup &amp; restore</h2>
       <p>Export the active career, including every committed season and its original player rows, as a versioned JSON backup. Restore always creates a separate career; it never replaces your existing saves.</p>
@@ -489,7 +513,6 @@ function dataSavesView(): string {
         </form>
       </div>
     </section>
-    ${importStatusView()}
     <section class="content-card roadmap-card"><div class="card-kicker">DATA SAFETY</div><h2>Existing seasons are not overwritten</h2><p>Imports are written in batches as staged records. A season becomes visible only after all player rows have been stored and its dataset metadata is committed. Failed imports are cleaned up where possible and never replace an existing season.</p></section>`;
 }
 
@@ -501,7 +524,9 @@ function squadView(): string {
 function sectionView(section: Section): string {
   if (section === "Data & Saves") return dataSavesView();
   if (section === "Squad") return squadView();
-  if (section === "Scouting") return renderScoutingWorkspace(activeSave());
+  if (section === "Scouting") return (scoutLinkMessage ? '<p role="status">' + escapeHtml(scoutLinkMessage) + '</p>' : '') +
+    '<div class="desk-scout-layout' + (selectedPlayerUid ? ' has-profile' : '') + '"><div class="desk-scout-results">' + renderScoutingWorkspace(activeSave()) +
+    '</div>' + (selectedPlayerUid ? '<aside class="desk-scout-profile" aria-label="Player profile">' + playerProfileView() + '</aside>' : '') + '</div>';
   if (section === "Planning") return renderPlanningWorkspace(activeSave());
   return `
     <section class="empty-workspace content-card">
@@ -599,7 +624,20 @@ app.addEventListener("pointercancel", (event: PointerEvent) => {
 });
 
 app.addEventListener("click", (event: MouseEvent) => {
-  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-view], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field], [data-squad-tab], [data-tactic-slot], [data-squad-assign-player], [data-squad-clear-player]");
+  const target = (event.target as HTMLElement).closest<HTMLElement>("[data-section], [data-select-save], [data-player-uid], [data-player-view], [data-player-back], [data-add-filter], [data-remove-filter], [data-scouting-reset], [data-scouting-search], [data-save-search], [data-apply-saved-search], [data-delete-search], [data-save-player-state], [data-reset-philosophy], [data-scouting-sort-field], [data-dof-sort-field], [data-squad-sort-field], [data-squad-tab], [data-tactic-slot], [data-squad-assign-player], [data-squad-clear-player], [data-find-candidates]");
+  if (target?.dataset.findCandidates) {
+    const roleId = target.dataset.findCandidates;
+    const seasonId = squadDatasetId;
+    activeSection = "Scouting";
+    selectedPlayerUid = null;
+    scoutLinkMessage = "Opening the selected squad role…";
+    render();
+    app!.querySelector<HTMLElement>(".page-content h1")?.focus();
+    void scoutSquadRole(activeSaveId ?? "", seasonId, roleId, render)
+      .then(() => { scoutLinkMessage = ""; render(); })
+      .catch((error) => { scoutLinkMessage = formatStorageError(error); render(); });
+    return;
+  }
   if (target?.dataset.squadTab || target?.dataset.tacticSlot || target?.dataset.squadAssignPlayer || target?.hasAttribute("data-squad-clear-player")) { void handleSquadWorkspaceClick(target, render); return; }
   if (target?.dataset.playerView === "rows" || target?.dataset.playerView === "cards") { playerSearchViewMode = target.dataset.playerView; render(); return; }
   if (target?.dataset.squadSortField) {
@@ -615,7 +653,14 @@ app.addEventListener("click", (event: MouseEvent) => {
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
     event.preventDefault();
+    if (activeSection !== next) {
+      selectedPlayerUid = null; playerHistoryRequestId += 1; isLoadingPlayerHistory = false; scoutLinkMessage = "";
+    }
     activeSection = next;
+    if (next === "Squad" && target?.hasAttribute("data-open-tactic")) {
+      const button = document.createElement("button"); button.dataset.squadTab = "tactics";
+      void handleSquadWorkspaceClick(button, render);
+    }
     if (next === "Planning") { void refreshScoutingAnalysisSettings(render); void loadPlanningWorkspace(activeSave(), render); }
     if (next === "Scouting") void refreshScoutingAnalysisSettings(render);
     render();
@@ -630,11 +675,14 @@ app.addEventListener("click", (event: MouseEvent) => {
     selectedPlayerUid = null;
     playerHistory = [];
     render();
+    if (activeSection === "Scouting") { window.scrollTo(0, scoutingReturnScroll); app!.querySelector<HTMLElement>(".page-content h1")?.focus({ preventScroll: true }); }
     return;
   }
   const playerUid = target?.dataset.playerUid;
   if (playerUid) {
+    if (activeSection === "Scouting") scoutingReturnScroll = window.scrollY;
     void openPlayerHistory(playerUid);
+    if (activeSection === "Scouting") app!.querySelector<HTMLElement>(".desk-scout-profile [data-player-back]")?.focus();
     return;
   }
   const saveId = target?.dataset.selectSave;
@@ -651,6 +699,9 @@ app.addEventListener("click", (event: MouseEvent) => {
 app.addEventListener("change", (event: Event) => {
   const target = event.target;
   if (target instanceof HTMLElement) {
+    if (target.matches("[data-scouting-dataset]") && activeSection === "Scouting") {
+      selectedPlayerUid = null; playerHistoryRequestId += 1; isLoadingPlayerHistory = false;
+    }
     void handleSquadWorkspaceChange(target, render);
     void handleScoutingWorkspaceChange(target, render).then((handled) => { if (handled) render(); });
   }
