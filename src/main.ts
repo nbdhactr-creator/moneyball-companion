@@ -1,6 +1,7 @@
 import "./styles.css";
 import "./scouting.css";
 import "./squad.css";
+import "./recruitment-desk.css";
 import type { Fm24ParseResult, Fm24ValidationResult } from "./data/import/fm24-pipe-parser";
 import {
   createSave as createLocalSave,
@@ -22,12 +23,12 @@ type Section = "Overview" | "Squad" | "Scouting" | "Market" | "Intelligence" | "
 const sections: Section[] = ["Overview", "Squad", "Scouting", "Market", "Intelligence", "Planning", "Data & Saves"];
 const descriptions: Record<Section, string> = {
   Overview: "Your recruitment workspace, organised around the decisions that matter.",
-  Squad: "Understand squad balance, positional cover and player evidence.",
-  Scouting: "Find players by role, compare evidence and build shortlists.",
+  Squad: "Review your players, set up a tactic and see who is assigned.",
+  Scouting: "Filter players, inspect role-fit evidence and build a shortlist.",
   Market: "Track expiring contracts, free transfers and emerging youth.",
   Intelligence: "Put clubs, leagues and player performance into context.",
-  Planning: "Test squad changes before committing to a recruitment decision.",
-  "Data & Saves": "Manage imports, local data, backups and optional cloud sync.",
+  Planning: "Review recruitment candidates against a role, a starter and your budget.",
+  "Data & Saves": "Import FM24 seasons, switch careers and manage backups.",
 };
 
 type ImportState =
@@ -47,6 +48,7 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Application root was not found.");
 
 let activeSection: Section = "Overview";
+let isOpeningLibrary = true;
 let importState: ImportState = { status: "idle" };
 let importWorker: Worker | null = null;
 let importRequestId = 0;
@@ -96,76 +98,88 @@ function activeSave(): SaveWithDatasets | undefined {
   return saveLibrary.find((entry) => entry.save.id === activeSaveId);
 }
 
+
+const deskSections: Section[] = ["Overview", "Squad", "Scouting", "Planning", "Data & Saves"];
+
 function render(): void {
-  const selectedSave = activeSave();
+  const selected = activeSave();
   app!.innerHTML = `
-    <div class="app-shell">
-      <aside class="sidebar" aria-label="Main navigation">
-        <a class="brand" href="#overview" aria-label="Moneyball Companion home">
-          <span class="brand-mark">M</span>
-          <span class="brand-copy"><strong>Moneyball</strong><small>COMPANION</small></span>
+    <div class="app-shell desk-shell">
+      <a class="desk-skip" href="#desk-main">Skip to content</a>
+      <aside class="sidebar">
+        <a class="brand" href="#overview" data-section="Overview" aria-label="Moneyball Companion overview">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span class="brand-copy"><strong>Moneyball</strong><small>COMPANION / FM24</small></span>
         </a>
-        <div class="workspace-label">WORKSPACE</div>
-        <nav class="nav-list">
-          ${sections.map((section) => `
-            <button class="nav-item ${activeSection === section ? "active" : ""}" data-section="${section}" ${activeSection === section ? 'aria-current="page"' : ""}>
-              <span class="nav-indicator"></span><span>${section}</span>
-            </button>`).join("")}
+        <nav class="nav-list" aria-label="Workspace">
+          ${deskSections.map((section) => `
+            <button type="button" class="nav-item ${activeSection === section ? "active" : ""}" data-section="${section}" ${activeSection === section ? 'aria-current="page"' : ""}>${section}</button>`).join("")}
         </nav>
-        <div class="sidebar-bottom">
-          <div class="local-status"><span class="status-dot"></span><span>Local-first workspace</span></div>
-          <span class="version">FOUNDATION BUILD · 0.2</span>
-        </div>
+        <div class="sidebar-bottom"><div class="local-status"><span class="status-dot" aria-hidden="true"></span>Stored in this browser</div></div>
       </aside>
-      <main class="main-panel">
+      <main class="main-panel" id="desk-main" tabindex="-1">
         <header class="topbar">
-          <div class="breadcrumb"><span>Moneyball Companion</span><span class="crumb-divider">/</span><strong>${activeSection}</strong></div>
-          <div class="topbar-right"><span class="save-chip"><span class="status-dot ${selectedSave ? "" : "muted"}"></span>${selectedSave ? escapeHtml(selectedSave.save.name) : "No save selected"}</span></div>
+          <span class="desk-top-label">Recruitment desk</span>
+          <button type="button" class="save-chip" data-section="Data &amp; Saves" aria-label="Manage careers and season imports">
+            <span class="status-dot ${selected ? "" : "muted"}" aria-hidden="true"></span>
+            <span>${selected ? escapeHtml(selected.save.name) : "Data &amp; Saves"}</span>
+          </button>
         </header>
         <section class="page-content">
-          <div class="page-heading">
-            <div><div class="eyebrow">RECRUITMENT WORKSPACE</div><h1>${activeSection}</h1><p>${descriptions[activeSection]}</p></div>
-            <span class="build-label">LOCAL DATA FOUNDATION</span>
-          </div>
-          ${activeSection === "Overview" ? overview() : sectionView(activeSection)}
+          ${activeSection === "Overview" ? overview() : `
+            <header class="page-heading"><div><h1 tabindex="-1">${activeSection}</h1><p>${descriptions[activeSection]}</p></div></header>
+            ${sectionView(activeSection)}`}
         </section>
-        <footer class="footer"><span>Evidence before decoration.</span><span>Player data stays yours.</span></footer>
+        <footer class="footer"><span>Moneyball Companion</span><span>Local data · FM24</span></footer>
       </main>
     </div>`;
 }
 
 function overview(): string {
   const selected = activeSave();
+  const hasSeasons = Boolean(selected?.datasets.length);
+  const status = isOpeningLibrary ? "Opening your career library…" : !selected
+    ? "Create a career, then bring in your first FM24 player export."
+    : !hasSeasons
+      ? "Your career is ready. Import an FM24 player export to start scouting."
+      : `${selected.datasets.length} imported ${selected.datasets.length === 1 ? "season" : "seasons"} · ${escapeHtml(selected.save.club || "Club not set")}`;
+  const title = selected ? escapeHtml(selected.save.name) : "Your FM24 recruitment desk";
   return `
-    <section class="welcome-panel">
-      <div class="welcome-copy">
-        <div class="eyebrow">${selected ? "ACTIVE CAREER" : "YOUR NEXT STEP"}</div>
-        <h2>${selected ? escapeHtml(selected.save.name) : "Start with your Football Manager data."}</h2>
-        <p>${selected
-          ? `${selected.datasets.length} season dataset(s) stored locally. Select Data & Saves to import another season or manage your save library.`
-          : "Create a save container, then import a validated season export. Your data stays in this browser unless you choose to back it up."}</p>
-        <button class="primary-button" data-section="Data & Saves">${selected ? "Manage save data" : "Create your first save"} <span aria-hidden="true">→</span></button>
-      </div>
-      <div class="welcome-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="pitch"><span></span><i></i><b></b></div></div>
-    </section>
-    <div class="section-caption"><span>WORKSPACE MODULES</span><span>Built around real save data</span></div>
-    <div class="module-grid">
-      ${[
-        ["01", "Squad", "Depth, positional cover and player profiles", "Season-aware squad analysis."],
-        ["02", "Scouting", "Role fit, candidate discovery and comparison", "Direct search and persistent decisions."],
-        ["03", "Market", "Contract windows, free agents and youth", "Separate markets, clear eligibility."],
-        ["04", "Intelligence", "League context, club comparison and benchmarks", "Understand performance in context."],
-        ["05", "Planning", "Recruitment priorities and squad scenarios", "See the consequences of each move."],
-        ["06", "Data & Saves", "Imports, data quality and backup controls", "Local storage first, cloud optional."]
-      ].map(([number, title, summary, note]) => `
-        <button class="module-card" data-section="${title}">
-          <span class="module-top"><span class="module-number">${number}</span><span class="module-arrow">↗</span></span>
-          <strong>${title}</strong><span class="module-summary">${summary}</span><small>${note}</small>
+    <header class="desk-intro">
+      <p class="desk-context">${selected ? "Current career" : "Football Manager 2024"}</p>
+      <h1 tabindex="-1">${title}</h1>
+      <p class="desk-lead" role="status">${status}</p>
+      ${isOpeningLibrary ? "" : `
+        <div class="desk-actions">
+          <button type="button" class="primary-button" data-section="${hasSeasons ? "Squad" : "Data &amp; Saves"}"${hasSeasons ? "" : ` data-desk-focus="${selected ? "fm24-file-input" : "save-name"}"`}>${hasSeasons ? "Open squad" : selected ? "Import a season" : "Create a career"} <span aria-hidden="true">→</span></button>
+          ${hasSeasons ? '<button type="button" class="desk-text-button" data-section="Data &amp; Saves">Manage seasons</button>' : ""}
+        </div>`}
+    </header>
+    ${saveMessageIsError && saveMessage ? `<p class="save-feedback feedback-error" role="alert">${escapeHtml(saveMessage)}</p>` : ""}
+    ${!isOpeningLibrary && !hasSeasons ? `
+      <section class="desk-setup" aria-labelledby="desk-setup-heading">
+        <h2 id="desk-setup-heading">Getting started</h2>
+        <ol>
+          <li><strong>Create a career</strong><span>Name the save. Add your club so Squad can identify your players.</span></li>
+          <li><strong>Import a season</strong><span>Choose an original FM24 pipe-table or HTML export with player UIDs. Review the preview, then save the season.</span></li>
+          <li><strong>Open Squad or Scouting</strong><span>Review your own players or filter the imported season for candidates.</span></li>
+        </ol>
+        <p>Already have a Companion backup? Restore it in <button type="button" class="desk-text-button" data-section="Data &amp; Saves">Data &amp; Saves</button>.</p>
+      </section>` : ""}
+    <section class="desk-work" aria-labelledby="desk-work-heading">
+      <h2 id="desk-work-heading">Workspaces</h2>
+      ${(["Squad", "Scouting", "Planning", "Data & Saves"] as const).map((section) => `
+        <button type="button" class="desk-work-row" data-section="${section}">
+          <strong>${section}</strong><span>${descriptions[section]}</span><span class="desk-arrow" aria-hidden="true">→</span>
         </button>`).join("")}
-    </div>
-    <div class="principle-strip"><span class="principle-mark">i</span><p><strong>No demo numbers.</strong> Analysis appears only after real data has been imported, validated and stored.</p></div>`;
+      <details class="desk-roadmap">
+        <summary>Planned: Market and Intelligence</summary>
+        <p>Contract markets and league benchmarks are not available yet.</p>
+        <button type="button" class="desk-text-button" data-section="Market">Market scope</button>
+        <button type="button" class="desk-text-button" data-section="Intelligence">Intelligence scope</button>
+      </details>
+    </section>`;
 }
-
 
 function resetPlayerWorkspace(): void {
   playerSearchRequestId += 1;
@@ -550,6 +564,7 @@ async function refreshSaveLibrary(): Promise<void> {
     saveMessage = formatStorageError(error);
     saveMessageIsError = true;
   }
+  isOpeningLibrary = false;
   render();
 }
 
@@ -588,10 +603,14 @@ app.addEventListener("click", (event: MouseEvent) => {
   if (target) void handleScoutingWorkspaceClick(target, render).then((handled) => { if (handled) render(); });
   const next = target?.dataset.section as Section | undefined;
   if (next && sections.includes(next)) {
+    event.preventDefault();
     activeSection = next;
     if (next === "Planning") { void refreshScoutingAnalysisSettings(render); void loadPlanningWorkspace(activeSave(), render); }
     if (next === "Scouting") void refreshScoutingAnalysisSettings(render);
     render();
+    const focusId = target?.dataset.deskFocus;
+    const focusTarget = focusId ? document.getElementById(focusId) : null;
+    (focusTarget ?? app!.querySelector<HTMLElement>(".page-content h1"))?.focus();
     return;
   }
   if (target?.hasAttribute("data-player-back")) {
