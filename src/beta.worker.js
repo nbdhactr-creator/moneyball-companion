@@ -4,12 +4,19 @@ import {createFm24Scorer,philosophyWeightsForRole} from "./analytics/fm24-scorin
 import {searchRows} from "./beta-domain";
 let loadedId,records=[],scorer,byUid=new Map(),scoreRoleId,scores=new Map(),facets;
 const values=key=>[...new Set(records.map(p=>p.rawValues[key]).filter(v=>v&&v!=="-"&&v!=="—"))].sort((a,b)=>a.localeCompare(b));
-const quick=role=>role?.slots.includes("D-C")?[["Hdr %","Header win %"],["Tck R","Tackle success %"]]:[["Mins","Minutes"],["Av Rat","Avg. rating"]];
+const quick=role=>{
+  if(role?.slots.includes("D-C"))return [["Hdr %","Header win %"],["Tck R","Tackle success %"]];
+  const known=new Set(facets.fields);
+  const preferred=Object.entries(role?.w??{}).sort((a,b)=>b[1]-a[1]).filter(([key])=>known.has(key)).map(([key])=>[key,key]);
+  return [...preferred,...[["Mins","Minutes"],["Av Rat","Avg. rating"]].filter(([key])=>!preferred.some(([k])=>k===key))].slice(0,2);
+};
 async function handle({season,career,q,view,tracked}){
   if(loadedId!==season){
+    records=[];scorer=undefined;byUid.clear();scores.clear();loadedId=undefined;
     const next=await getDatasetPlayers(season);
     records=next;loadedId=season;scorer=undefined;scoreRoleId=undefined;scores=new Map();byUid=new Map(records.map(p=>[p.uid,p]));
-    facets={leagues:values("Division"),feet:values("Preferred Foot"),fields:[...new Set(records.flatMap(p=>Object.keys(p.rawValues)))].sort()};
+    const fields=new Set();for(const p of records)for(const key of Object.keys(p.rawValues))fields.add(key);
+    facets={leagues:values("Division"),feet:values("Preferred Foot"),fields:[...fields].sort()};
   }
   const getRole=id=>{
     if(!id)return;
