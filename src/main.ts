@@ -387,6 +387,12 @@ function importStatusView(): string {
   }
 
   const { parsed, validation, fileName, fileSize } = importState;
+  const largeExport = fileSize >= 50 * 1024 * 1024;
+  const minutesHeader = parsed.headers.find((header) => header.toLowerCase() === "mins");
+  const rowsWithMinutes = minutesHeader ? validation.validRows.reduce((total, row) => {
+    const raw = (row.values[minutesHeader] ?? "").trim().replace(/,/g, "");
+    return total + (/^\d+$/.test(raw) && Number(raw) > 0 ? 1 : 0);
+  }, 0) : null;
   const previewRows = validation.validRows.length > 0 ? validation.validRows : parsed.rows;
   const previewHeaders = ["UID", "Name", "Position", "Age", "Club", "Division"]
     .map((candidate) => parsed.headers.find((header) => header.toLowerCase() === candidate.toLowerCase()))
@@ -428,6 +434,11 @@ function importStatusView(): string {
           <button class="primary-button" type="submit" ${isPersisting || !saveLibrary.length ? "disabled" : ""}>${isPersisting ? "Saving season…" : "Save validated season"}</button>
           ${!saveLibrary.length ? '<span class="form-help">Create a save before importing a season.</span>' : '<span class="form-help">Existing seasons are protected. Duplicate files and duplicate season labels are blocked.</span>'}
         </form>` : ""}
+      ${validation.canImport ? `
+        <p class="muted-note"><strong>Scoring readiness:</strong> ${rowsWithMinutes === null
+          ? "This export has no Mins column. It can be saved, but role analysis needs playing-time evidence."
+          : rowsWithMinutes.toLocaleString() + " of " + validation.summary.validRows.toLocaleString() + " players have recorded minutes. A role score also needs enough comparable players and relevant stats."}</p>` : ""}
+      ${largeExport ? '<p class="muted-note"><strong>Large export:</strong> Saving and scoring may use substantial memory. On a phone or tablet, consider starting with a smaller, relevant player pool; use a desktop for the broad export.</p>' : ""}
       <p class="persistence-disclaimer">The preview is temporary until you save it. The original export remains unchanged; player rows are stored locally in IndexedDB.</p>
     </section>`;
 }
