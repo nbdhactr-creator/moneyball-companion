@@ -49,7 +49,9 @@ test("budget and wage caps are applied without inventing missing financial value
     player("inside", { transferValue: 10_000_000, wage: 30_000 }),
   ];
   const result = buildFm24DofRecommendations(players, options());
-  assert.deepEqual(result.eligible.map((p) => p.uid).sort(), ["inside", "unknown-wage"]);
+  assert.deepEqual(result.eligible.map((p) => p.uid).sort(), ["inside"]);
+  const uncapped = buildFm24DofRecommendations(players, options({ wageCap: null }));
+  assert.ok(uncapped.eligible.some((p) => p.uid === "unknown-wage"));
   const allowUnknown = buildFm24DofRecommendations(players, options({ requireKnownValue: false }));
   assert.ok(allowUnknown.eligible.some((p) => p.uid === "unknown-value"));
 });
@@ -96,4 +98,18 @@ test("not-for-sale and wrong-position candidates are excluded", () => {
   ];
   const result = buildFm24DofRecommendations(players, options());
   assert.deepEqual(result.eligible.map((p) => p.uid), ["normal"]);
+});
+
+test("an explicit unscored starter is never silently replaced", () => {
+  const players = [
+    player("unscored", { club: "My FC", dofEvaluationScore: null }),
+    player("other-starter", { club: "My FC" }),
+    player("target", { dofEvaluationScore: 90 }),
+  ];
+  const selected = buildFm24DofRecommendations(players, options({ starterUid: "unscored" }));
+  assert.equal(selected.starter, null);
+  assert.deepEqual(selected.categories.upgrades, []);
+  assert.deepEqual(selected.categories.value, []);
+  assert.deepEqual(selected.categories.depth, []);
+  assert.equal(buildFm24DofRecommendations(players, options()).starter?.uid, "other-starter");
 });
