@@ -118,7 +118,8 @@ async function handle({season,career,q,view,tracked,club}){
   if(view==="compare"){
     const term=(q.compareName||"").trim().toLocaleLowerCase();
     const matches=term?records.filter(x=>x.uid!==p.uid&&[x.displayName,x.club].some(v=>v.toLocaleLowerCase().includes(term))).slice(0,20).map(x=>({uid:x.uid,name:x.displayName,club:x.club})):[]; 
-    return {primary,secondary:resultFor(q.other!==p.uid?byUid.get(q.other):null),matches,stats:quick(role),benchmark,essentials};
+    const secondary=resultFor(q.other!==p.uid?byUid.get(q.other):null);
+    return {primary,secondary,secondaryEssentials:secondary&&ref?explainForPlayer(findNormal(secondary.p.uid),role,ref):[],matches,stats:quick(role),benchmark,essentials};
   }
   const history=(await getPlayerHistory(career,p.uid)).map(x=>({label:x.dataset.seasonLabel,club:x.player?.club,minutes:x.player?.rawValues.Mins,present:Boolean(x.player)}));
   return {primary,history,template,benchmark,essentials,pool:scorer?.poolMinimumMinutes,medium:scorer?.mediumConfidenceMinutes,high:scorer?.highConfidenceMinutes,stats:quick(role)};

@@ -19,7 +19,7 @@ export const normDivision = d=>String(d??"").normalize("NFD").replace(/[\u0300-\
 const decimal=v=>typeof v==="number"&&Number.isFinite(v)?v:null;
 const meta=key=>{
   const tuple=FM24_STAT_META[key];
-  return tuple ? {direction:tuple[1],floor:tuple[3]} : {direction:1,floor:null};
+  return tuple ? {direction:tuple[1],derived:tuple[2],floor:tuple[3]} : {direction:1,derived:false,floor:null};
 };
 const qualifies=(p,key)=>{
   const {floor}=meta(key);
@@ -44,7 +44,7 @@ export function createReference(scorer,role,{division="",scope="division"}={}){
   const entries=metrics.map(([metric,label])=>{
     const direction=meta(metric).direction;
     const values=pool.filter(p=>qualifies(p,metric)).map(p=>decimal(p.stats[metric])).filter(x=>x!==null).sort((a,b)=>a-b);
-    return {metric,label,direction,n:values.length,median:values.length>=MIN_BENCHMARK_PEERS?quantile(values,.5):null,strong:values.length>=MIN_BENCHMARK_PEERS?quantile(values,direction<0?.2:.8):null,values};
+    return {metric,label,direction,derived:meta(metric).derived,n:values.length,median:values.length>=MIN_BENCHMARK_PEERS?quantile(values,.5):null,strong:values.length>=MIN_BENCHMARK_PEERS?quantile(values,direction<0?.2:.8):null,values};
   });
   return {scope:inDivision?"division":"all",division:inDivision?division:"",poolMin:scorer.poolMinimumMinutes,positionGroup:FM24_STRATA[role.strata]?.label??role.strata,eligiblePlayerCount:pool.length,metrics:entries};
 }
@@ -73,7 +73,7 @@ export function explainForPlayer(player,role,reference){
   });
 }
 export function referenceSummary(reference){
-  return {scope:reference.scope,division:reference.division,poolMin:reference.poolMin,positionGroup:reference.positionGroup,eligiblePlayerCount:reference.eligiblePlayerCount,metrics:reference.metrics.map(({metric,label,direction,n,median,strong})=>({metric,label,direction,n,median,strong}))};
+  return {scope:reference.scope,division:reference.division,poolMin:reference.poolMin,positionGroup:reference.positionGroup,eligiblePlayerCount:reference.eligiblePlayerCount,metrics:reference.metrics.map(({metric,label,direction,derived,n,median,strong})=>({metric,label,direction,derived,n,median,strong}))};
 }
 export function formatMetric(value,metric){
   if(value==null||!Number.isFinite(value))return "Not supplied";
