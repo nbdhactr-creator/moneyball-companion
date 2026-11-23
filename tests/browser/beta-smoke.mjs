@@ -86,7 +86,7 @@ try{
  await page.getByLabel("Role and duty").selectOption("cd-DC-D");
  await page.getByRole("button",{name:"Find players"}).click();
  await page.getByRole("heading",{name:"Three essentials for this role"}).waitFor();
- assert.ok((await page.getByText("Headers won %")).count()>=1);
+ assert.ok((await page.getByText("Headers won %").count())>=1);
  for(let i=0;i<8;i++){
    await page.locator('[data-action="track-row"]').nth(i).click();
    await page.locator('[data-action="track-row"]').nth(i).getAttribute("aria-pressed").then(v=>assert.equal(v,"true"));
