@@ -41,7 +41,7 @@ try{
  assert.equal(await page.getByLabel("Philosophy",{exact:true}).inputValue(),"possession");
  await page.getByRole("link",{name:"Stats & History"}).click();
  await page.getByLabel("Find a stat").fill("hdr");
- assert.equal(await page.locator("[data-stat]:visible").count(),1);
+ assert.equal(await page.locator("[data-stat]:visible").count(),2);
  await page.getByRole("link",{name:"Notes",exact:true}).click();
  await page.getByLabel("Scout notes").fill("Smoke note");
  await page.getByRole("button",{name:"Save stage and note"}).click();
