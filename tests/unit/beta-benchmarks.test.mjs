@@ -45,3 +45,13 @@ test("noneligible striker is never given a centre-back benchmark percentile",()=
  const ref=createReference(scorer,role,{scope:"all"});
  assert.ok(explainForPlayer(scorer.players.at(-1),role,ref).every(x=>x.percentile===null));
 });
+test("tactical role specialisations do not conflate inverted, creative and goal-scoring roles",()=>{
+  const roles=scorer.roles;
+  const byType=type=>roles.find(r=>r.type===type);
+  assert.equal(essentialMetrics(byType("iwb"))[0][0],"Pr passes/90");
+  assert.equal(essentialMetrics(byType("wp"))[0][0],"OP-KP/90");
+  assert.equal(essentialMetrics(byType("if"))[0][0],"Gls/90");
+  assert.equal(essentialMetrics(byType("winger"))[0][0],"Asts/90");
+  assert.equal(essentialMetrics(byType("dlf"))[0][0],"Asts/90");
+  assert.equal(essentialMetrics(byType("bpd"))[0][0],"Pr passes/90");
+});

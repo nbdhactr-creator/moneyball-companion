@@ -14,6 +14,21 @@ const PRESETS = {
   AMLR: [["Gls/90","Goals / 90"],["Asts/90","Assists / 90"],["Drb/90","Dribbles / 90"]],
   ST: [["Gls/90","Goals / 90"],["npxG/90","Non-penalty xG / 90"],["Asts/90","Assists / 90"]],
 };
+// Some tactical roles should be compared on behaviour rather than their pitch label.
+// Video-inspired examples are translated to metrics supported by the FM24 export.
+const SPECIAL = {
+ bpd: [["Pr passes/90","Progressive passes / 90"],["Poss Won/90","Possession won / 90"],["Hdr %","Headers won %"]],
+ iwb: [["Pr passes/90","Progressive passes / 90"],["Poss Won/90","Possession won / 90"],["Tck R","Tackle win %"]],
+ ifb: [["Poss Won/90","Possession won / 90"],["Int/90","Interceptions / 90"],["Pas %","Pass completion %"]],
+ dlp: [["Pr passes/90","Progressive passes / 90"],["OP-KP/90","Open-play key passes / 90"],["Pas %","Pass completion %"]],
+ bwm: [["Poss Won/90","Possession won / 90"],["Tck R","Tackle win %"],["Int/90","Interceptions / 90"]],
+ wp: [["OP-KP/90","Open-play key passes / 90"],["xA/90","Expected assists / 90"],["Asts/90","Assists / 90"]],
+ if: [["Gls/90","Goals / 90"],["npxG/90","Non-penalty xG / 90"],["Drb/90","Dribbles / 90"]],
+ winger: [["Asts/90","Assists / 90"],["Drb/90","Dribbles / 90"],["OP-Cr %","Open-play cross completion"]],
+ dlf: [["Asts/90","Assists / 90"],["OP-KP/90","Open-play key passes / 90"],["Gls/90","Goals / 90"]],
+ f9: [["Asts/90","Assists / 90"],["OP-KP/90","Open-play key passes / 90"],["Gls/90","Goals / 90"]],
+ pf: [["Gls/90","Goals / 90"],["Pres C/90","Completed pressures / 90"],["npxG/90","Non-penalty xG / 90"]],
+};
 export const MIN_BENCHMARK_PEERS = 10;
 export const normDivision = d=>String(d??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim().toLocaleLowerCase();
 const decimal=v=>typeof v==="number"&&Number.isFinite(v)?v:null;
@@ -33,7 +48,7 @@ const quantile=(a,p)=>{
 };
 export function essentialMetrics(role){
   if(!role)return [];
-  const preset=PRESETS[role.strata];
+  const preset=SPECIAL[role.type]??PRESETS[role.strata];
   if(preset)return preset;
   return Object.entries(role.w??{}).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([key])=>[key,key]);
 }
