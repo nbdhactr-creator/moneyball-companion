@@ -66,7 +66,15 @@ export interface TacticalFitScore {
 }
 
 const ROLE_CATALOG = FM24_ROLES as unknown as Fm24Role[];
-const STAT_META = FM24_STAT_META as unknown as Record<string, Fm24MetricMeta>;
+// FM24_STAT_META stores [group, direction, derived, minimum-attempt rule] tuples.
+// Normalise once: treating the tuples as objects silently inverted negative metrics
+// and skipped sample floors. Scoring semantics version: fm24-v2.
+const STAT_META: Record<string, Fm24MetricMeta> = Object.fromEntries(
+  Object.entries(FM24_STAT_META).map(([metric, tuple]) => {
+    const [group, direction, derived, floor] = tuple;
+    return [metric, { group, direction, derived, floor: floor ? [floor[0], floor[1]] : null }];
+  }),
+);
 const STRATA = FM24_STRATA as unknown as Record<string, { label: string; slots: string[] }>;
 const DEFAULT_POOL_MINUTES = 900;
 const MIN_REFERENCE_POOL = 10;

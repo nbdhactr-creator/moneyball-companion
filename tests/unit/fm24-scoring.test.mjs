@@ -256,3 +256,26 @@ test("custom philosophy weights remain specific to the V1 role-type and duty key
   assert.equal(scorer.scorePhilosophy(player, cover).principles[0].weight, 0);
   assert.equal(scorer.scorePhilosophy(player, cover).principles[2].weight, 3);
 });
+
+test("fm24-v2 correctly inverts lower-is-better metrics", () => {
+  const players = Array.from({length: 14}, (_,index) =>
+    defender(index, {"Poss Lost/90": String(1 + index), "Ps A/90":"45", "Drb/90":"0.5"}));
+  const scorer = createFm24Scorer(players);
+  const first = scorer.getPercentile(scorer.players[0], "Loss rate", "DC");
+  const last = scorer.getPercentile(scorer.players[13], "Loss rate", "DC");
+  assert.ok(first != null && last != null);
+  assert.ok(first > last, "Fewer possessions lost should yield a better percentile");
+});
+test("fm24-v2 minimum attempts invalidate rate evidence while keeping the raw value", () => {
+  const players = Array.from({length:14},(_,index)=>defender(index,index===5?{"Hdrs A":"3"}:{}));
+  const scorer=createFm24Scorer(players);
+  const role=scorer.roles.find(x=>x.id==="cd-DC-D");
+  const fit=scorer.scoreRole(scorer.players[5],role);
+  const header=fit.families.flatMap(f=>f.metrics).find(m=>m.metric==="Hdr %");
+  assert.equal(header.rawValue,60);
+  assert.equal(header.percentile,null);
+  assert.equal(header.available,false);
+  assert.match(header.reason,/attempt|sample/i);
+  const peer=scorer.getPercentile(scorer.players[6],"Hdr %","DC");
+  assert.ok(peer!==null,"The remaining sample is large enough for a reference percentile");
+});
