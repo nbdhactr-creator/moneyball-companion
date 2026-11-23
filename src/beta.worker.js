@@ -57,7 +57,7 @@ async function handle({season,career,q,view,tracked,club}){
   const shortlistView=view==="shortlist";
   const tactic=(teamView||shortlistView)?(saved.squadTactics?.slots.length?saved.squadTactics:createDefaultTactic()):null;
   const slot=tactic?.slots.find(s=>s.id===q.slot)??tactic?.slots[0];
-  const role=getRole(teamView?slot?.roleId:shortlistView?(q.role||slot?.roleId||saved.analysis?.roleId):q.lens??q.role);
+  const role=getRole(teamView?slot?.roleId:shortlistView?(q.role||(q.slot?slot?.roleId:"")):q.lens??q.role);
   if((q.role||q.lens)&&!role)throw new Error("The selected role is unavailable in FM24.");
   const findNormal=uid=>normalByUid.get(uid);
   const template=q.philosophy??saved.analysis?.philosophyTemplate??"";

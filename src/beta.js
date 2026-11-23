@@ -2,7 +2,7 @@
 import "./beta.css";
 import {renderTeam} from "./beta-team";
 import {renderScouting} from "./beta-scouting.js";
-import {benchmarkPanel} from "./beta-metrics.js";
+import {benchmarkPanel,metricCompact} from "./beta-metrics.js";
 import {shortlistBoard,MAX_COMPARISON_CANDIDATES} from "./beta-shortlist.js";
 import {listSaves,getScoutingWorkspaceState} from "./data/storage/local-database";
 import {FM24_ROLES} from "./analytics/fm24-role-catalog";
@@ -96,9 +96,9 @@ function report(q,d){
 function comparison(q,d){
   const back=A(path("player",q),"← Back to player report");
   if(d.missing)return back+h("Compare","Player not in this export");
-  const card=x=>{const p=x.p,f=p.rawValues;return '<article class="card"><h2>'+E(p.displayName)+'</h2><p>'+val(p.club)+' · '+val(p.position)+'</p><p>Role Fit: <strong>'+score(x.fit?.score)+'</strong></p><p>'+E(assessment(x))+'</p>'+[["Minutes","Mins"],["Age","Age"],...d.stats.map(([k,l])=>[l,k]),["Estimated value","Transfer Value"],["Weekly wage","Wage"],["Contract","Expires"]].map(([l,k])=>'<div class="metric">'+E(l)+' · <strong>'+val(f[k])+'</strong></div>').join("")+'</article>';};
+  const card=x=>{const p=x.p,f=p.rawValues;return '<article class="card"><h2>'+E(p.displayName)+'</h2><p>'+val(p.club)+' · '+val(p.position)+'</p><p>Role Fit: <strong>'+score(x.fit?.score)+'</strong></p><p>'+E(assessment(x))+'</p>'+metricCompact(x===d.primary?d.essentials:d.secondaryEssentials,{E})+[["Minutes","Mins"],["Age","Age"],...d.stats.map(([k,l])=>[l,k]),["Estimated value","Transfer Value"],["Weekly wage","Wage"],["Contract","Expires"]].map(([l,k])=>'<div class="metric">'+E(l)+' · <strong>'+val(f[k])+'</strong></div>').join("")+'</article>';};
   return back+h("Compare / Same season","Compare players")+'<p>'+E(roleLabel(q.lens??q.role))+' · Compare the same role and season, then confirm transfer details in FM.</p><form class="card actions" data-form="compare">'+input("compareName","Find another player by name or club",q,"search")+'<button class="primary">Find player</button></form>'+
-   (q.compareName?'<div class="card actions">'+(d.matches.map(x=>A(path("compare",{...q,other:x.uid}),x.name+" · "+x.club)).join("")||"No matches in this season.")+'</div>':'')+'<div class="grid">'+card(d.primary)+(d.secondary?card(d.secondary):'')+'</div>';
+   (q.compareName?'<div class="card actions">'+(d.matches.map(x=>A(path("compare",{...q,other:x.uid}),x.name+" · "+x.club)).join("")||"No matches in this season.")+'</div>':'')+benchmarkPanel(d.benchmark,d.essentials,{E},"Comparison benchmark")+'<div class="grid">'+card(d.primary)+(d.secondary?card(d.secondary):'')+'</div>';
 }
 async function render(scroll=false){
   const id=++navId,q=query(),view=locationView();

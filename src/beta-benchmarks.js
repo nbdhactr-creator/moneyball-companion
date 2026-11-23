@@ -1,3 +1,4 @@
+import {FM24_SCORING_VERSION} from "./analytics/fm24-scoring.ts";
 import {FM24_STAT_META,FM24_STRATA} from "./analytics/fm24-role-catalog.ts";
 
 // Beta 3: clear, opt-in positional benchmarking. No fixed creator thresholds.

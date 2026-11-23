@@ -5,6 +5,8 @@ import {
   FM24_STRATA,
 } from "./fm24-role-catalog.ts";
 
+export const FM24_SCORING_VERSION = "fm24-v2.0";
+
 export interface Fm24ScoringPlayer {
   uid?: string;
   displayName?: string;
