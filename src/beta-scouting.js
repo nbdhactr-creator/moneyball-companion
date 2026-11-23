@@ -33,7 +33,7 @@ export function renderScouting(q,d,{E,A,h,val,field,input,score,path,decision,se
  '<form class="filters" data-form="search"><div class="grid">'+
  field("role","Role and duty",[["","Any position"],...roles],q)+
  field("league","Division",choices(d.leagues,"All divisions"),q)+
- input("minutes","Minimum minutes",q)+input("q","Player or club",q,"search")+
+ input("minutes","Minimum minutes",{...q,minutes:q.minutes??d.defaultMinutes})+input("q","Player or club",q,"search")+
  '</div><div class="actions"><button class="primary">Find players</button>'+
  A(path("scouting",{career:q.career,season:q.season}),"Clear filters")+
  A(compareUrl,"Compare shortlist")+'</div>'+
@@ -45,7 +45,7 @@ export function renderScouting(q,d,{E,A,h,val,field,input,score,path,decision,se
  input("minScore","Minimum role score",q)+field("stat","Source stat",choices(d.fields,"No extra stat condition"),q)+
  input("statMin","Minimum stat value",q)+field("tracked","Shortlist filter",[["","Everyone"],["yes","Only beta shortlist"]],q)+
  field("sort","Sort",[["","Role Fit (then name)"],["name","Player name"],["age","Youngest first"],["minutes","Most minutes"]],q)+
- '</div></details></form>'+
+ '</div></details><p class="filter-note">For role searches the default minimum matches the season-adjusted reference pool ('+E(d.defaultMinutes??"no minimum")+' minutes). Enter 0 to include low-minute prospects; treat their performance cautiously.</p></form>'+
  (chips?'<div class="chips" aria-label="Active filters">'+chips+'</div>':"")+
  (q.value||q.wage?'<p>Unknown or differently denominated costs are excluded when you set a cap. Value estimates are not transfer fees.</p>':"")+
  (benchmark?benchmarkPanel(benchmark,[],{E},"Three essentials for this role"):'<section class="card"><h2>Select a role to compare performance</h2><p>Different positions cannot be ranked reliably using one general statistic.</p></section>')+

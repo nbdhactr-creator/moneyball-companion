@@ -45,11 +45,12 @@ async function handle({season,career,q,view,tracked,club}){
       scores=new Map();scoreRoleId=role?.id;
       if(role)for(const p of scorer.players){const listed=role.slots.some(slot=>p.positionSlots.has(slot));if(listed)scores.set(p.uid,{listed,score:scorer.scoreRole(p,role).score});}
     }
-    const found=searchRows(records,{...q,role:role?.id},scores,tracked);
+    const effectiveMinutes=q.minutes==null&&role?scorer.poolMinimumMinutes:q.minutes;
+    const found=searchRows(records,{...q,role:role?.id,minutes:effectiveMinutes},scores,tracked);
     const pages=Math.max(1,Math.ceil(found.length/12)),page=Math.min(pages,Math.max(1,parseInt(q.p,10)||1));
     const reference=role?referenceFor(role,q.league,q.peer==="all"?"all":"division"):null;
     const stats=quick(role), cols=["Age","Height","Division","Preferred Foot","Expires","Transfer Value","Wage","Level",...stats.map(([k])=>k)];
-    return {...facets,total:found.length,pages,page,stats,benchmark:reference?referenceSummary(reference):null,shortlistCount:tracked.length,players:found.slice((page-1)*12,page*12).map(p=>({uid:p.uid,name:p.displayName,club:p.club,position:p.position,score:scores.get(p.uid)?.score??null,f:Object.fromEntries(cols.map(k=>[k,p.rawValues[k]])),essentials:reference?explainForPlayer(normalByUid.get(p.uid),role,reference):[]}))};
+    return {...facets,defaultMinutes:effectiveMinutes,total:found.length,pages,page,stats,benchmark:reference?referenceSummary(reference):null,shortlistCount:tracked.length,players:found.slice((page-1)*12,page*12).map(p=>({uid:p.uid,name:p.displayName,club:p.club,position:p.position,score:scores.get(p.uid)?.score??null,f:Object.fromEntries(cols.map(k=>[k,p.rawValues[k]])),essentials:reference?explainForPlayer(normalByUid.get(p.uid),role,reference):[]}))};
   }
   const saved=await getScoutingWorkspaceState(career);
   const teamView=view==="squad"||view==="planning";
