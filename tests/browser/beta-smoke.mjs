@@ -17,17 +17,18 @@ try{
    const db=await import(base+"src/data/storage/local-database.ts");
    const save=await db.createSave("Smoke career","Test City");
    const rows=Array.from({length:18},(_,i)=>({sourceLine:i+2,values:{
-     UID:String(10001+i),Name:"Test Player "+String(i+1).padStart(2,"0"),Position:"D (C)",Club:"Test City",Division:"Test League",Mins:String(1500+i*31),Age:"23","Hdr %":String(53+i)+"%","Tck R":String(70+i)+"%","Transfer Value":"£1M - £2M",Wage:"£10K p/w"
+     UID:String(10001+i),Name:"Test Player "+String(i+1).padStart(2,"0"),Position:"D (C)",Club:"Test City",Division:"Test League",Mins:String(1500+i*31),Age:"23","Hdrs A":"55","Poss Won/90":String(7+i/10),"Int/90":String(1+i/10),"Hdr %":String(53+i)+"%","Tck R":String(70+i)+"%","Transfer Value":"£1M - £2M",Wage:"£10K p/w"
    }}));
    await db.persistSeasonImport({saveId:save.id,seasonLabel:"2026/27",fileName:"fixture.html",fileSize:1200,format:"fm24-pipe-table-v1",fingerprint:"b".repeat(64),rows});
  },origin);
  await page.reload();
  await page.getByRole("link",{name:"Find centre-backs"}).click();
  await page.locator("#results h2").waitFor();
+ await page.getByRole("heading",{name:"Three essentials for this role"}).waitFor();
  assert.equal(await page.locator("[name=role]").inputValue()!=="",true);
  assert.equal(await page.locator(".row:not(.rowhead)").count(),12);
  await page.getByLabel("Minimum minutes").fill("1600");
- await page.getByRole("button",{name:"Apply filters"}).click();
+ await page.getByRole("button",{name:"Find players"}).click();
  await page.getByRole("heading",{name:"14 players"}).waitFor();
  const player=page.locator(".player-link").first(); const name=await player.textContent();
  await player.click();
@@ -40,7 +41,7 @@ try{
  assert.equal(await page.getByLabel("Philosophy",{exact:true}).inputValue(),"possession");
  await page.getByRole("link",{name:"Stats & History"}).click();
  await page.getByLabel("Find a stat").fill("hdr");
- assert.equal(await page.locator("[data-stat]:visible").count(),1);
+ assert.equal(await page.locator("[data-stat]:visible").count(),2);
  await page.getByRole("link",{name:"Notes",exact:true}).click();
  await page.getByLabel("Scout notes").fill("Smoke note");
  await page.getByRole("button",{name:"Save stage and note"}).click();
@@ -78,6 +79,39 @@ try{
  await page.getByRole("link",{name:"Plan this signing"}).click();
  await page.getByRole("heading",{name:"Would this signing improve your squad?"}).waitFor();
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+
+ // Save more than six distinct players; comparison should cap at six.
+ await page.getByRole("navigation",{name:"Main navigation"}).getByRole("link",{name:"Scouting"}).click();
+ await page.getByRole("heading",{name:"Find the right players"}).waitFor();
+ await page.getByLabel("Role and duty").selectOption("cd-DC-D");
+ await page.getByRole("button",{name:"Find players"}).click();
+ await page.getByRole("heading",{name:"Three essentials for this role"}).waitFor();
+ assert.ok((await page.getByText("Headers won %").count())>=1);
+ for(let i=0;i<8;i++){
+   await page.locator('[data-action="track-row"]').nth(i).click();
+   await page.locator('[data-action="track-row"]').nth(i).getAttribute("aria-pressed").then(v=>assert.equal(v,"true"));
+ }
+ await page.getByRole("link",{name:"Compare shortlist"}).first().click();
+ await page.getByRole("heading",{name:"Compare your shortlist"}).waitFor();
+ await page.getByRole("link",{name:"Back to Scouting"}).click();
+ await page.getByRole("heading",{name:"Find the right players"}).waitFor();
+ assert.equal(await page.getByLabel("Role and duty").inputValue(),"cd-DC-D");
+ await page.getByRole("link",{name:"Compare shortlist"}).first().click();
+ await page.getByRole("heading",{name:"Compare your shortlist"}).waitFor();
+ assert.equal(await page.locator(".shortlist-player").count(),7,"starter plus at most six candidates");
+ assert.equal(await page.locator('.candidate-choice input[type="checkbox"]:checked').count(),6);
+ const checkboxes=page.locator('.candidate-choice input[type="checkbox"]');
+ await checkboxes.nth(6).check();
+ await page.getByRole("button",{name:"Compare selected"}).click();
+ await page.getByText("Choose six or fewer candidates.").waitFor();
+ await checkboxes.nth(0).uncheck();
+ await page.getByRole("button",{name:"Compare selected"}).click();
+ await page.getByRole("heading",{name:"Compare your shortlist"}).waitFor();
+ assert.equal(await page.locator(".shortlist-player").count(),7);
+ for(const width of [320,390,768,1024,1440]){
+   await page.setViewportSize({width,height:900});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,"No shortlist overflow at "+width);
+ }
  assert.deepEqual(errors,[]);
  console.log("Beta real IndexedDB browser journey passed at 320–1440px.");
 }finally{await browser.close();}
