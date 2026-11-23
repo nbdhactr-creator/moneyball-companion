@@ -259,7 +259,7 @@ test("custom philosophy weights remain specific to the V1 role-type and duty key
 
 test("fm24-v2 correctly inverts lower-is-better metrics", () => {
   const players = Array.from({length: 14}, (_,index) =>
-    defender(index, {"Poss Lost/90": String(1 + index), "Ps A/90":"45", "Drb/90":"0.5"}));
+    defender(index, {"Poss Lost/90": String(1 + index), "Ps A/90":"45", "Pas A":"300", "Drb/90":"0.5"}));
   const scorer = createFm24Scorer(players);
   const first = scorer.getPercentile(scorer.players[0], "Loss rate", "DC");
   const last = scorer.getPercentile(scorer.players[13], "Loss rate", "DC");
