@@ -14,7 +14,7 @@ test("55,131 synthetic player records keep positional/division baselines stable"
       "Hdr %":String(60+i%31),"Hdrs A":"75","Tck R":String(70+i%25),"Tck A":"45","Tck W":"28",
       "Itc":"22","K Tck":"10","Blk":"5","Clear":"50","Shts Blckd":"10","Gl Mst":"1"}};
  });
- const scorer=createFm24Scorer(records),role=scorer.roles.find(x=>x.id==="cd-DC-D");
+ const scorer=createFm24Scorer(records,{metricMetadataVersion:"fm24-v2"}),role=scorer.roles.find(x=>x.id==="cd-DC-D");
  assert.equal(scorer.players.length,size);
  const ref=createReference(scorer,role,{scope:"division",division:"League East"});
  assert.equal(ref.metrics.length,3);

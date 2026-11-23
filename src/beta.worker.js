@@ -24,7 +24,7 @@ async function handle({season,career,q,view,tracked,club}){
   const getRole=id=>{
     if(!id)return;
     if(!scorer){
-      scorer=createFm24Scorer(records.map(p=>({uid:p.uid,displayName:p.displayName,position:p.position,club:p.club,division:p.rawValues.Division??"",rawValues:p.rawValues})));
+      scorer=createFm24Scorer(records.map(p=>({uid:p.uid,displayName:p.displayName,position:p.position,club:p.club,division:p.rawValues.Division??"",rawValues:p.rawValues})),{metricMetadataVersion:"fm24-v2"});
       normalByUid=new Map(scorer.players.map(p=>[p.uid,p]));
     }
     return scorer.roles.find(r=>r.id===id);

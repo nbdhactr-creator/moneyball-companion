@@ -71,6 +71,9 @@ const ROLE_CATALOG = FM24_ROLES as unknown as Fm24Role[];
 // FM24_STAT_META stores [group, direction, derived, minimum-attempt rule] tuples.
 // Normalise once: treating the tuples as objects silently inverted negative metrics
 // and skipped sample floors. Scoring semantics version: fm24-v2.
+// Legacy is preserved for the original application. Beta 3 explicitly opts in
+// to the corrected evidence model so existing original-app rankings do not silently change.
+const LEGACY_STAT_META = FM24_STAT_META as unknown as Record<string, Fm24MetricMeta>;
 const STAT_META: Record<string, Fm24MetricMeta> = Object.fromEntries(
   Object.entries(FM24_STAT_META).map(([metric, tuple]) => {
     const [group, direction, derived, floor] = tuple;
@@ -317,8 +320,8 @@ function metricValue(player: NormalizedFm24Player, metric: string, leagueFactors
   // V1 adjusts rate/volume metrics only. Percentages and efficiency rates stay untouched.
   return /\/90\b/.test(metric) ? value * leagueFactorFor(player.division, leagueFactors) : value;
 }
-function floorSatisfied(player: NormalizedFm24Player, metric: string): boolean {
-  const floor = STAT_META[metric]?.floor;
+function floorSatisfied(player: NormalizedFm24Player, metric: string, metadata: Record<string,Fm24MetricMeta>): boolean {
+  const floor = metadata[metric]?.floor;
   if (!floor) return true;
   const value = player.stats[floor[0]];
   return value != null && value >= floor[1];
@@ -348,6 +351,7 @@ export interface Fm24ScoringOptions {
   philosophyMetricCoverage?: number;
   minimumScoreCoverage?: number;
   shrinkSmallSamples?: boolean;
+  metricMetadataVersion?: "legacy" | "fm24-v2";
 }
 export function inferFm24SeasonProgress(sourcePlayers: Fm24ScoringPlayer[]): 0.25 | 0.5 | 0.75 | 1 {
   const minutes = sourcePlayers.map((player) => parseNumber(player.rawValues.Mins) ?? 0)
@@ -363,6 +367,7 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
   const highConfidenceMinutes = Math.round(2000 * seasonProgress);
   const mediumConfidenceMinutes = Math.round(1200 * seasonProgress);
   const minCoverage = options.minimumScoreCoverage ?? MIN_COVERAGE;
+  const metricMeta = options.metricMetadataVersion === "fm24-v2" ? STAT_META : LEGACY_STAT_META;
   const gaps = detectLeagueMissingFields(sourcePlayers);
   const players = sourcePlayers.map((player) => normalisePlayer(player, gaps));
   const percentilePools = new Map<string, number[]>();
@@ -371,7 +376,7 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
     const cached = percentilePools.get(key);
     if (cached) return cached;
     const values = players
-      .filter((player) => (player.minutes ?? 0) >= poolMinimumMinutes && isInStrata(player, strata) && floorSatisfied(player, metric))
+      .filter((player) => (player.minutes ?? 0) >= poolMinimumMinutes && isInStrata(player, strata) && floorSatisfied(player, metric, metricMeta))
       .map((player) => metricValue(player, metric, options.leagueFactors))
       .filter((value): value is number => value != null)
       .sort((a, b) => a - b);
@@ -381,8 +386,8 @@ export function createFm24Scorer(sourcePlayers: Fm24ScoringPlayer[], options: Fm
   const metricEvidence = (player: NormalizedFm24Player, metric: string, strata: string, weight = 1): MetricEvidence => {
     const rawValue = metricValue(player, metric, options.leagueFactors);
     if (rawValue == null) return { metric, rawValue: null, percentile: null, configuredWeight: weight, available: false, reason: "Metric is not present or could not be derived." };
-    if (!floorSatisfied(player, metric)) return { metric, rawValue, percentile: null, configuredWeight: weight, available: false, reason: "Minimum attempt/sample requirement not met." };
-    const score = percentile(rawValue, poolFor(strata, metric), STAT_META[metric]?.direction ?? 1);
+    if (!floorSatisfied(player, metric, metricMeta)) return { metric, rawValue, percentile: null, configuredWeight: weight, available: false, reason: "Minimum attempt/sample requirement not met." };
+    const score = percentile(rawValue, poolFor(strata, metric), metricMeta[metric]?.direction ?? 1);
     return { metric, rawValue, percentile: score, configuredWeight: weight, available: score != null, reason: score == null ? "Fewer than 10 eligible players in the comparison group." : undefined };
   };
   const scoreRole = (player: NormalizedFm24Player, roleOrId: Fm24Role | string): Fm24RoleScore => {

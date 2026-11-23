@@ -260,7 +260,7 @@ test("custom philosophy weights remain specific to the V1 role-type and duty key
 test("fm24-v2 correctly inverts lower-is-better metrics", () => {
   const players = Array.from({length: 14}, (_,index) =>
     defender(index, {"Poss Lost/90": String(1 + index), "Ps A/90":"45", "Pas A":"300", "Drb/90":"0.5"}));
-  const scorer = createFm24Scorer(players);
+  const scorer = createFm24Scorer(players,{metricMetadataVersion:"fm24-v2"});
   const first = scorer.getPercentile(scorer.players[0], "Loss rate", "DC");
   const last = scorer.getPercentile(scorer.players[13], "Loss rate", "DC");
   assert.ok(first != null && last != null);
@@ -268,7 +268,7 @@ test("fm24-v2 correctly inverts lower-is-better metrics", () => {
 });
 test("fm24-v2 minimum attempts invalidate rate evidence while keeping the raw value", () => {
   const players = Array.from({length:14},(_,index)=>defender(index,index===5?{"Hdrs A":"3"}:{}));
-  const scorer=createFm24Scorer(players);
+  const scorer=createFm24Scorer(players,{metricMetadataVersion:"fm24-v2"});
   const role=scorer.roles.find(x=>x.id==="cd-DC-D");
   const fit=scorer.scoreRole(scorer.players[5],role);
   const header=fit.families.flatMap(f=>f.metrics).find(m=>m.metric==="Hdr %");
@@ -278,4 +278,11 @@ test("fm24-v2 minimum attempts invalidate rate evidence while keeping the raw va
   assert.match(header.reason,/attempt|sample/i);
   const peer=scorer.getPercentile(scorer.players[6],"Hdr %","DC");
   assert.ok(peer!==null,"The remaining sample is large enough for a reference percentile");
+});
+test("original-app default retains legacy metadata semantics while Beta opts in",()=>{
+  const players=Array.from({length:14},(_,i)=>defender(i,i===4?{"Hdrs A":"1"}:{}));
+  const original=createFm24Scorer(players);
+  const beta=createFm24Scorer(players,{metricMetadataVersion:"fm24-v2"});
+  assert.notEqual(original.getPercentile(original.players[4],"Hdr %","DC"),null);
+  assert.equal(beta.getPercentile(beta.players[4],"Hdr %","DC"),null);
 });
