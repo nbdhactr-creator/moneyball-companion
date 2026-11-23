@@ -10,7 +10,7 @@ export function shortlistBoard(q,d,{E,A,h,path,roleLabel,roles,field,score,val})
  const scope=(q.peer==="all"?"all":"division");
  const intro=h("Scouting / Shortlist","Compare your shortlist")+
   '<p>Choose up to six candidates and compare them against a current club player. Results are from the selected imported season only. No transfer is made and no save data leaves this browser.</p>'+
-  '<div class="actions">'+A(url("scouting",{role:d.roleId||q.role||"",slot:q.slot||""}),"← Back to Scouting")+A(url("squad",{slot:q.slot||""}),"Squad")+'</div>';
+  '<div class="actions">'+A(url("scouting",Object.fromEntries(Object.entries(q).filter(([key])=>["role","slot","league","q","minutes","ageMin","ageMax","value","wage","currency","foot","minScore","stat","statMin","tracked","sort","p","backY"].includes(key)))),"← Back to Scouting")+A(url("squad",{slot:q.slot||""}),"Squad")+'</div>';
  const selectedRole=q.role||d.roleId||"";
  const chooser='<form data-form="shortlist" class="card"><h2>Comparison setup</h2><div class="grid">'+
  field("role","Role and duty",[["","Choose a role"],...roles],{role:selectedRole})+

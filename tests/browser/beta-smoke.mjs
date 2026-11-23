@@ -93,6 +93,11 @@ try{
  }
  await page.getByRole("link",{name:"Compare shortlist"}).first().click();
  await page.getByRole("heading",{name:"Compare your shortlist"}).waitFor();
+ await page.getByRole("link",{name:"Back to Scouting"}).click();
+ await page.getByRole("heading",{name:"Find the right players"}).waitFor();
+ assert.equal(await page.getByLabel("Role and duty").inputValue(),"cd-DC-D");
+ await page.getByRole("link",{name:"Compare shortlist"}).first().click();
+ await page.getByRole("heading",{name:"Compare your shortlist"}).waitFor();
  assert.equal(await page.locator(".shortlist-player").count(),7,"starter plus at most six candidates");
  assert.equal(await page.locator('.candidate-choice input[type="checkbox"]:checked').count(),6);
  const checkboxes=page.locator('.candidate-choice input[type="checkbox"]');

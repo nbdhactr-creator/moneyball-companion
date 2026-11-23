@@ -6,7 +6,7 @@ export function renderScouting(q,d,{E,A,h,val,field,input,score,path,decision,se
  const choices=(values,any)=>[["",any],...values.map(x=>[x,x])];
  const pills={role:q.role?"Role selected":"",league:q.league,q:q.q?"Search: "+q.q:"",minutes:q.minutes?q.minutes+"+ minutes":"",ageMin:q.ageMin?"Age from "+q.ageMin:"",ageMax:q.ageMax?"Age to "+q.ageMax:"",value:q.value?"Value ≤ "+(q.currency||"£")+q.value+"m":"",wage:q.wage?"Wage ≤ "+(q.currency||"£")+q.wage+"k":"",tracked:q.tracked?"Beta shortlist only":"",minScore:q.minScore?"Minimum role score "+q.minScore:"",foot:q.foot};
  const role=q.role||"";
- const compareUrl=path("shortlist",{career:q.career,season:q.season,role,slot:q.slot||""});
+ const compareUrl=path("shortlist",{...q,role,slot:q.slot||""});
  const benchmark=d.benchmark;
  const stats=benchmark?.metrics.slice(0,2).map(x=>[x.metric,x.label])??d.stats;
  const cell=(label,html)=>'<div><span class="mobile-label">'+E(label)+'</span>'+html+'</div>';
