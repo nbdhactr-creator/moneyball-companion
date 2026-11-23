@@ -14,7 +14,7 @@ export function renderTeam(view,q,d,{E,A,h,path,score,val,roleLabel,field,input}
  const assessment=x=>!x?"No player selected":!x.listed?"Position not listed for this role":x.fit?.score==null?"Insufficient evidence to score":"Measured against the same season’s eligible peers";
  const metrics=x=>x?'<p>'+val(x.p.rawValues.Mins)+' minutes · '+(x.fit?.families.length?E(x.fit.confidence)+' minutes confidence · '+Math.round(x.fit.coverage*100)+'% role coverage':"No role evidence")+'</p>':"";
  const scout=A(path("scouting",{...selection,role:slot.roleId}),"Find candidates","button primary");
- const nav='<div class="actions">'+scout+A(route(plan?"squad":"planning",{...(starter?{starter}:{})}),plan?"Back to Squad":"Plan a signing")+'</div>';
+ const nav='<div class="actions">'+scout+A(path("shortlist",{...selection,role:slot.roleId}),"Compare shortlist")+A(route(plan?"squad":"planning",{...(starter?{starter}:{})}),plan?"Back to Squad":"Plan a signing")+'</div>';
  if(!plan){
   const assigned=d.slots.filter(s=>s.player).length;
   const overview='<section class="card"><h2>'+E(tactic.name)+'</h2><p>'+assigned+' of '+d.slots.length+' slots have a saved starter present at '+val(d.club)+' in this season. An unassigned slot is not automatically a squad weakness.</p><div class="grid squad-slots">'+d.slots.map(s=>'<article class="card"><small>'+E(s.label)+' · '+E(roleLabel(s.roleId))+'</small><strong>'+ (s.player?E(s.player.name):s.saved?"Saved starter not in this club’s season roster":"No saved starter")+'</strong><div class="actions">'+A(path("squad",{...selection,slot:s.id}),"Inspect "+s.label)+'</div></article>').join("")+'</div></section>';

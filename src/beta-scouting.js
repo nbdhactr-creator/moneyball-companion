@@ -2,7 +2,7 @@ import {benchmarkPanel} from "./beta-metrics.js";
 import {formatMetric} from "./beta-benchmarks.js";
 
 // UI-only module. Query parameters are never treated as scoring inputs.
-export function renderScouting(q,d,{E,A,h,val,field,input,score,path,decision,season}){
+export function renderScouting(q,d,{E,A,h,val,field,input,score,path,decision,season,roles}){
  const choices=(values,any)=>[["",any],...values.map(x=>[x,x])];
  const pills={role:q.role?"Role selected":"",league:q.league,q:q.q?"Search: "+q.q:"",minutes:q.minutes?q.minutes+"+ minutes":"",ageMin:q.ageMin?"Age from "+q.ageMin:"",ageMax:q.ageMax?"Age to "+q.ageMax:"",value:q.value?"Value ≤ "+(q.currency||"£")+q.value+"m":"",wage:q.wage?"Wage ≤ "+(q.currency||"£")+q.wage+"k":"",tracked:q.tracked?"Beta shortlist only":"",minScore:q.minScore?"Minimum role score "+q.minScore:"",foot:q.foot};
  const role=q.role||"";
@@ -31,7 +31,7 @@ export function renderScouting(q,d,{E,A,h,val,field,input,score,path,decision,se
  return h("Scouting / "+season.seasonLabel,"Find the right players")+
  '<p>Start with a role and enough minutes. Compare the key statistics with eligible peers, then shortlist the players worth investigating.</p>'+
  '<form class="filters" data-form="search"><div class="grid">'+
- field("role","Role and duty",[["","Any position"],...q.roleChoices],q)+
+ field("role","Role and duty",[["","Any position"],...roles],q)+
  field("league","Division",choices(d.leagues,"All divisions"),q)+
  input("minutes","Minimum minutes",q)+input("q","Player or club",q,"search")+
  '</div><div class="actions"><button class="primary">Find players</button>'+
